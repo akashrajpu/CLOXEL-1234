@@ -48,7 +48,7 @@ function App() {
   const handleAutoGenerate = async () => {
     setIsGeneratingScript(true);
     try {
-      const response = await fetch('http://localhost:8000/generate-script', {
+      const response = await fetch('https://cloxel.onrender.com/generate-script', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -73,7 +73,7 @@ function App() {
     setCloudinaryUrl(null);
     
     try {
-      const response = await fetch('http://localhost:8000/generate-custom-video', {
+      const response = await fetch('https://cloxel.onrender.com/generate-custom-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -101,7 +101,7 @@ function App() {
   const pollStatus = async (id) => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`http://localhost:8000/status/${id}`);
+        const response = await fetch(`https://cloxel.onrender.com/status/${id}`);
         const data = await response.json();
         
         setJobStatus(data.status);
