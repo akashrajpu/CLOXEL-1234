@@ -2,7 +2,7 @@ fastapi
 uvicorn
 pydantic
 edge-tts
-moviepy
+moviepy==1.0.3
 pillow
 cloudinary
 requests
