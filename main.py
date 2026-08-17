@@ -40,7 +40,7 @@ class Scene(BaseModel):
 
 class VideoRequest(BaseModel):
     scenes: List[Scene] = []
-    font_name: str = "UTM Kabel KT.ttf"
+    font_name: str = "Arial.ttf"
     font_color: str = "yellow"
     font_size: int = 220
     voice_id: str = "hi-IN-MadhurNeural"

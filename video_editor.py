@@ -36,8 +36,6 @@ def create_animated_text(full_text, size, duration, font_path, highlight_color, 
                 font = ImageFont.load_default()
                 print("❌ ERROR: Koi font nahi mila! Text chhota hi aayega. Please ek sahi .ttf file ./fonts folder mein dalein.")
 
-        return img
-    
     # Cache variable to avoid drawing twice per frame (once for RGB, once for mask)
     cache = {'t': -1, 'img': None}
 
