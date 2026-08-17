@@ -36,13 +36,23 @@ def create_animated_text(full_text, size, duration, font_path, highlight_color, 
                 font = ImageFont.load_default()
                 print("❌ ERROR: Koi font nahi mila! Text chhota hi aayega. Please ek sahi .ttf file ./fonts folder mein dalein.")
 
-    def make_frame(t):
+        return img
+    
+    # Cache variable to avoid drawing twice per frame (once for RGB, once for mask)
+    cache = {'t': -1, 'img': None}
+
+    def get_img(t):
+        if cache['t'] == t:
+            return cache['img']
+            
         i = int(t * fps)
         img = Image.new('RGBA', size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         
         if not words:
-            return np.array(img)
+            cache['t'] = t
+            cache['img'] = img
+            return img
             
         # Current word highlight logic
         word_idx = int((i / total_frames) * len(words))
@@ -97,11 +107,21 @@ def create_animated_text(full_text, size, duration, font_path, highlight_color, 
             # Agli line ki Y position
             y_text += line_spacing 
             
-        return np.array(img)
+        cache['t'] = t
+        cache['img'] = img
+        return img
+        
+    def make_frame(t):
+        return np.array(get_img(t).convert('RGB'))
+        
+    def make_mask(t):
+        return np.array(get_img(t).split()[3]) / 255.0
     
-    return VideoClip(make_frame, duration=duration).set_fps(fps)
+    clip = VideoClip(make_frame, duration=duration).set_fps(fps)
+    mask_clip = VideoClip(make_mask, ismask=True, duration=duration).set_fps(fps)
+    return clip.set_mask(mask_clip)
     
-def merge_and_export(scene_list, output_name, font_path="./fonts/UTM Kabel KT.ttf", color="#FFEE00", font_size=220, target_size=(1080, 1920)):
+def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", color="#FFEE00", font_size=220, target_size=(1080, 1920)):
     """
     Har scene ka apna audio, apna video, aur apni text script merge karta hai.
     """
