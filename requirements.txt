@@ -9,4 +9,5 @@ requests
 apscheduler
 python-dotenv
 ollama
-
+pymongo
+passlib[bcrypt]

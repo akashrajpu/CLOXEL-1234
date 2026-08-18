@@ -16,6 +16,10 @@ from video_editor import merge_and_export
 from audio_engine import make_audio
 from video_fetcher import fetch_videos
 
+from passlib.context import CryptContext
+from pymongo import MongoClient
+import pymongo
+
 load_dotenv("config.env")
 
 cloudinary.config( 
@@ -23,6 +27,21 @@ cloudinary.config(
   api_key = os.getenv('CLOUDINARY_API_KEY'), 
   api_secret = os.getenv('CLOUDINARY_API_SECRET') 
 )
+
+# 2. MongoDB Setup
+MONGO_URI = os.getenv('MONGO_URI')
+if MONGO_URI:
+    mongo_client = MongoClient(MONGO_URI)
+    db = mongo_client.cloxel_db
+    users_collection = db.users
+else:
+    print("WARNING: MONGO_URI is missing in config.env! Authentication will not work properly.")
+    mongo_client = None
+    db = None
+    users_collection = None
+
+# 3. Password Hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 app = FastAPI()
 
@@ -38,8 +57,17 @@ class Scene(BaseModel):
     text: str
     keyword: str
 
+class UserRegister(BaseModel):
+    email_or_mobile: str
+    password: str
+
+class UserLogin(BaseModel):
+    email_or_mobile: str
+    password: str
+
 class VideoRequest(BaseModel):
     scenes: List[Scene] = []
+    user_id: Optional[str] = None
     font_name: str = "Arial.ttf"
     font_color: str = "yellow"
     font_size: int = 220
@@ -61,6 +89,9 @@ def full_process(req: VideoRequest, job_id: str):
         # User ke liye ek alag folder banate hain taaki kachra mix na ho
         job_dir = f"temp_{job_id}"
         os.makedirs(job_dir, exist_ok=True)
+        
+        user_id = req.user_id if req.user_id else "anonymous"
+        print(f"🎬 Processing video for User: {user_id}")
         
         # Scenes ki taiyari
         scenes_data = []
@@ -131,9 +162,44 @@ def full_process(req: VideoRequest, job_id: str):
 @app.post("/generate-custom-video")
 async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundTasks):
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {"status": "processing"}
+    jobs[job_id] = {"status": "processing", "user_id": req.user_id}
     background_tasks.add_task(full_process, req, job_id)
     return {"job_id": job_id, "status": "Processing Started"}
+
+@app.post("/register")
+async def register_user(req: UserRegister):
+    if not users_collection:
+        raise HTTPException(status_code=500, detail="Database not configured")
+        
+    existing_user = users_collection.find_one({"email_or_mobile": req.email_or_mobile})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="User already exists")
+        
+    hashed_password = pwd_context.hash(req.password)
+    internal_id = str(uuid.uuid4())
+    
+    new_user = {
+        "email_or_mobile": req.email_or_mobile,
+        "password_hash": hashed_password,
+        "internal_id": internal_id
+    }
+    
+    users_collection.insert_one(new_user)
+    return {"message": "User registered successfully", "internal_id": internal_id}
+
+@app.post("/login")
+async def login_user(req: UserLogin):
+    if not users_collection:
+        raise HTTPException(status_code=500, detail="Database not configured")
+        
+    user = users_collection.find_one({"email_or_mobile": req.email_or_mobile})
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+        
+    if not pwd_context.verify(req.password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+        
+    return {"message": "Login successful", "internal_id": user["internal_id"]}
 
 @app.get("/status/{job_id}")
 async def get_status(job_id: str):

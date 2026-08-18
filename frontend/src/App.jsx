@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Auth from './Auth';
 
 function App() {
   const [topic, setTopic] = useState('Space Exploration');
@@ -22,6 +23,19 @@ function App() {
   const [cloudinaryUrl, setCloudinaryUrl] = useState(null);
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
+  
+  // Auth state
+  const [userId, setUserId] = useState(() => localStorage.getItem('cloxel_user_id') || null);
+
+  const handleLoginSuccess = (id) => {
+    setUserId(id);
+    localStorage.setItem('cloxel_user_id', id);
+  };
+
+  const handleLogout = () => {
+    setUserId(null);
+    localStorage.removeItem('cloxel_user_id');
+  };
 
   // Update scenes array when duration changes
   useEffect(() => {
@@ -86,7 +100,8 @@ function App() {
           voice_id: voiceId,
           language: 'hi',
           video_type: videoType,
-          full_script: fullScript
+          full_script: fullScript,
+          user_id: userId
         })
       });
       const data = await response.json();
@@ -122,11 +137,16 @@ function App() {
     }, 5000);
   };
 
+  if (!userId) {
+    return <Auth onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="app-container">
-      <header>
-        <h1>Zobbly AI Automation</h1>
-        <p>Generate & Manage Your Automated Videos Seamlessly</p>
+      <header className="app-header">
+        <h1>Cloxel <span>Video Generator</span></h1>
+        <p>AI-powered Faceless Videos in Minutes</p>
+        <button onClick={handleLogout} className="btn-secondary" style={{position: 'absolute', top: '20px', right: '20px', fontSize: '0.8rem'}}>Logout</button>
       </header>
 
       <div className="dashboard">
