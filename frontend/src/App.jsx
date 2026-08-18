@@ -20,6 +20,7 @@ function App() {
   const [jobId, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
   const [cloudinaryUrl, setCloudinaryUrl] = useState(null);
+  const [downloadUrl, setDownloadUrl] = useState(null);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
 
   // Update scenes array when duration changes
@@ -71,6 +72,7 @@ function App() {
     setJobId(null);
     setJobStatus(null);
     setCloudinaryUrl(null);
+    setDownloadUrl(null);
     
     try {
       const response = await fetch('https://cloxel.onrender.com/generate-custom-video', {
@@ -110,6 +112,8 @@ function App() {
           clearInterval(interval);
           if (data.cloudinary_url) {
             setCloudinaryUrl(data.cloudinary_url);
+          } else if (data.status === 'completed') {
+            setDownloadUrl(`https://cloxel.onrender.com/download/${id}`);
           }
         }
       } catch (e) {
@@ -279,14 +283,21 @@ function App() {
             </div>
           )}
 
-          {cloudinaryUrl && (
+          {cloudinaryUrl ? (
             <div className="video-result">
               <video src={cloudinaryUrl} controls autoPlay loop muted></video>
               <a href={cloudinaryUrl} target="_blank" rel="noreferrer" className="download-link">
                 Open in Cloudinary
               </a>
             </div>
-          )}
+          ) : downloadUrl ? (
+            <div className="video-result">
+              <video src={downloadUrl} controls autoPlay loop muted></video>
+              <a href={downloadUrl} target="_blank" rel="noreferrer" className="download-link">
+                Download Direct Video
+              </a>
+            </div>
+          ) : null}
         </aside>
       </div>
     </div>

@@ -170,7 +170,7 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
     except: pass
 
     # Final Render
-    video_track.write_videofile(output_name, codec="libx264", audio_codec="aac", fps=24, preset="ultrafast", threads=1, logger=None)
+    video_track.write_videofile(output_name, codec="libx264", audio_codec="aac", fps=24, preset="ultrafast", threads=1, logger='bar')
     
     # Cleanup
     video_track.close()
