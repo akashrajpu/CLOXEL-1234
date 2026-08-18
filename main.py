@@ -182,7 +182,7 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
 
 @app.post("/register")
 async def register_user(req: UserRegister):
-    if not users_collection:
+    if users_collection is None:
         raise HTTPException(status_code=500, detail="Database not configured")
         
     existing_user = users_collection.find_one({"email_or_mobile": req.email_or_mobile})
@@ -203,7 +203,7 @@ async def register_user(req: UserRegister):
 
 @app.post("/login")
 async def login_user(req: UserLogin):
-    if not users_collection:
+    if users_collection is None:
         raise HTTPException(status_code=500, detail="Database not configured")
         
     user = users_collection.find_one({"email_or_mobile": req.email_or_mobile})
