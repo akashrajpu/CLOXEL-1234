@@ -2,6 +2,7 @@ import os
 import random
 import numpy as np
 import textwrap
+import subprocess
 from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips, CompositeVideoClip, ImageSequenceClip, VideoClip
 from PIL import Image, ImageDraw, ImageFont
 
@@ -165,29 +166,43 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
         
         temp_scene_files.append(scene_output)
 
-    # Load rendered lightweight clips
-    print(f"🔗 Concatenating {len(temp_scene_files)} scenes...")
-    basic_clips = [VideoFileClip(f) for f in temp_scene_files]
-    video_track = concatenate_videoclips(basic_clips, method="chain")
-    total_duration = video_track.duration
+    # Load rendered lightweight clips using RAW FFMPEG (Zero RAM)
+    print(f"🔗 Concatenating {len(temp_scene_files)} scenes via ffmpeg...")
+    list_path = os.path.join(job_dir, "concat_list.txt")
+    with open(list_path, "w") as f:
+        for tf in temp_scene_files:
+            f.write(f"file '{tf}'\n")
+            
+    temp_merged = os.path.join(job_dir, "temp_merged_final.mp4")
+    subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", temp_merged], check=True)
 
     # Background Music
-    try:
-        music_dir = "./songs" if os.path.isdir("./songs") else "./songs copy"
+    music_dir = "./songs" if os.path.isdir("./songs") else "./songs copy"
+    bg_music_files = []
+    if os.path.exists(music_dir):
         bg_music_files = [os.path.join(music_dir, f) for f in os.listdir(music_dir) if f.lower().endswith(('.mp3', '.wav'))]
-        if bg_music_files:
-            bg_music = AudioFileClip(random.choice(bg_music_files)).volumex(0.12).set_duration(total_duration)
-            from moviepy.audio.AudioClip import CompositeAudioClip
-            video_track = video_track.set_audio(CompositeAudioClip([video_track.audio, bg_music]))
-    except: pass
-
-    # Final Render
-    print("🎬 Rendering Final Output...")
-    video_track.write_videofile(output_name, codec="libx264", audio_codec="aac", fps=24, preset="ultrafast", threads=1, logger='bar')
+        
+    if bg_music_files:
+        print("🎬 Adding background music and rendering Final Output...")
+        bg_music = random.choice(bg_music_files)
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", temp_merged,
+            "-i", bg_music,
+            "-filter_complex", "[1:a]volume=0.12[a1];[0:a][a1]amix=inputs=2:duration=first[a]",
+            "-map", "0:v",
+            "-map", "[a]",
+            "-c:v", "copy",
+            "-c:a", "aac",
+            output_name
+        ]
+        subprocess.run(cmd, check=True)
+        os.remove(temp_merged)
+    else:
+        os.rename(temp_merged, output_name)
     
     # Final Cleanup
-    video_track.close()
-    for clip in basic_clips: clip.close()
+    if os.path.exists(list_path): os.remove(list_path)
     for f in temp_scene_files: 
         if os.path.exists(f): os.remove(f)
     
