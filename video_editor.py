@@ -136,7 +136,7 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
         clip_duration = a_clip.duration
         
         # Video clip taiyaar karein
-        v_clip = VideoFileClip(video_path).resize(height=target_size[1])
+        v_clip = VideoFileClip(video_path, audio=False).resize(height=target_size[1])
         if v_clip.w > target_size[0]:
             v_clip = v_clip.crop(x_center=v_clip.w/2, width=target_size[0])
         elif v_clip.w < target_size[0]:
@@ -170,7 +170,7 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
     except: pass
 
     # Final Render
-    video_track.write_videofile(output_name, codec="libx264", audio_codec="aac", fps=24, preset="ultrafast", threads=1)
+    video_track.write_videofile(output_name, codec="libx264", audio_codec="aac", fps=24, preset="ultrafast", threads=1, logger=None)
     
     # Cleanup
     video_track.close()

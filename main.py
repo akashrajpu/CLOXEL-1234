@@ -108,7 +108,7 @@ def full_process(req: VideoRequest, job_id: str):
         if taiyaar_scenes:
             output_file = f"output_{job_id}.mp4"
             # Editor ko user ki choice bhejna (font, color)
-            target_size = (1920, 1080) if req.video_type == "long" else (1080, 1920)
+            target_size = (1280, 720) if req.video_type == "long" else (720, 1280)
             adjusted_font_size = int(req.font_size * 0.7) if req.video_type == "long" else req.font_size
             merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size) 
             
