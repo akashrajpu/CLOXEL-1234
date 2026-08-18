@@ -20,7 +20,20 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait"):
         
         if 'videos' in response and len(response['videos']) > 0:
             for i, video_data in enumerate(response['videos']):
-                video_url = video_data['video_files'][0]['link']
+                # Find the best resolution (around 720p to save RAM, avoid 4K)
+                valid_files = [vf for vf in video_data['video_files'] if vf.get('link')]
+                valid_files.sort(key=lambda x: x.get('width', 0) * x.get('height', 0))
+                
+                best_file = valid_files[0] if valid_files else None
+                for vf in valid_files:
+                    if vf.get('height', 0) >= 720 and vf.get('height', 0) <= 1080:
+                        best_file = vf
+                        break
+                
+                if not best_file:
+                    continue
+                    
+                video_url = best_file['link']
                 dir_name = os.path.dirname(job_id)
                 base_name = os.path.basename(job_id)
                 if dir_name:
