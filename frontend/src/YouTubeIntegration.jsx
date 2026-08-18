@@ -28,11 +28,17 @@ function YouTubeIntegration({ userId }) {
     try {
       const response = await fetch(`${API_BASE}/youtube/auth-url?internal_id=${userId}`);
       const data = await response.json();
+      
+      if (!response.ok) {
+        alert(data.detail || "Error connecting to YouTube API. Make sure YouTube Credentials are set in Render.");
+        return;
+      }
+      
       if (data.auth_url) {
         window.location.href = data.auth_url;
       }
     } catch (err) {
-      alert("Failed to get authorization URL");
+      alert("Failed to get authorization URL. Is the backend running?");
     }
   };
 

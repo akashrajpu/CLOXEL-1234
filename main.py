@@ -12,7 +12,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, timedelta
+from googleapiclient.discovery import build
 import google_auth_oauthlib.flow
+
+# Fix OAuth behind proxy (Render)
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 # Aapke modules
 from video_editor import merge_and_export
