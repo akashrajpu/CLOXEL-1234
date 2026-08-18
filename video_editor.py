@@ -123,9 +123,10 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
     """
     Har scene ka apna audio, apna video, aur apni text script merge karta hai.
     """
-    print(f"\n🎸 Merging distinct scenes (Size: {target_size})...")
+    print(f"\n🎸 Rendering scenes individually to save RAM (Size: {target_size})...")
     
-    final_combined_scenes = []
+    temp_scene_files = []
+    job_dir = os.path.dirname(output_name) if os.path.dirname(output_name) else "."
 
     for i, scene in enumerate(scene_list):
         video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
@@ -135,31 +136,42 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
         a_clip = AudioFileClip(audio_path)
         clip_duration = a_clip.duration
         
-        # Video clip taiyaar karein
+        # Video clip
         v_clip = VideoFileClip(video_path, audio=False).resize(height=target_size[1])
         if v_clip.w > target_size[0]:
             v_clip = v_clip.crop(x_center=v_clip.w/2, width=target_size[0])
         elif v_clip.w < target_size[0]:
-            # Scale up to fill width, then crop height
             v_clip = v_clip.resize(width=target_size[0])
             v_clip = v_clip.crop(y_center=v_clip.h/2, height=target_size[1])
             
         v_clip = v_clip.set_duration(clip_duration)
         v_clip = v_clip.set_audio(a_clip)
 
-        # Text clip (segment specific)
+        # Text clip
         clip_text_segment = scene['text']
         txt_clip = create_animated_text(clip_text_segment, target_size, clip_duration, font_path, color, font_size)
         
-        # Video aur Segmented Subtitle merge karein
         scene_combined = CompositeVideoClip([v_clip, txt_clip.set_position('center')])
-        final_combined_scenes.append(scene_combined)
+        
+        # Render scene individually to disk to free RAM immediately
+        scene_output = os.path.join(job_dir, f"temp_rendered_scene_{i}.mp4")
+        print(f"🎬 Rendering Scene {i+1}/{len(scene_list)} to {scene_output}...")
+        scene_combined.write_videofile(scene_output, codec="libx264", audio_codec="aac", fps=24, preset="ultrafast", threads=1, logger=None)
+        
+        # Immediate Cleanup to prevent OOM
+        scene_combined.close()
+        v_clip.close()
+        a_clip.close()
+        
+        temp_scene_files.append(scene_output)
 
-    # Saari clips ko jodein
-    video_track = concatenate_videoclips(final_combined_scenes, method="chain")
+    # Load rendered lightweight clips
+    print(f"🔗 Concatenating {len(temp_scene_files)} scenes...")
+    basic_clips = [VideoFileClip(f) for f in temp_scene_files]
+    video_track = concatenate_videoclips(basic_clips, method="chain")
     total_duration = video_track.duration
 
-    # Background Music Logic
+    # Background Music
     try:
         music_dir = "./songs" if os.path.isdir("./songs") else "./songs copy"
         bg_music_files = [os.path.join(music_dir, f) for f in os.listdir(music_dir) if f.lower().endswith(('.mp3', '.wav'))]
@@ -170,10 +182,13 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
     except: pass
 
     # Final Render
+    print("🎬 Rendering Final Output...")
     video_track.write_videofile(output_name, codec="libx264", audio_codec="aac", fps=24, preset="ultrafast", threads=1, logger='bar')
     
-    # Cleanup
+    # Final Cleanup
     video_track.close()
-    for scene in final_combined_scenes: scene.close()
+    for clip in basic_clips: clip.close()
+    for f in temp_scene_files: 
+        if os.path.exists(f): os.remove(f)
     
     return output_name
