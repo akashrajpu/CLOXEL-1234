@@ -10,6 +10,7 @@ apscheduler
 python-dotenv
 ollama
 pymongo
+bcrypt==3.2.2
 passlib[bcrypt]
 google-auth-oauthlib
 google-auth-httplib2
