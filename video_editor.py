@@ -59,7 +59,7 @@ def create_animated_text(full_text, size, duration, font_path, highlight_color, 
         
         # 3. Text ko chunks mein baantna
         is_landscape = size[0] > size[1]
-        chunk_size = 12 if is_landscape else 3
+        chunk_size = 8 if is_landscape else 3
         chunk_idx = word_idx // chunk_size
         
         start_idx = chunk_idx * chunk_size
@@ -68,7 +68,10 @@ def create_animated_text(full_text, size, duration, font_path, highlight_color, 
         target_local_idx = word_idx - start_idx
         
         chunk_text = " ".join(current_chunk_words)
-        wrap_width = 40 if is_landscape else 12
+        
+        # Dynamic text wrap based on screen width
+        estimated_char_width = font_size * 0.55
+        wrap_width = max(int((size[0] * 0.85) / estimated_char_width), 1)
         wrapped_text = textwrap.fill(chunk_text, width=wrap_width) # Ek line mein words
         lines = wrapped_text.split('\n')
         
