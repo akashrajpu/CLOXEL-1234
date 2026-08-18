@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Auth from './Auth';
+import YouTubeIntegration from './YouTubeIntegration';
 
 function App() {
   const [topic, setTopic] = useState('Space Exploration');
@@ -39,6 +40,14 @@ function App() {
 
   // Update scenes array when duration changes
   useEffect(() => {
+    // Check for youtube success param
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('yt_success')) {
+      alert('YouTube Account successfully linked!');
+      // Remove param from URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     const chunkCount = Math.max(1, Math.floor(duration / 10));
     setScenes(prev => {
       if (prev.length === chunkCount) return prev;
@@ -318,6 +327,10 @@ function App() {
               </a>
             </div>
           ) : null}
+
+          {/* YOUTUBE INTEGRATION */}
+          <YouTubeIntegration userId={userId} />
+
         </aside>
       </div>
     </div>

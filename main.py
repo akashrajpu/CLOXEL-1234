@@ -7,9 +7,11 @@ import cloudinary.uploader
 from dotenv import load_dotenv
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 from typing import List, Optional
+from datetime import datetime, timedelta
+import google_auth_oauthlib.flow
 
 # Aapke modules
 from video_editor import merge_and_export
@@ -221,6 +223,130 @@ async def cleanup(job_id: str):
         if os.path.exists(job.get("dir", "")): shutil.rmtree(job["dir"])
         return {"status": "Cleaned"}
     return {"error": "Job not found"}
+
+# ================= YouTube Auth Endpoints =================
+YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+
+def get_youtube_flow():
+    client_id = os.getenv("YOUTUBE_CLIENT_ID")
+    client_secret = os.getenv("YOUTUBE_CLIENT_SECRET")
+    
+    if not client_id or not client_secret:
+        return None
+
+    client_config = {
+        "web": {
+            "client_id": client_id,
+            "project_id": "cloxel-app",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_secret": client_secret,
+            "redirect_uris": [os.getenv("YOUTUBE_REDIRECT_URI", "https://cloxel.onrender.com/youtube/callback")]
+        }
+    }
+    
+    flow = google_auth_oauthlib.flow.Flow.from_client_config(
+        client_config, scopes=YOUTUBE_SCOPES
+    )
+    flow.redirect_uri = os.getenv("YOUTUBE_REDIRECT_URI", "https://cloxel.onrender.com/youtube/callback")
+    return flow
+
+class UnlinkRequest(BaseModel):
+    internal_id: str
+
+@app.get("/youtube/auth-url")
+async def get_youtube_auth_url(internal_id: str):
+    flow = get_youtube_flow()
+    if not flow:
+        raise HTTPException(status_code=500, detail="YouTube Client ID/Secret not configured in environment.")
+    
+    auth_url, state = flow.authorization_url(
+        access_type='offline',
+        include_granted_scopes='true',
+        prompt='consent',
+        state=internal_id
+    )
+    return {"auth_url": auth_url}
+
+@app.get("/youtube/callback")
+async def youtube_callback(state: str, code: str):
+    internal_id = state
+    flow = get_youtube_flow()
+    if not flow:
+        raise HTTPException(status_code=500, detail="YouTube Client ID/Secret not configured.")
+    
+    flow.fetch_token(code=code)
+    credentials = flow.credentials
+    
+    creds_dict = {
+        'token': credentials.token,
+        'refresh_token': credentials.refresh_token,
+        'token_uri': credentials.token_uri,
+        'client_id': credentials.client_id,
+        'client_secret': credentials.client_secret,
+        'scopes': credentials.scopes
+    }
+    
+    if users_collection is not None:
+        users_collection.update_one(
+            {"internal_id": internal_id},
+            {"$set": {
+                "youtube_credentials": creds_dict,
+                "youtube_linked_at": datetime.utcnow()
+            }}
+        )
+        
+    frontend_url = os.getenv("FRONTEND_URL", "https://cloxel.onrender.com")
+    return RedirectResponse(url=f"{frontend_url}/?yt_success=1")
+
+@app.get("/youtube/status/{internal_id}")
+async def get_youtube_status(internal_id: str):
+    if users_collection is None:
+        return {"linked": False}
+        
+    user = users_collection.find_one({"internal_id": internal_id})
+    if not user or "youtube_credentials" not in user:
+        return {"linked": False}
+        
+    linked_at = user.get("youtube_linked_at")
+    if not linked_at:
+        return {"linked": True, "can_unlink": True}
+        
+    time_passed = datetime.utcnow() - linked_at
+    can_unlink = time_passed > timedelta(hours=24)
+    
+    hours_left = 0
+    if not can_unlink:
+        hours_left = 24 - (time_passed.total_seconds() / 3600)
+        
+    return {
+        "linked": True,
+        "can_unlink": can_unlink,
+        "hours_left": round(hours_left, 1)
+    }
+
+@app.post("/youtube/unlink")
+async def unlink_youtube(req: UnlinkRequest):
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+        
+    user = users_collection.find_one({"internal_id": req.internal_id})
+    if not user or "youtube_credentials" not in user:
+        raise HTTPException(status_code=400, detail="No YouTube account linked")
+        
+    linked_at = user.get("youtube_linked_at")
+    if linked_at:
+        time_passed = datetime.utcnow() - linked_at
+        if time_passed < timedelta(hours=24):
+            raise HTTPException(status_code=403, detail="Cannot unlink before 24 hours have passed.")
+            
+    users_collection.update_one(
+        {"internal_id": req.internal_id},
+        {"$unset": {"youtube_credentials": "", "youtube_linked_at": ""}}
+    )
+    
+    return {"message": "YouTube account unlinked successfully"}
 
 @app.post("/generate-script")
 async def generate_script(req: ScriptRequest):

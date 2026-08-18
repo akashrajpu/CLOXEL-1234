@@ -309,6 +309,7 @@ input:focus, select:focus, textarea:focus {
   color: #888;
 }
 
+
 .btn-link {
   background: none;
   border: none;
@@ -318,4 +319,89 @@ input:focus, select:focus, textarea:focus {
   padding: 0;
   font-size: 0.95rem;
   text-decoration: underline;
+}
+
+/* YouTube Integration Styles */
+.yt-card {
+  margin-top: 30px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.yt-card h3 {
+  margin-top: 0;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+
+.yt-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+.yt-status {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.yt-badge {
+  background-color: rgba(0, 200, 83, 0.1);
+  color: #00e676;
+  padding: 10px 15px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(0, 200, 83, 0.2);
+  font-weight: bold;
+  text-align: center;
+}
+
+.btn-yt-link {
+  background-color: #ff0000;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-yt-link:hover {
+  background-color: #cc0000;
+}
+
+.btn-unlink {
+  background-color: transparent;
+  color: #ff4d4d;
+  border: 1px solid #ff4d4d;
+  padding: 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  width: 100%;
+}
+
+.btn-unlink:hover:not(.disabled) {
+  background-color: rgba(255, 77, 77, 0.1);
+}
+
+.btn-unlink.disabled {
+  border-color: #555;
+  color: #777;
+  cursor: not-allowed;
+}
+
+.yt-lock-msg {
+  font-size: 0.85rem;
+  color: #ffaa00;
+  margin-top: 5px;
+  text-align: center;
+}
+
+.yt-security-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
 }
