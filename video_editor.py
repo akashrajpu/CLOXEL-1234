@@ -139,6 +139,11 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
         v_clip = VideoFileClip(video_path).resize(height=target_size[1])
         if v_clip.w > target_size[0]:
             v_clip = v_clip.crop(x_center=v_clip.w/2, width=target_size[0])
+        elif v_clip.w < target_size[0]:
+            # Scale up to fill width, then crop height
+            v_clip = v_clip.resize(width=target_size[0])
+            v_clip = v_clip.crop(y_center=v_clip.h/2, height=target_size[1])
+            
         v_clip = v_clip.set_duration(clip_duration)
         v_clip = v_clip.set_audio(a_clip)
 
@@ -151,7 +156,7 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
         final_combined_scenes.append(scene_combined)
 
     # Saari clips ko jodein
-    video_track = concatenate_videoclips(final_combined_scenes, method="compose")
+    video_track = concatenate_videoclips(final_combined_scenes, method="chain")
     total_duration = video_track.duration
 
     # Background Music Logic
@@ -165,7 +170,7 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
     except: pass
 
     # Final Render
-    video_track.write_videofile(output_name, codec="libx264", audio_codec="aac", fps=24)
+    video_track.write_videofile(output_name, codec="libx264", audio_codec="aac", fps=24, preset="ultrafast", threads=1)
     
     # Cleanup
     video_track.close()
