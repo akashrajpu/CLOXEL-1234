@@ -7,7 +7,7 @@ function App() {
   const [fullScript, setFullScript] = useState('');
   
   // Customization Settings
-  const [fontName, setFontName] = useState('UTM Kabel KT.ttf');
+  const [fontName, setFontName] = useState('Arial.ttf');
   const [fontSize, setFontSize] = useState(220);
   const [fontColor, setFontColor] = useState('yellow');
   const [voiceId, setVoiceId] = useState('hi-IN-MadhurNeural');
@@ -234,7 +234,6 @@ function App() {
           <div className="form-group">
             <label>Font Family</label>
             <select value={fontName} onChange={e => setFontName(e.target.value)}>
-              <option value="UTM Kabel KT.ttf">UTM Kabel KT</option>
               <option value="Arial.ttf">Arial</option>
             </select>
           </div>
