@@ -14,6 +14,8 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 from googleapiclient.discovery import build
 import google_auth_oauthlib.flow
+from apscheduler.schedulers.background import BackgroundScheduler
+import requests
 
 # Fix OAuth behind proxy (Render)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -60,6 +62,20 @@ if MONGO_URI:
         videos_collection = None
 else:
     print("WARNING: MONGO_URI is missing in config.env! Authentication will not work properly.")
+
+# Prevent Render Sleep by Self-Pinging
+def ping_server():
+    try:
+        # Pings the external URL every 10 minutes
+        url = os.getenv("RENDER_EXTERNAL_URL", "https://cloxel.onrender.com")
+        resp = requests.get(url)
+        print(f"⏰ Self-ping to keep server awake: {resp.status_code}")
+    except Exception as e:
+        print(f"Self-ping failed: {e}")
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(ping_server, 'interval', minutes=10)
+scheduler.start()
 
 # 3. Password Hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
