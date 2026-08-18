@@ -26,9 +26,29 @@ function App() {
   const [cloudinaryUrl, setCloudinaryUrl] = useState(null);
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
+  const [history, setHistory] = useState([]);
   
   // Auth state
   const [userId, setUserId] = useState(() => localStorage.getItem('cloxel_user_id') || null);
+
+  const fetchHistory = async () => {
+    if (!userId) return;
+    try {
+      const response = await fetch(`${API_BASE}/history/${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setHistory(data.history || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch history:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (userId) {
+      fetchHistory();
+    }
+  }, [userId]);
 
   const handleLoginSuccess = (id) => {
     setUserId(id);
@@ -37,6 +57,7 @@ function App() {
 
   const handleLogout = () => {
     setUserId(null);
+    setHistory([]);
     localStorage.removeItem('cloxel_user_id');
   };
 
@@ -141,6 +162,10 @@ function App() {
           } else if (data.status === 'completed') {
             setDownloadUrl(`${API_BASE}/download/${id}`);
           }
+          // Refresh history after video generation completes
+          if (data.status === 'completed' && userId) {
+            fetchHistory();
+          }
         }
       } catch (e) {
         console.error(e);
@@ -180,7 +205,6 @@ function App() {
                 >🖥️ Long (16:9)</button>
               </div>
             </div>
-            {/* Duration slider ab dono me dikhega kyuki manual scene building ho rahi hai */}
             <div className="form-group">
               <label>Target Duration (Seconds)</label>
               <select value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
@@ -332,6 +356,25 @@ function App() {
 
           {/* YOUTUBE INTEGRATION */}
           <YouTubeIntegration userId={userId} />
+
+          {/* Video History Section */}
+          {userId && history.length > 0 && (
+            <div className="history-section" style={{ marginTop: '2rem', textAlign: 'left' }}>
+              <h3>🕒 Your Video History</h3>
+              <div className="history-grid">
+                {history.map((vid, idx) => (
+                  <div key={idx} className="history-card" style={{ padding: '0.5rem', border: '1px solid #ccc', marginBottom: '0.5rem' }}>
+                    <p style={{ fontWeight: 'bold' }}>{vid.topic || 'Untitled'}</p>
+                    {vid.cloudinary_url ? (
+                      <a href={vid.cloudinary_url} target="_blank" rel="noreferrer">Watch Video</a>
+                    ) : (
+                      <span>Local file</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </aside>
       </div>

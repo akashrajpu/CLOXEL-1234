@@ -40,6 +40,7 @@ MONGO_URI = os.getenv('MONGO_URI')
 mongo_client = None
 db = None
 users_collection = None
+videos_collection = None
 
 if MONGO_URI:
     try:
@@ -49,12 +50,14 @@ if MONGO_URI:
         mongo_client.admin.command('ping')
         db = mongo_client.cloxel_db
         users_collection = db.users
+        videos_collection = db.videos
         print("✅ MongoDB connected successfully!")
     except Exception as e:
         print(f"❌ CRITICAL WARNING: Failed to connect to MongoDB using the provided MONGO_URI. Authentication will be disabled. Error: {e}")
         mongo_client = None
         db = None
         users_collection = None
+        videos_collection = None
 else:
     print("WARNING: MONGO_URI is missing in config.env! Authentication will not work properly.")
 
@@ -170,6 +173,19 @@ def full_process(req: VideoRequest, job_id: str):
                 print(f"Cloudinary upload failed: {e}")
                 
             jobs[job_id] = {"status": "completed", "file": output_file, "dir": job_dir, "cloudinary_url": cloudinary_url}
+            
+            # Save to Video History in MongoDB
+            if videos_collection is not None and req.user_id != "anonymous":
+                try:
+                    videos_collection.insert_one({
+                        "internal_id": req.user_id,
+                        "job_id": job_id,
+                        "topic": req.topic,
+                        "cloudinary_url": cloudinary_url,
+                        "created_at": datetime.utcnow()
+                    })
+                except Exception as e:
+                    print(f"❌ Failed to save video history to DB: {e}")
         else:
             jobs[job_id] = {"status": "failed", "error": "No scenes ready"}
 
@@ -218,6 +234,26 @@ async def login_user(req: UserLogin):
         raise HTTPException(status_code=400, detail="Invalid credentials")
         
     return {"message": "Login successful", "internal_id": user["internal_id"]}
+
+@app.get("/history/{internal_id}")
+async def get_video_history(internal_id: str):
+    if videos_collection is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    
+    try:
+        # Sort by creation date descending (newest first)
+        videos_cursor = videos_collection.find({"internal_id": internal_id}).sort("created_at", -1)
+        videos_list = []
+        for v in videos_cursor:
+            videos_list.append({
+                "job_id": v.get("job_id"),
+                "topic": v.get("topic", "Unknown Topic"),
+                "cloudinary_url": v.get("cloudinary_url"),
+                "created_at": v.get("created_at").isoformat() if v.get("created_at") else None
+            })
+        return {"history": videos_list}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/status/{job_id}")
 async def get_status(job_id: str):
