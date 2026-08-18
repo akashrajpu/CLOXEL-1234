@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
+
 function YouTubeIntegration({ userId }) {
   const [status, setStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -8,7 +10,7 @@ function YouTubeIntegration({ userId }) {
   const fetchStatus = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`https://cloxel.onrender.com/youtube/status/${userId}`);
+      const response = await fetch(`${API_BASE}/youtube/status/${userId}`);
       const data = await response.json();
       setStatus(data);
     } catch (err) {
@@ -24,7 +26,7 @@ function YouTubeIntegration({ userId }) {
 
   const handleLink = async () => {
     try {
-      const response = await fetch(`https://cloxel.onrender.com/youtube/auth-url?internal_id=${userId}`);
+      const response = await fetch(`${API_BASE}/youtube/auth-url?internal_id=${userId}`);
       const data = await response.json();
       if (data.auth_url) {
         window.location.href = data.auth_url;
@@ -38,7 +40,7 @@ function YouTubeIntegration({ userId }) {
     if (!window.confirm("Are you sure you want to unlink your YouTube account?")) return;
     
     try {
-      const response = await fetch(`https://cloxel.onrender.com/youtube/unlink`, {
+      const response = await fetch(`${API_BASE}/youtube/unlink`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ internal_id: userId })

@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, timedelta
@@ -359,22 +360,16 @@ async def unlink_youtube(req: UnlinkRequest):
     
     return {"message": "YouTube account unlinked successfully"}
 
+
 @app.post("/generate-script")
 async def generate_script(req: ScriptRequest):
     # This is a proxy to the Oracle AI Server
     ai_url = os.getenv("AI_SERVER_URL", "http://localhost:11434")
     
-    # Calculate how many chunks based on duration (e.g. 1 chunk per 10 seconds)
     chunks = max(1, req.duration_seconds // 10)
-    
-    # Dummy logic to be replaced with real Ollama/Omana integration
     prompt = f"Generate {chunks} short distinct script sections about {req.topic}. Format as JSON list of objects with 'text' and 'keyword'."
     
     try:
-        # Example call to Ollama generate endpoint
-        # resp = requests.post(f"{ai_url}/api/generate", json={"model": "llama3", "prompt": prompt, "stream": False})
-        
-        # Fake response for now
         generated_scenes = [
             {"text": f"Dosto, kya aap jante hain {req.topic} ke bare mein?", "keyword": req.topic},
             {"text": "Aise hi mazedar videos ke liye hume follow karein.", "keyword": "subscribe"}
@@ -383,3 +378,9 @@ async def generate_script(req: ScriptRequest):
         return {"scenes": generated_scenes}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# 4. Serve Frontend (Must be the last route)
+if os.path.isdir("frontend/dist"):
+    app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
+else:
+    print("WARNING: frontend/dist not found. Run 'npm run build' in the frontend folder.")

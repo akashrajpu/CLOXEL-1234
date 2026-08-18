@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Auth from './Auth';
 import YouTubeIntegration from './YouTubeIntegration';
 
+const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
+
 function App() {
   const [topic, setTopic] = useState('Space Exploration');
   const [duration, setDuration] = useState(20);
@@ -98,7 +100,7 @@ function App() {
     setDownloadUrl(null);
     
     try {
-      const response = await fetch('https://cloxel.onrender.com/generate-custom-video', {
+      const response = await fetch(`${API_BASE}/generate-custom-video`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -127,7 +129,7 @@ function App() {
   const pollStatus = async (id) => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`https://cloxel.onrender.com/status/${id}`);
+        const response = await fetch(`${API_BASE}/status/${id}`);
         const data = await response.json();
         
         setJobStatus(data.status);
@@ -137,7 +139,7 @@ function App() {
           if (data.cloudinary_url) {
             setCloudinaryUrl(data.cloudinary_url);
           } else if (data.status === 'completed') {
-            setDownloadUrl(`https://cloxel.onrender.com/download/${id}`);
+            setDownloadUrl(`${API_BASE}/download/${id}`);
           }
         }
       } catch (e) {

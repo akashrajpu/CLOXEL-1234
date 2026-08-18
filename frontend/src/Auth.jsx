@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 
+const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
+
 function Auth({ onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
   const [emailOrMobile, setEmailOrMobile] = useState('');
@@ -15,7 +17,7 @@ function Auth({ onLoginSuccess }) {
     const endpoint = isLogin ? '/login' : '/register';
     
     try {
-      const response = await fetch(`https://cloxel.onrender.com${endpoint}`, {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
