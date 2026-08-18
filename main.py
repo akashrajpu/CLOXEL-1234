@@ -32,15 +32,26 @@ cloudinary.config(
 
 # 2. MongoDB Setup
 MONGO_URI = os.getenv('MONGO_URI')
+mongo_client = None
+db = None
+users_collection = None
+
 if MONGO_URI:
-    mongo_client = MongoClient(MONGO_URI)
-    db = mongo_client.cloxel_db
-    users_collection = db.users
+    try:
+        # Wrap in try-except to prevent app crash if DNS/URI is invalid
+        mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        # Test the connection to ensure it's valid
+        mongo_client.admin.command('ping')
+        db = mongo_client.cloxel_db
+        users_collection = db.users
+        print("✅ MongoDB connected successfully!")
+    except Exception as e:
+        print(f"❌ CRITICAL WARNING: Failed to connect to MongoDB using the provided MONGO_URI. Authentication will be disabled. Error: {e}")
+        mongo_client = None
+        db = None
+        users_collection = None
 else:
     print("WARNING: MONGO_URI is missing in config.env! Authentication will not work properly.")
-    mongo_client = None
-    db = None
-    users_collection = None
 
 # 3. Password Hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
