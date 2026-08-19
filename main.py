@@ -310,9 +310,14 @@ async def create_razorpay_order(req: CreateOrderRequest):
     
     amount = amounts.get(req.plan_type, 5000)
     
-    if razorpay_client and RAZORPAY_KEY_ID != "rzp_test_placeholder":
+    key_id = os.getenv("RAZORPAY_KEY_ID", "").strip().strip('"').strip("'")
+    key_secret = os.getenv("RAZORPAY_KEY_SECRET", "").strip().strip('"').strip("'")
+    
+    if key_id and key_secret and key_id != "rzp_test_placeholder":
         try:
-            order = razorpay_client.order.create({
+            import razorpay
+            client = razorpay.Client(auth=(key_id, key_secret))
+            order = client.order.create({
                 "amount": amount,
                 "currency": "INR",
                 "receipt": f"receipt_{req.internal_id[:8]}_{int(datetime.utcnow().timestamp())}",
@@ -322,18 +327,22 @@ async def create_razorpay_order(req: CreateOrderRequest):
                 "order_id": order["id"],
                 "amount": amount,
                 "currency": "INR",
-                "key_id": RAZORPAY_KEY_ID
+                "key_id": key_id
             }
         except Exception as e:
-            print(f"Razorpay order error: {e}")
+            err_msg = str(e)
+            print(f"❌ Razorpay order error: {err_msg}")
+            if "Authentication failed" in err_msg or "Unauthorized" in err_msg or "401" in err_msg:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Razorpay Key Authentication Failed! The Key ID or Secret entered in Render is incorrect or revoked. Please check Razorpay Dashboard -> API Keys."
+                )
+            raise HTTPException(status_code=400, detail=f"Razorpay Order Error: {err_msg}")
             
-    fake_order_id = f"order_demo_{str(uuid.uuid4())[:8]}"
-    return {
-        "order_id": fake_order_id,
-        "amount": amount,
-        "currency": "INR",
-        "key_id": RAZORPAY_KEY_ID or "rzp_test_demo"
-    }
+    raise HTTPException(
+        status_code=400, 
+        detail="Razorpay API Keys are missing in Render Environment Variables! Please add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in Render Environment."
+    )
 
 @app.post("/verify-razorpay-payment")
 async def verify_razorpay_payment(req: VerifyPaymentRequest):
@@ -343,9 +352,14 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
     if not req.razorpay_payment_id or req.razorpay_payment_id.startswith("pay_demo_") or req.razorpay_payment_id == "cancelled":
         raise HTTPException(status_code=400, detail="Payment failed or was cancelled by user. Membership not activated.")
 
-    if razorpay_client and req.razorpay_signature and RAZORPAY_KEY_SECRET != "secret_placeholder":
+    key_id = os.getenv("RAZORPAY_KEY_ID", "").strip().strip('"').strip("'")
+    key_secret = os.getenv("RAZORPAY_KEY_SECRET", "").strip().strip('"').strip("'")
+
+    if key_id and key_secret and req.razorpay_signature and key_secret != "secret_placeholder":
         try:
-            razorpay_client.utility.verify_payment_signature({
+            import razorpay
+            client = razorpay.Client(auth=(key_id, key_secret))
+            client.utility.verify_payment_signature({
                 'razorpay_order_id': req.razorpay_order_id,
                 'razorpay_payment_id': req.razorpay_payment_id,
                 'razorpay_signature': req.razorpay_signature
