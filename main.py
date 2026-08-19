@@ -97,8 +97,12 @@ class Scene(BaseModel):
     keyword: str
 
 class UserRegister(BaseModel):
-    email_or_mobile: str
+    name: str
+    country: str
+    phone: str
+    email: str
     password: str
+    email_or_mobile: Optional[str] = None
 
 class UserLogin(BaseModel):
     email_or_mobile: str
@@ -225,17 +229,36 @@ async def register_user(req: UserRegister):
     if users_collection is None:
         raise HTTPException(status_code=500, detail="Database not configured")
         
-    existing_user = users_collection.find_one({"email_or_mobile": req.email_or_mobile})
+    primary_email = req.email.strip()
+    primary_phone = req.phone.strip()
+    
+    if not primary_email or not primary_phone or not req.name.strip() or not req.country.strip():
+        raise HTTPException(status_code=400, detail="All fields (Name, Country, Phone, Email, Password) are mandatory.")
+        
+    existing_user = users_collection.find_one({
+        "$or": [
+            {"email": primary_email},
+            {"phone": primary_phone},
+            {"email_or_mobile": primary_email},
+            {"email_or_mobile": primary_phone}
+        ]
+    })
+    
     if existing_user:
-        raise HTTPException(status_code=400, detail="User already exists")
+        raise HTTPException(status_code=400, detail="An account with this Email or Phone number already exists.")
         
     hashed_password = pwd_context.hash(req.password)
     internal_id = str(uuid.uuid4())
     
     new_user = {
-        "email_or_mobile": req.email_or_mobile,
+        "name": req.name.strip(),
+        "country": req.country.strip(),
+        "phone": primary_phone,
+        "email": primary_email,
+        "email_or_mobile": primary_email, # Fallback
         "password_hash": hashed_password,
-        "internal_id": internal_id
+        "internal_id": internal_id,
+        "created_at": datetime.utcnow()
     }
     
     users_collection.insert_one(new_user)
@@ -246,7 +269,15 @@ async def login_user(req: UserLogin):
     if users_collection is None:
         raise HTTPException(status_code=500, detail="Database not configured")
         
-    user = users_collection.find_one({"email_or_mobile": req.email_or_mobile})
+    identifier = req.email_or_mobile.strip()
+    user = users_collection.find_one({
+        "$or": [
+            {"email": identifier},
+            {"phone": identifier},
+            {"email_or_mobile": identifier}
+        ]
+    })
+    
     if not user:
         raise HTTPException(status_code=400, detail="Invalid credentials")
         
