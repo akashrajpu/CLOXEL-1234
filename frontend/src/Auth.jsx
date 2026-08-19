@@ -125,7 +125,7 @@ function Auth({ onLoginSuccess }) {
       </header>
 
       {/* Auth Modal (Overlay) */}
-      {(showAuthModal || isLogin) && (
+      {showAuthModal && (
         <div className="auth-modal-overlay" onClick={() => setShowAuthModal(false)}>
           <div className="auth-modal-card" onClick={e => e.stopPropagation()}>
             <button className="modal-close-btn" onClick={() => setShowAuthModal(false)}>×</button>
