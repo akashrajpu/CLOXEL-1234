@@ -29,6 +29,7 @@ function App() {
   const [history, setHistory] = useState([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
+  const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
   const [subStatus, setSubStatus] = useState({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
   
@@ -232,8 +233,8 @@ function App() {
             });
             
             if (verifyResp.ok) {
-              alert("🎉 Payment Successful! Membership Activated for 30 Days.");
               setShowPricingModal(false);
+              setShowPaymentSuccessModal(true);
               fetchSubscriptionStatus();
             } else {
               const errData = await verifyResp.json();
@@ -428,9 +429,19 @@ function App() {
                 Status: {jobStatus.toUpperCase()}
               </div>
               {jobStatus === 'processing' && (
-                <p className="animate-pulse" style={{ marginTop: '1rem', color: 'var(--text-muted)' }}>
-                  Rendering chunks and mixing... this takes time.
-                </p>
+                <div style={{ marginTop: '1rem' }}>
+                  <lottie-player 
+                    src="/loding.json" 
+                    background="transparent" 
+                    speed="1" 
+                    style={{ width: '120px', height: '120px', margin: '0 auto' }} 
+                    loop 
+                    autoplay
+                  ></lottie-player>
+                  <p className="animate-pulse" style={{ marginTop: '0.5rem', color: 'var(--text-muted)' }}>
+                    Rendering video scenes & mixing audio... please wait.
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -606,6 +617,36 @@ function App() {
             <div className="pricing-footer">
               🔒 Safe & Secure Payments via Razorpay. Cancel anytime.
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Success Confirmation Modal with payment.json Lottie animation */}
+      {showPaymentSuccessModal && (
+        <div className="pricing-modal-overlay" onClick={() => setShowPaymentSuccessModal(false)}>
+          <div className="pricing-modal-card" style={{ maxWidth: '420px', textAlign: 'center', padding: '40px 24px' }} onClick={e => e.stopPropagation()}>
+            <lottie-player 
+              src="/payment.json" 
+              background="transparent" 
+              speed="1" 
+              style={{ width: '220px', height: '220px', margin: '0 auto' }} 
+              autoplay
+            ></lottie-player>
+
+            <h2 style={{ color: '#22c55e', fontSize: '1.8rem', marginTop: '16px', marginBottom: '8px' }}>
+              🎉 Payment Successful!
+            </h2>
+            <p style={{ color: '#cbd5e1', fontSize: '0.95rem', marginBottom: '24px' }}>
+              Your 30-Day Membership has been activated. You can now generate videos and auto-upload to YouTube!
+            </p>
+
+            <button 
+              className="btn-hero-cta" 
+              style={{ width: '100%', padding: '14px', fontSize: '1rem' }} 
+              onClick={() => setShowPaymentSuccessModal(false)}
+            >
+              Start Creating Videos →
+            </button>
           </div>
         </div>
       )}

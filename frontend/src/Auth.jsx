@@ -206,7 +206,19 @@ function Auth({ onLoginSuccess }) {
               </div>
 
               <button type="submit" disabled={isLoading} className="btn-primary auth-submit">
-                {isLoading ? 'Please wait...' : (isLogin ? 'Login to Dashboard' : 'Create Account')}
+                {isLoading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <lottie-player 
+                      src="/loding.json" 
+                      background="transparent" 
+                      speed="1" 
+                      style={{ width: '40px', height: '40px' }} 
+                      loop 
+                      autoplay
+                    ></lottie-player>
+                    <span>{isLogin ? 'Logging in...' : 'Creating Account...'}</span>
+                  </div>
+                ) : (isLogin ? 'Login to Dashboard' : 'Create Account')}
               </button>
             </form>
 
