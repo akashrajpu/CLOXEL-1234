@@ -218,6 +218,11 @@ function App() {
           name: "Cloxel AI Video Generator",
           description: `30 Days Membership (${planType.toUpperCase()})`,
           order_id: orderData.order_id,
+          prefill: {
+            name: "Zobbly User",
+            email: "user@cloxel.com",
+            contact: "9876543210"
+          },
           handler: async function (res) {
             // Verify payment on backend ONLY when payment actually succeeds!
             const verifyResp = await fetch(`${API_BASE}/verify-razorpay-payment`, {
