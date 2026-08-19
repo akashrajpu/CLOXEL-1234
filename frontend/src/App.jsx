@@ -128,6 +128,7 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          topic: topic,
           scenes: scenes,
           font_name: fontName,
           font_color: fontColor,
@@ -399,7 +400,11 @@ function App() {
                       </p>
                       {vid.cloudinary_url ? (
                         <a href={vid.cloudinary_url} target="_blank" rel="noreferrer" className="history-watch-btn">
-                          ▶ Watch Video
+                          ▶ Watch (Cloudinary)
+                        </a>
+                      ) : vid.job_id ? (
+                        <a href={`${API_BASE}/download/${vid.job_id}`} target="_blank" rel="noreferrer" className="history-watch-btn">
+                          ⬇ Download Video
                         </a>
                       ) : (
                         <span className="history-local-tag">Local file</span>

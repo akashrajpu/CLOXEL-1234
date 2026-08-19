@@ -195,13 +195,15 @@ def full_process(req: VideoRequest, job_id: str):
             # Save to Video History in MongoDB
             if videos_collection is not None and req.user_id != "anonymous":
                 try:
+                    video_title = req.topic if req.topic else (req.full_script[:30] if req.full_script else (taiyaar_scenes[0]["text"][:30] if taiyaar_scenes else "Generated Video"))
                     videos_collection.insert_one({
                         "internal_id": req.user_id,
                         "job_id": job_id,
-                        "topic": req.topic,
+                        "topic": video_title,
                         "cloudinary_url": cloudinary_url,
                         "created_at": datetime.utcnow()
                     })
+                    print(f"✅ Video history saved to MongoDB for user {req.user_id}: {video_title}")
                 except Exception as e:
                     print(f"❌ Failed to save video history to DB: {e}")
         else:
