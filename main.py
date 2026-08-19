@@ -271,6 +271,21 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
     background_tasks.add_task(full_process, req, job_id)
     return {"job_id": job_id, "status": "Processing Started"}
 
+class ProfilePicRequest(BaseModel):
+    internal_id: str
+    profile_pic: str
+
+@app.post("/update-profile-pic")
+async def update_profile_pic(req: ProfilePicRequest):
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+        
+    users_collection.update_one(
+        {"internal_id": req.internal_id},
+        {"$set": {"profile_pic": req.profile_pic}}
+    )
+    return {"message": "Profile picture updated successfully!"}
+
 @app.get("/user-subscription/{internal_id}")
 async def get_user_subscription(internal_id: str):
     if users_collection is None:
@@ -294,6 +309,11 @@ async def get_user_subscription(internal_id: str):
             is_active = True
 
     return {
+        "name": user.get("name", "User"),
+        "email": user.get("email", ""),
+        "phone": user.get("phone", ""),
+        "country": user.get("country", ""),
+        "profile_pic": user.get("profile_pic", ""),
         "free_demo_count": free_demo,
         "has_active_subscription": is_active,
         "plan_type": sub_plan if is_active else "none",

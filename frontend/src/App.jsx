@@ -195,6 +195,26 @@ function App() {
     }, 5000);
   };
 
+  const handleProfilePicUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64Image = reader.result;
+      setSubStatus(prev => ({ ...prev, profile_pic: base64Image }));
+      try {
+        await fetch(`${API_BASE}/update-profile-pic`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ internal_id: userId, profile_pic: base64Image })
+        });
+      } catch (err) {
+        console.error("Profile picture upload error:", err);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleBuyPlan = async (planType) => {
     try {
       const response = await fetch(`${API_BASE}/create-razorpay-order`, {
@@ -284,8 +304,13 @@ function App() {
           <button className="btn-upgrade-pill" onClick={() => setShowPricingModal(true)}>
             💎 Upgrade Plan
           </button>
-          <button className="profile-pill-btn" onClick={() => setIsSidebarOpen(true)}>
-            <span>👤 Account</span>
+          <button className="profile-pill-btn" onClick={() => setIsSidebarOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {subStatus.profile_pic ? (
+              <img src={subStatus.profile_pic} alt="User" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
+            ) : (
+              <span>👤</span>
+            )}
+            <span>{subStatus.name ? subStatus.name.split(' ')[0] : 'Account'}</span>
           </button>
         </div>
       </header>
@@ -484,12 +509,36 @@ function App() {
               <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>×</button>
             </div>
 
-            <div className="sidebar-profile">
-              <div className="profile-avatar">👤</div>
-              <div className="profile-info">
-                <p className="profile-title">Account Active</p>
-                <p className="profile-id">ID: {userId ? `${userId.substring(0, 12)}...` : 'Unknown'}</p>
-                <p className="profile-sub-badge" style={{ fontSize: '0.75rem', color: '#c084fc', marginTop: '4px', fontWeight: 'bold' }}>
+            <div className="sidebar-profile" style={{ display: 'flex', gap: '14px', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(168,85,247,0.3)', marginBottom: '15px' }}>
+              <div style={{ position: 'relative', cursor: 'pointer' }} title="Click to change profile picture">
+                {subStatus.profile_pic ? (
+                  <img src={subStatus.profile_pic} alt="Profile" style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #a855f7' }} />
+                ) : (
+                  <div className="profile-avatar" style={{ width: '56px', height: '56px', fontSize: '1.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#3b0764', borderRadius: '50%', color: '#c084fc', border: '2px solid #a855f7' }}>
+                    {subStatus.name ? subStatus.name.charAt(0).toUpperCase() : '👤'}
+                  </div>
+                )}
+                <label htmlFor="profile-pic-input" style={{ position: 'absolute', bottom: '-4px', right: '-4px', background: '#a855f7', color: 'white', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.5)' }}>
+                  📷
+                </label>
+                <input 
+                  id="profile-pic-input" 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleProfilePicUpload} 
+                  style={{ display: 'none' }} 
+                />
+              </div>
+
+              <div className="profile-info" style={{ flex: 1, overflow: 'hidden' }}>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#ffffff', fontWeight: '800', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                  {subStatus.name || 'Account Active'}
+                </h3>
+                {subStatus.email && <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#94a3b8', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>✉️ {subStatus.email}</p>}
+                {subStatus.phone && <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>📞 {subStatus.phone}</p>}
+                {subStatus.country && <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>🌐 {subStatus.country}</p>}
+                <p className="profile-id" style={{ margin: '2px 0 0 0', fontSize: '0.7rem', color: '#64748b' }}>ID: {userId ? `${userId.substring(0, 10)}...` : 'Unknown'}</p>
+                <p className="profile-sub-badge" style={{ fontSize: '0.75rem', color: '#c084fc', marginTop: '6px', fontWeight: 'bold' }}>
                   {subStatus.has_active_subscription ? `Active Plan: ${subStatus.plan_type.toUpperCase()}` : `Free Demo Videos Left: ${subStatus.free_demo_count}/2`}
                 </p>
               </div>
