@@ -29,6 +29,7 @@ function App() {
   const [history, setHistory] = useState([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
   const [subStatus, setSubStatus] = useState({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
   
   // Auth state
@@ -206,22 +207,51 @@ function App() {
         alert(orderData.detail || "Failed to create order");
         return;
       }
-      
-      const verifyResp = await fetch(`${API_BASE}/verify-razorpay-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          internal_id: userId,
-          plan_type: planType,
-          razorpay_order_id: orderData.order_id,
-          razorpay_payment_id: `pay_${Date.now()}`
-        })
-      });
-      
-      if (verifyResp.ok) {
-        alert("🎉 Membership Activated successfully for 30 Days!");
-        setShowPricingModal(false);
-        fetchSubscriptionStatus();
+
+      // Real Razorpay Popup Checkout Integration
+      if (window.Razorpay && orderData.key_id && !orderData.order_id.startsWith("order_demo_")) {
+        const options = {
+          key: orderData.key_id,
+          amount: orderData.amount,
+          currency: orderData.currency,
+          name: "Cloxel AI Video",
+          description: `30 Days Subscription (${planType.toUpperCase()})`,
+          order_id: orderData.order_id,
+          handler: async function (res) {
+            // Verify payment on backend ONLY when payment actually succeeds!
+            const verifyResp = await fetch(`${API_BASE}/verify-razorpay-payment`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                internal_id: userId,
+                plan_type: planType,
+                razorpay_order_id: res.razorpay_order_id,
+                razorpay_payment_id: res.razorpay_payment_id,
+                razorpay_signature: res.razorpay_signature
+              })
+            });
+            
+            if (verifyResp.ok) {
+              alert("🎉 Payment Successful! Membership Activated for 30 Days.");
+              setShowPricingModal(false);
+              fetchSubscriptionStatus();
+            } else {
+              const errData = await verifyResp.json();
+              alert(errData.detail || "Payment Verification Failed.");
+            }
+          },
+          modal: {
+            ondismiss: function() {
+              alert("⚠️ Payment cancelled. Membership was NOT activated.");
+            }
+          },
+          theme: { color: "#8b5cf6" }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      } else {
+        alert("⚠️ Live Razorpay API Keys are not yet configured in Render environment variables (RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET).\n\nPlease add your Razorpay keys to Render to allow live user payments!");
       }
     } catch (err) {
       alert("Payment processing error. Please try again.");
@@ -274,71 +304,72 @@ function App() {
             <div className="form-group">
               <label>Target Duration (Seconds)</label>
               <select value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-                <option value={10}>10 Seconds (1 Scene)</option>
                 <option value={20}>20 Seconds (2 Scenes)</option>
                 <option value={30}>30 Seconds (3 Scenes)</option>
                 <option value={60}>60 Seconds (6 Scenes)</option>
-                <option value={120}>2 Minutes (12 Scenes)</option>
-                <option value={300}>5 Minutes (30 Scenes)</option>
               </select>
             </div>
           </div>
 
-          {videoType === 'short' ? (
-            <>
-              <div className="form-group">
-                <label>Main Topic</label>
-                <input 
-                  value={topic} 
-                  onChange={(e) => setTopic(e.target.value)} 
-                  placeholder="e.g. Space Facts"
-                />
-              </div>
-              <button 
-                className="button secondary" 
-                style={{ marginBottom: '2rem' }}
-                onClick={handleAutoGenerate}
-                disabled={isGeneratingScript}
-              >
-                {isGeneratingScript ? "✨ Generating AI Script..." : "✨ Auto-Generate Script via AI"}
-              </button>
+          <div className="form-group">
+            <label>Main Topic</label>
+            <input 
+              type="text" 
+              value={topic} 
+              onChange={e => setTopic(e.target.value)} 
+              placeholder="e.g. History of AI, Space Exploration, Fitness Motivation"
+            />
+          </div>
 
-              <div className="scenes-container">
-                {scenes.map((scene, idx) => (
-                  <div key={idx} className="scene-card">
-                    <div className="scene-header">Scene {idx + 1} ({idx * 10}s - {(idx + 1) * 10}s)</div>
-                    <div className="form-group">
-                      <label>Script Chunk</label>
-                      <textarea 
-                        rows="3"
-                        value={scene.text}
-                        onChange={(e) => handleSceneChange(idx, 'text', e.target.value)}
-                        placeholder="Enter script text for this part..."
-                      />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label>Video Search Keyword</label>
-                      <input 
-                        value={scene.keyword}
-                        onChange={(e) => handleSceneChange(idx, 'keyword', e.target.value)}
-                        placeholder="e.g. galaxy stars"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
+          <div className="form-group">
+            <button 
+              className="button secondary" 
+              onClick={handleAutoGenerate}
+              disabled={isGeneratingScript}
+              style={{ width: '100%', marginBottom: '1.5rem', background: '#3b82f6', color: 'white' }}
+            >
+              {isGeneratingScript ? 'Generating Script via Gemini AI...' : '✨ Auto-Generate Script via AI'}
+            </button>
+          </div>
+
+          {videoType === 'long' ? (
             <div className="form-group">
-              <label>Paste your Long Script here (System will automatically chunk it and extract keywords)</label>
+              <label>Full Video Script (AI generated or custom)</label>
               <textarea 
-                rows="15"
+                rows={8}
                 value={fullScript}
-                onChange={(e) => setFullScript(e.target.value)}
-                placeholder="Yahan hacked data, illegal deals aur anonymous websites mil sakti hain..."
+                onChange={e => setFullScript(e.target.value)}
+                placeholder="Paste or write your full video script here. Our smart AI will automatically split it into matching scenes and generate appropriate background visuals."
               />
             </div>
+          ) : (
+            <div className="scenes-list">
+              {scenes.map((scene, index) => (
+                <div key={index} className="scene-card" style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '1rem', marginBottom: '1.5rem' }}>
+                  <h4 style={{ color: '#a855f7', marginBottom: '0.5rem' }}>Scene {index + 1} ({index * 10}s - {(index + 1) * 10}s)</h4>
+                  <div className="form-group">
+                    <label>Script Chunk</label>
+                    <textarea 
+                      rows={2}
+                      value={scene.text}
+                      onChange={e => handleSceneChange(index, 'text', e.target.value)}
+                      placeholder="Enter script text for this part..."
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Video Search Keyword</label>
+                    <input 
+                      type="text"
+                      value={scene.keyword}
+                      onChange={e => handleSceneChange(index, 'keyword', e.target.value)}
+                      placeholder="e.g. galaxy stars"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
+
         </main>
 
         <aside className="panel">
@@ -349,10 +380,8 @@ function App() {
             <select value={voiceId} onChange={e => setVoiceId(e.target.value)}>
               <option value="hi-IN-MadhurNeural">Madhur (Male, Hindi)</option>
               <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
-              <option value="en-IN-PrabhatNeural">Prabhat (Male, Hinglish/Indian)</option>
-              <option value="en-IN-NeerjaExpressiveNeural">Neerja (Female, Expressive Hinglish)</option>
-              <option value="en-US-ChristopherNeural">Christopher (Male, US English)</option>
-              <option value="en-US-JennyNeural">Jenny (Female, US English)</option>
+              <option value="en-US-GuyNeural">Guy (Male, English)</option>
+              <option value="en-US-JennyNeural">Jenny (Female, English)</option>
             </select>
           </div>
 
@@ -360,6 +389,8 @@ function App() {
             <label>Font Family</label>
             <select value={fontName} onChange={e => setFontName(e.target.value)}>
               <option value="Arial.ttf">Arial</option>
+              <option value="Roboto.ttf">Roboto</option>
+              <option value="Impact.ttf">Impact (Bold Shorts Style)</option>
             </select>
           </div>
           
@@ -489,7 +520,7 @@ function App() {
         </div>
       )}
 
-      {/* Pricing & Membership Modal */}
+      {/* Pricing & Membership Modal with Dynamic Highlighting */}
       {showPricingModal && (
         <div className="pricing-modal-overlay" onClick={() => setShowPricingModal(false)}>
           <div className="pricing-modal-card" onClick={e => e.stopPropagation()}>
@@ -503,7 +534,11 @@ function App() {
 
             <div className="pricing-grid">
               {/* Plan 1: Short Starter */}
-              <div className="pricing-card">
+              <div 
+                className={`pricing-card ${selectedPlan === 'short' ? 'featured' : ''}`}
+                onClick={() => setSelectedPlan('short')}
+                style={{ cursor: 'pointer' }}
+              >
                 <div className="card-tag">30 DAYS</div>
                 <h3>Short Starter</h3>
                 <div className="plan-price">₹50 <span>/ month</span></div>
@@ -513,13 +548,20 @@ function App() {
                   <li>✅ YouTube Auto-Upload Enabled</li>
                   <li>✅ Cloud Storage & History</li>
                 </ul>
-                <button className="btn-buy-plan" onClick={() => handleBuyPlan('short')}>
+                <button 
+                  className={`btn-buy-plan ${selectedPlan === 'short' ? 'featured-btn' : ''}`} 
+                  onClick={(e) => { e.stopPropagation(); setSelectedPlan('short'); handleBuyPlan('short'); }}
+                >
                   Subscribe for ₹50
                 </button>
               </div>
 
               {/* Plan 2: Long Master */}
-              <div className="pricing-card featured">
+              <div 
+                className={`pricing-card ${selectedPlan === 'long' ? 'featured' : ''}`}
+                onClick={() => setSelectedPlan('long')}
+                style={{ cursor: 'pointer' }}
+              >
                 <div className="card-tag gold">POPULAR</div>
                 <h3>Long Master</h3>
                 <div className="plan-price">₹100 <span>/ month</span></div>
@@ -529,13 +571,20 @@ function App() {
                   <li>✅ YouTube Auto-Upload Enabled</li>
                   <li>✅ Cloud Storage & History</li>
                 </ul>
-                <button className="btn-buy-plan featured-btn" onClick={() => handleBuyPlan('long')}>
+                <button 
+                  className={`btn-buy-plan ${selectedPlan === 'long' ? 'featured-btn' : ''}`} 
+                  onClick={(e) => { e.stopPropagation(); setSelectedPlan('long'); handleBuyPlan('long'); }}
+                >
                   Subscribe for ₹100
                 </button>
               </div>
 
               {/* Plan 3: Pro Combo */}
-              <div className="pricing-card">
+              <div 
+                className={`pricing-card ${selectedPlan === 'combo' ? 'featured' : ''}`}
+                onClick={() => setSelectedPlan('combo')}
+                style={{ cursor: 'pointer' }}
+              >
                 <div className="card-tag purple">BEST VALUE</div>
                 <h3>Pro Combo</h3>
                 <div className="plan-price">₹119 <span>/ month</span></div>
@@ -545,7 +594,10 @@ function App() {
                   <li>✅ YouTube Auto-Upload Enabled</li>
                   <li>✅ Priority AI Rendering</li>
                 </ul>
-                <button className="btn-buy-plan" onClick={() => handleBuyPlan('combo')}>
+                <button 
+                  className={`btn-buy-plan ${selectedPlan === 'combo' ? 'featured-btn' : ''}`} 
+                  onClick={(e) => { e.stopPropagation(); setSelectedPlan('combo'); handleBuyPlan('combo'); }}
+                >
                   Subscribe for ₹119
                 </button>
               </div>

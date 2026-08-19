@@ -340,6 +340,20 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
     if users_collection is None:
         raise HTTPException(status_code=500, detail="Database not configured")
         
+    if not req.razorpay_payment_id or req.razorpay_payment_id.startswith("pay_demo_") or req.razorpay_payment_id == "cancelled":
+        raise HTTPException(status_code=400, detail="Payment failed or was cancelled by user. Membership not activated.")
+
+    if razorpay_client and req.razorpay_signature and RAZORPAY_KEY_SECRET != "secret_placeholder":
+        try:
+            razorpay_client.utility.verify_payment_signature({
+                'razorpay_order_id': req.razorpay_order_id,
+                'razorpay_payment_id': req.razorpay_payment_id,
+                'razorpay_signature': req.razorpay_signature
+            })
+        except Exception as e:
+            print(f"❌ Razorpay signature verification failed: {e}")
+            raise HTTPException(status_code=400, detail="Payment Signature Verification Failed. Activation Denied.")
+
     expires_at = datetime.utcnow() + timedelta(days=30)
     
     subscription_data = {
