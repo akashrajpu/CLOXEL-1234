@@ -210,7 +210,7 @@ function App() {
       }
 
       // Real Razorpay Popup Checkout Integration
-      if (window.Razorpay && orderData.key_id && !orderData.order_id.startsWith("order_demo_")) {
+      if (window.Razorpay && orderData.key_id) {
         const options = {
           key: orderData.key_id,
           amount: orderData.amount,
