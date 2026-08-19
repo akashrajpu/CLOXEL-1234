@@ -30,6 +30,7 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
   const [subStatus, setSubStatus] = useState({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
   
@@ -217,12 +218,14 @@ function App() {
 
   const handleBuyPlan = async (planType) => {
     try {
+      setIsPaymentProcessing(true);
       const response = await fetch(`${API_BASE}/create-razorpay-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ internal_id: userId, plan_type: planType })
       });
       const orderData = await response.json();
+      setIsPaymentProcessing(false);
       
       if (!response.ok) {
         alert(orderData.detail || "Failed to create order");
@@ -704,6 +707,31 @@ function App() {
             >
               Start Creating Videos →
             </button>
+          </div>
+        </div>
+      )}
+      {/* Big Full-Screen Loading Animation Overlay for Video Generation & Payment */}
+      {(isGeneratingScript || isPaymentProcessing || jobStatus === 'processing') && (
+        <div className="pricing-modal-overlay" style={{ zIndex: 2500 }}>
+          <div className="pricing-modal-card" style={{ maxWidth: '420px', textAlign: 'center', padding: '40px 24px' }}>
+            <lottie-player 
+              src="/loding.json" 
+              background="transparent" 
+              speed="1" 
+              style={{ width: '220px', height: '220px', margin: '0 auto' }} 
+              loop 
+              autoplay
+            ></lottie-player>
+            <h3 style={{ color: '#ffffff', fontSize: '1.5rem', marginTop: '16px', marginBottom: '8px' }}>
+              {jobStatus === 'processing' 
+                ? 'Rendering AI Video & Audio...' 
+                : isGeneratingScript 
+                  ? 'Generating AI Video Script...' 
+                  : 'Preparing Payment Checkout...'}
+            </h3>
+            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', margin: 0 }}>
+              Please wait a moment while we process your request.
+            </p>
           </div>
         </div>
       )}

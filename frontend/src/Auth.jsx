@@ -206,19 +206,7 @@ function Auth({ onLoginSuccess }) {
               </div>
 
               <button type="submit" disabled={isLoading} className="btn-primary auth-submit">
-                {isLoading ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    <lottie-player 
-                      src="/loding.json" 
-                      background="transparent" 
-                      speed="1" 
-                      style={{ width: '40px', height: '40px' }} 
-                      loop 
-                      autoplay
-                    ></lottie-player>
-                    <span>{isLogin ? 'Logging in...' : 'Creating Account...'}</span>
-                  </div>
-                ) : (isLogin ? 'Login to Dashboard' : 'Create Account')}
+                {isLoading ? 'Processing...' : (isLogin ? 'Login to Dashboard' : 'Create Account')}
               </button>
             </form>
 
@@ -238,6 +226,28 @@ function Auth({ onLoginSuccess }) {
                 {isLogin ? 'Register here' : 'Login here'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Big Full-Screen Loading Animation Overlay */}
+      {isLoading && (
+        <div className="pricing-modal-overlay" style={{ zIndex: 2000 }}>
+          <div className="pricing-modal-card" style={{ maxWidth: '400px', textAlign: 'center', padding: '40px 24px' }}>
+            <lottie-player 
+              src="/loding.json" 
+              background="transparent" 
+              speed="1" 
+              style={{ width: '220px', height: '220px', margin: '0 auto' }} 
+              loop 
+              autoplay
+            ></lottie-player>
+            <h3 style={{ color: '#ffffff', fontSize: '1.5rem', marginTop: '16px', marginBottom: '8px' }}>
+              {isLogin ? 'Logging into Dashboard...' : 'Creating Your Account...'}
+            </h3>
+            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', margin: 0 }}>
+              Please wait a moment while we set up your session.
+            </p>
           </div>
         </div>
       )}
