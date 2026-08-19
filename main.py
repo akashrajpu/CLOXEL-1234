@@ -2,10 +2,13 @@ import os
 import uuid
 import shutil
 import requests
+import warnings
 import urllib.parse
 import cloudinary
 import cloudinary.uploader
 from dotenv import load_dotenv
+
+warnings.filterwarnings("ignore")
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse

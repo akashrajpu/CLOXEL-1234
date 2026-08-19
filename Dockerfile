@@ -7,7 +7,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Build Backend & Serve
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Install system dependencies (ffmpeg is required for video editing)
 RUN apt-get update && apt-get install -y \

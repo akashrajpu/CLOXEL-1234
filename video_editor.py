@@ -1,10 +1,14 @@
 import os
 import random
+import gc
+import warnings
 import numpy as np
 import textwrap
 import subprocess
 from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips, CompositeVideoClip, ImageSequenceClip, VideoClip
 from PIL import Image, ImageDraw, ImageFont
+
+warnings.filterwarnings("ignore")
 
 # Pillow 10+ fix
 if not hasattr(Image, 'ANTIALIAS'):
@@ -166,6 +170,9 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
         scene_combined.close()
         v_clip.close()
         a_clip.close()
+        txt_clip.close()
+        del scene_combined, v_clip, a_clip, txt_clip
+        gc.collect()
         
         temp_scene_files.append(scene_output)
 
