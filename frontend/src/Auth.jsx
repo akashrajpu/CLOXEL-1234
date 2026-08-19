@@ -17,6 +17,12 @@ function Auth({ onLoginSuccess }) {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Nav Modals
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [showFeatures, setShowFeatures] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -72,9 +78,10 @@ function Auth({ onLoginSuccess }) {
           <span className="brand-logo">✦</span> Cloxel <span>AI</span>
         </div>
         <div className="nav-links">
-          <a href="#how-it-works">How it works</a>
-          <a href="#features">Features</a>
-          <a href="#support">Support</a>
+          <button className="nav-link-btn" onClick={() => setShowHowItWorks(true)}>How it works</button>
+          <button className="nav-link-btn" onClick={() => setShowFeatures(true)}>Features</button>
+          <button className="nav-link-btn" onClick={() => setShowSupport(true)}>Support</button>
+          <button className="nav-link-btn" onClick={() => setShowPrivacyPolicy(true)}>Privacy Policy</button>
         </div>
         <div className="nav-actions">
           <button className="btn-nav-login" onClick={() => { setIsLogin(true); setShowAuthModal(true); setError(null); }}>
@@ -248,6 +255,217 @@ function Auth({ onLoginSuccess }) {
             <p style={{ color: '#cbd5e1', fontSize: '0.9rem', margin: 0 }}>
               Please wait a moment while we set up your session.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* 1. HOW IT WORKS MODAL */}
+      {showHowItWorks && (
+        <div className="pricing-modal-overlay" onClick={() => setShowHowItWorks(false)} style={{ zIndex: 3000 }}>
+          <div className="pricing-modal-card" style={{ maxWidth: '850px', padding: '36px' }} onClick={e => e.stopPropagation()}>
+            <button className="sidebar-close-btn" style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer' }} onClick={() => setShowHowItWorks(false)}>×</button>
+
+            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <span className="pricing-badge">⚙️ AUTOMATION WORKFLOW GRAPH</span>
+              <h2 style={{ color: '#ffffff', fontSize: '2rem', marginTop: '8px', fontWeight: '800' }}>
+                How Cloxel AI Automation Engine Works
+              </h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
+                An end-to-end cloud pipeline converting your topics into 60FPS viral videos & auto-publishing.
+              </p>
+            </div>
+
+            {/* Visual Step-by-step Flow Graph */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px 16px', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>💡 Step 1</div>
+                <h4 style={{ color: '#c084fc', marginBottom: '6px' }}>Script Generation</h4>
+                <p style={{ color: '#cbd5e1', fontSize: '0.8rem', margin: 0 }}>Gemini AI parses your topic and writes viral scene hooks.</p>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px 16px', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🗣️ Step 2</div>
+                <h4 style={{ color: '#c084fc', marginBottom: '6px' }}>Madhur Voiceover</h4>
+                <p style={{ color: '#cbd5e1', fontSize: '0.8rem', margin: 0 }}>Hyper-realistic Madhur Neural Voice synthesizes crisp speech.</p>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px 16px', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🎬 Step 3</div>
+                <h4 style={{ color: '#c084fc', marginBottom: '6px' }}>FFmpeg Compositing</h4>
+                <p style={{ color: '#cbd5e1', fontSize: '0.8rem', margin: 0 }}>HD stock visuals + auto-animated yellow captions are merged.</p>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px 16px', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🚀 Step 4</div>
+                <h4 style={{ color: '#c084fc', marginBottom: '6px' }}>Cloud & YouTube</h4>
+                <p style={{ color: '#cbd5e1', fontSize: '0.8rem', margin: 0 }}>100% Cloud storage delivery and 1-click YouTube auto-upload.</p>
+              </div>
+            </div>
+
+            <button className="btn-hero-cta" style={{ width: '100%', padding: '12px' }} onClick={() => setShowHowItWorks(false)}>
+              Got It! Close Guide →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 2. FEATURES MODAL */}
+      {showFeatures && (
+        <div className="pricing-modal-overlay" onClick={() => setShowFeatures(false)} style={{ zIndex: 3000 }}>
+          <div className="pricing-modal-card" style={{ maxWidth: '850px', padding: '36px' }} onClick={e => e.stopPropagation()}>
+            <button className="sidebar-close-btn" style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer' }} onClick={() => setShowFeatures(false)}>×</button>
+
+            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <span className="pricing-badge">⚡ CORE CAPABILITIES</span>
+              <h2 style={{ color: '#ffffff', fontSize: '2rem', marginTop: '8px', fontWeight: '800' }}>
+                Cloxel AI Platform Features
+              </h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
+                Everything you need to automate your YouTube & Shorts content creation.
+              </p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '28px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px' }}>
+                <h4 style={{ color: '#c084fc', fontSize: '1.1rem', marginBottom: '8px' }}>📱 9:16 Shorts & Reels</h4>
+                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0 }}>Create vertical viral Shorts with animated yellow subtitles.</p>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px' }}>
+                <h4 style={{ color: '#c084fc', fontSize: '1.1rem', marginBottom: '8px' }}>🖥️ 16:9 Long YouTube Videos</h4>
+                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0 }}>Full length landscape videos for long-form documentary channels.</p>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px' }}>
+                <h4 style={{ color: '#c084fc', fontSize: '1.1rem', marginBottom: '8px' }}>🗣️ Madhur Neural Voice</h4>
+                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0 }}>Natural human-like Indian voiceover with perfect pronunciation.</p>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px' }}>
+                <h4 style={{ color: '#c084fc', fontSize: '1.1rem', marginBottom: '8px' }}>📅 30-Day Auto Upload</h4>
+                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0 }}>Schedule daily automated video generation and YouTube posting.</p>
+              </div>
+            </div>
+
+            <button className="btn-hero-cta" style={{ width: '100%', padding: '12px' }} onClick={() => setShowFeatures(false)}>
+              Explore Features & Start →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 3. SUPPORT MODAL */}
+      {showSupport && (
+        <div className="pricing-modal-overlay" onClick={() => setShowSupport(false)} style={{ zIndex: 3000 }}>
+          <div className="pricing-modal-card" style={{ maxWidth: '800px', padding: '36px' }} onClick={e => e.stopPropagation()}>
+            <button className="sidebar-close-btn" style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer' }} onClick={() => setShowSupport(false)}>×</button>
+
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <span className="pricing-badge">💬 24/7 SUPPORT CENTER</span>
+              <h2 style={{ color: '#ffffff', fontSize: '2rem', marginTop: '8px', fontWeight: '800' }}>
+                Cloxel AI Help & Support
+              </h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
+                Have questions or need assistance? Our support team is here to help you 24/7.
+              </p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(168,85,247,0.3)' }}>
+                <h4 style={{ color: '#c084fc', marginBottom: '10px' }}>✉️ Direct Email Support</h4>
+                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', marginBottom: '8px' }}>Email us anytime for account or payment queries:</p>
+                <a href="mailto:support@cloxel.com" style={{ color: '#ec4899', fontWeight: 'bold', fontSize: '0.95rem', display: 'block' }}>support@cloxel.com</a>
+                <a href="mailto:contact@zobbly.com" style={{ color: '#a855f7', fontWeight: 'bold', fontSize: '0.85rem', display: 'block', marginTop: '4px' }}>contact@zobbly.com</a>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(168,85,247,0.3)' }}>
+                <h4 style={{ color: '#c084fc', marginBottom: '10px' }}>👤 Founder & Executive Contact</h4>
+                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0 }}><strong>Founder & CEO:</strong> Akash Raj</p>
+                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', marginTop: '4px' }}><strong>Organization:</strong> Cloxel AI Technologies India</p>
+                <p style={{ color: '#22c55e', fontSize: '0.8rem', marginTop: '8px', margin: 0 }}>⚡ Guaranteed response within 24 hours.</p>
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <h4 style={{ color: '#ffffff', marginBottom: '10px' }}>❓ Frequently Asked Questions</h4>
+              <ul style={{ color: '#cbd5e1', fontSize: '0.85rem', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <li><strong>How do I activate my 30-day membership?</strong> Select your desired plan and complete Razorpay checkout. Activation is instant.</li>
+                <li><strong>What if I repurchase an active plan?</strong> Your active membership is automatically extended by an additional 30 days.</li>
+                <li><strong>Can I auto-upload videos to YouTube?</strong> Yes, connect your YouTube channel from the dashboard panel.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. OFFICIAL LEGAL PRIVACY POLICY MODAL */}
+      {showPrivacyPolicy && (
+        <div className="pricing-modal-overlay" onClick={() => setShowPrivacyPolicy(false)} style={{ zIndex: 3000 }}>
+          <div className="pricing-modal-card" style={{ maxWidth: '850px', padding: '40px', background: '#0b071a', border: '2px solid rgba(168,85,247,0.5)' }} onClick={e => e.stopPropagation()}>
+            <button className="sidebar-close-btn" style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer' }} onClick={() => setShowPrivacyPolicy(false)}>×</button>
+
+            {/* Official Legal Header */}
+            <div style={{ borderBottom: '2px solid rgba(168,85,247,0.3)', paddingBottom: '16px', marginBottom: '24px', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', letterSpacing: '2px', color: '#c084fc', fontWeight: '800', textTransform: 'uppercase' }}>OFFICIAL LEGAL DOCUMENT • REPUBLIC OF INDIA COMPLIANT</div>
+              <h2 style={{ color: '#ffffff', fontSize: '1.8rem', margin: '8px 0', fontWeight: '800' }}>
+                Privacy Policy & User Terms Document
+              </h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.82rem' }}>
+                Issued by Cloxel AI Technologies India | IT Act 2000 & Digital Personal Data Protection (DPDP) Act 2023 Guidelines
+              </p>
+            </div>
+
+            {/* Document Body */}
+            <div style={{ maxHeight: '50vh', overflowY: 'auto', paddingRight: '12px', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.65', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <section>
+                <h4 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '4px' }}>1. Data Encryption & Security Safeguards</h4>
+                <p>Cloxel AI implements end-to-end TLS 256-bit encryption for user authentication, API integrations, and database records stored on MongoDB servers. All credentials and payment tokens are processed via secure encrypted protocols.</p>
+              </section>
+
+              <section style={{ background: 'rgba(239, 68, 68, 0.08)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                <h4 style={{ color: '#f87171', fontSize: '1rem', marginBottom: '4px' }}>2. User Liability & Strict Data Protection Limitation Disclaimer</h4>
+                <p style={{ color: '#fca5a5' }}>
+                  While Cloxel AI employs advanced technical security measures, <strong>users remain solely and completely responsible for maintaining the confidentiality of their login credentials, passwords, and access tokens</strong>.
+                </p>
+                <p style={{ color: '#fca5a5', marginTop: '8px' }}>
+                  <strong>Legal Exclusion of Liability:</strong> In the event of account compromise, password leakage, data loss, or unauthorized account activity arising from user negligence, shared credentials, weak passwords, or compromised personal devices, <strong>Cloxel AI, its web platform, infrastructure, servers, founder Akash Raj, and parent entities disclaim all legal liability, financial claims, or obligations.</strong>
+                </p>
+              </section>
+
+              <section>
+                <h4 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '4px' }}>3. Third-Party Integrations & YouTube API Services</h4>
+                <p>By connecting YouTube channels, users agree to YouTube Terms of Service and Google Privacy Policy. Cloxel AI accesses OAuth tokens strictly for automated video publishing initiated by the user.</p>
+              </section>
+
+              <section>
+                <h4 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '4px' }}>4. Official Company & Contact Details</h4>
+                <p>For legal inquiries, formal notices, or privacy data requests, contact our legal office:</p>
+                <ul style={{ paddingLeft: '20px', marginTop: '6px' }}>
+                  <li><strong>Founder & Managing Director:</strong> Akash Raj</li>
+                  <li><strong>Official Entity:</strong> Cloxel AI Technologies India</li>
+                  <li><strong>Primary Contact Email:</strong> contact@zobbly.com</li>
+                  <li><strong>Support Desk Email:</strong> support@cloxel.com</li>
+                </ul>
+              </section>
+            </div>
+
+            {/* Official Signature & Seal Block */}
+            <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '2px dashed rgba(168,85,247,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: 0 }}>AUTHORIZATION SEAL</p>
+                <div style={{ background: 'rgba(168,85,247,0.15)', border: '1px solid #a855f7', color: '#c084fc', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 'bold', display: 'inline-block', marginTop: '4px' }}>
+                  ✓ VERIFIED LEGAL POLICY DOC • REPUBLIC OF INDIA
+                </div>
+              </div>
+
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ color: '#c084fc', fontFamily: 'cursive', fontSize: '1.4rem', margin: 0, fontWeight: 'bold' }}>
+                  Akash Raj
+                </p>
+                <p style={{ color: '#ffffff', fontSize: '0.8rem', margin: 0, fontWeight: 'bold' }}>Akash Raj</p>
+                <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: 0 }}>Founder & CEO, Cloxel AI</p>
+              </div>
+            </div>
           </div>
         </div>
       )}

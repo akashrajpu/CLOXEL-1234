@@ -726,15 +726,18 @@ input:focus, select:focus, textarea:focus {
   gap: 32px;
 }
 
-.nav-links a {
+.nav-links a, .nav-link-btn {
   color: #94a3b8;
+  background: transparent;
+  border: none;
   text-decoration: none;
   font-size: 0.95rem;
   font-weight: 500;
+  cursor: pointer;
   transition: color 0.2s;
 }
 
-.nav-links a:hover {
+.nav-links a:hover, .nav-link-btn:hover {
   color: #ffffff;
 }
 
