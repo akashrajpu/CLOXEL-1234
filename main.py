@@ -334,7 +334,8 @@ async def get_youtube_auth_url(internal_id: str):
         access_type='offline',
         include_granted_scopes='true',
         prompt='consent',
-        state=internal_id
+        state=internal_id,
+        autogenerate_code_verifier=False
     )
     return {"auth_url": auth_url}
 
@@ -346,6 +347,7 @@ async def youtube_callback(state: str, code: str):
         raise HTTPException(status_code=500, detail="YouTube Client ID/Secret not configured.")
     
     try:
+        flow.code_verifier = None
         flow.fetch_token(code=code)
         credentials = flow.credentials
         
