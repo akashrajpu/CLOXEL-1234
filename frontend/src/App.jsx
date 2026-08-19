@@ -717,10 +717,10 @@ function App() {
           </div>
         </div>
       )}
-      {/* Big Full-Screen Loading Animation Overlay for Video Generation & Payment */}
-      {(isGeneratingScript || isPaymentProcessing || jobStatus === 'processing') && (
+      {/* Big Clean Full-Screen Loading Animation Overlay */}
+      {(isGeneratingScript || isPaymentProcessing) && (
         <div className="pricing-modal-overlay" style={{ zIndex: 2500 }}>
-          <div className="pricing-modal-card" style={{ maxWidth: '420px', textAlign: 'center', padding: '40px 24px' }}>
+          <div style={{ maxWidth: '420px', textAlign: 'center', padding: '40px 24px', background: 'transparent', border: 'none', boxShadow: 'none' }}>
             <lottie-player 
               src="/loding.json" 
               background="transparent" 
@@ -730,11 +730,7 @@ function App() {
               autoplay
             ></lottie-player>
             <h3 style={{ color: '#ffffff', fontSize: '1.5rem', marginTop: '16px', marginBottom: '8px' }}>
-              {jobStatus === 'processing' 
-                ? 'Rendering AI Video & Audio...' 
-                : isGeneratingScript 
-                  ? 'Generating AI Video Script...' 
-                  : 'Preparing Payment Checkout...'}
+              {isGeneratingScript ? 'Generating AI Video Script...' : 'Preparing Payment Checkout...'}
             </h3>
             <p style={{ color: '#cbd5e1', fontSize: '0.9rem', margin: 0 }}>
               Please wait a moment while we process your request.

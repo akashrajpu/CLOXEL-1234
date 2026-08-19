@@ -233,7 +233,7 @@ function Auth({ onLoginSuccess }) {
       {/* Big Full-Screen Loading Animation Overlay */}
       {isLoading && (
         <div className="pricing-modal-overlay" style={{ zIndex: 2000 }}>
-          <div className="pricing-modal-card" style={{ maxWidth: '400px', textAlign: 'center', padding: '40px 24px' }}>
+          <div style={{ maxWidth: '400px', textAlign: 'center', padding: '40px 24px', background: 'transparent', border: 'none', boxShadow: 'none' }}>
             <lottie-player 
               src="/loding.json" 
               background="transparent" 
