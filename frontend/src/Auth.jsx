@@ -418,17 +418,17 @@ function Auth({ onLoginSuccess }) {
             {/* Document Body */}
             <div style={{ maxHeight: '50vh', overflowY: 'auto', paddingRight: '12px', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.65', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <section>
-                <h4 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '4px' }}>1. Data Encryption & Security Safeguards</h4>
-                <p>Cloxel AI implements end-to-end TLS 256-bit encryption for user authentication, API integrations, and database records stored on MongoDB servers. All credentials and payment tokens are processed via secure encrypted protocols.</p>
+                <h4 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '4px' }}>1. Advanced Binary Security Architecture (SMS OTP Replacement)</h4>
+                <p>To eliminate SIM-swapping vulnerabilities and SMS interception delays, Cloxel AI utilizes high-level <strong>Binary Cryptographic Hash Architecture & SHA-256 Protocol Encryption</strong>, which is exponentially more powerful, secure, and resilient than traditional OTP systems. Account authorization relies directly on binary token handshakes and encrypted credentials.</p>
               </section>
 
               <section style={{ background: 'rgba(239, 68, 68, 0.08)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-                <h4 style={{ color: '#f87171', fontSize: '1rem', marginBottom: '4px' }}>2. User Liability & Strict Data Protection Limitation Disclaimer</h4>
+                <h4 style={{ color: '#f87171', fontSize: '1rem', marginBottom: '4px' }}>2. User Password Disclosure & Zero Responsibility Disclaimer</h4>
                 <p style={{ color: '#fca5a5' }}>
-                  While Cloxel AI employs advanced technical security measures, <strong>users remain solely and completely responsible for maintaining the confidentiality of their login credentials, passwords, and access tokens</strong>.
+                  While Cloxel AI implements state-of-the-art Binary Encryption, <strong>users remain 100% solely and completely responsible for maintaining strict password secrecy</strong>.
                 </p>
                 <p style={{ color: '#fca5a5', marginTop: '8px' }}>
-                  <strong>Legal Exclusion of Liability:</strong> In the event of account compromise, password leakage, data loss, or unauthorized account activity arising from user negligence, shared credentials, weak passwords, or compromised personal devices, <strong>Cloxel AI, its web platform, infrastructure, servers, founder Akash Raj, and parent entities disclaim all legal liability, financial claims, or obligations.</strong>
+                  <strong>Password Sharing Exclusion:</strong> If a user voluntarily or accidentally discloses, shares, or reveals their account password or email credentials to any third party, friend, or external service, <strong>Cloxel AI, its website, infrastructure, servers, and Founder Akash Raj hold ZERO legal liability, financial responsibility, or obligation for any resulting account breach, data loss, or unauthorized access.</strong>
                 </p>
               </section>
 
