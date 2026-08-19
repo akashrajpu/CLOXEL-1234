@@ -27,6 +27,7 @@ function App() {
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [history, setHistory] = useState([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Auth state
   const [userId, setUserId] = useState(() => localStorage.getItem('cloxel_user_id') || null);
@@ -182,9 +183,15 @@ function App() {
   return (
     <div className="app-container">
       <header className="app-header">
-        <h1>Cloxel <span>Video Generator</span></h1>
-        <p>AI-powered Faceless Videos in Minutes</p>
-        <button onClick={handleLogout} className="btn-secondary" style={{position: 'absolute', top: '20px', right: '20px', fontSize: '0.8rem'}}>Logout</button>
+        <div className="header-left">
+          <button className="hamburger-btn" onClick={() => setIsSidebarOpen(true)} title="Open Menu">
+            ☰
+          </button>
+          <h1>Cloxel <span>AI Video Generator</span></h1>
+        </div>
+        <div className="header-right">
+          <button className="btn-logout-header" onClick={handleLogout}>Logout</button>
+        </div>
       </header>
 
       <div className="dashboard">
@@ -358,28 +365,59 @@ function App() {
 
           {/* YOUTUBE INTEGRATION */}
           <YouTubeIntegration userId={userId} />
-
-          {/* Video History Section */}
-          {userId && history.length > 0 && (
-            <div className="history-section" style={{ marginTop: '2rem', textAlign: 'left' }}>
-              <h3>🕒 Your Video History</h3>
-              <div className="history-grid">
-                {history.map((vid, idx) => (
-                  <div key={idx} className="history-card" style={{ padding: '0.5rem', border: '1px solid #ccc', marginBottom: '0.5rem' }}>
-                    <p style={{ fontWeight: 'bold' }}>{vid.topic || 'Untitled'}</p>
-                    {vid.cloudinary_url ? (
-                      <a href={vid.cloudinary_url} target="_blank" rel="noreferrer">Watch Video</a>
-                    ) : (
-                      <span>Local file</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
         </aside>
       </div>
+
+      {/* Slide-out Sidebar Drawer */}
+      {isSidebarOpen && (
+        <div className="sidebar-backdrop" onClick={() => setIsSidebarOpen(false)}>
+          <div className="sidebar-drawer" onClick={e => e.stopPropagation()}>
+            <div className="sidebar-header">
+              <h3>Menu & Profile</h3>
+              <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>×</button>
+            </div>
+
+            <div className="sidebar-profile">
+              <div className="profile-avatar">👤</div>
+              <div className="profile-info">
+                <p className="profile-title">Account Active</p>
+                <p className="profile-id">ID: {userId ? `${userId.substring(0, 12)}...` : 'Unknown'}</p>
+              </div>
+            </div>
+
+            <div className="sidebar-history-section">
+              <h4>🕒 Your Video History ({history.length})</h4>
+              {history.length === 0 ? (
+                <p className="no-history-msg">No videos generated yet.</p>
+              ) : (
+                <div className="sidebar-history-list">
+                  {history.map((vid, idx) => (
+                    <div key={idx} className="sidebar-history-card">
+                      <p className="history-card-topic">{vid.topic || 'Untitled Video'}</p>
+                      <p className="history-card-date">
+                        {vid.created_at ? new Date(vid.created_at).toLocaleString() : ''}
+                      </p>
+                      {vid.cloudinary_url ? (
+                        <a href={vid.cloudinary_url} target="_blank" rel="noreferrer" className="history-watch-btn">
+                          ▶ Watch Video
+                        </a>
+                      ) : (
+                        <span className="history-local-tag">Local file</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="sidebar-footer">
+              <button className="btn-logout-sidebar" onClick={() => { setIsSidebarOpen(false); handleLogout(); }}>
+                🚪 Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
