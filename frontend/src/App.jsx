@@ -250,6 +250,9 @@ function App() {
         };
 
         const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', function (res) {
+          alert(`❌ Payment Failed: ${res.error.description || 'Transaction declined'}`);
+        });
         rzp.open();
       } else {
         alert("⚠️ Live Razorpay API Keys are not yet configured in Render environment variables (RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET).\n\nPlease add your Razorpay keys to Render to allow live user payments!");
