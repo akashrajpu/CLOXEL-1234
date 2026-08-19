@@ -217,6 +217,13 @@ function App() {
   };
 
   const handleBuyPlan = async (planType) => {
+    if (subStatus.has_active_subscription) {
+      const confirmExtend = window.confirm(
+        `⚠️ WARNING: You already have an active membership plan (Current Plan: ${subStatus.plan_type.toUpperCase()}).\n\nPurchasing this plan will extend your active membership by an additional 30 days.\n\nDo you want to proceed to payment?`
+      );
+      if (!confirmExtend) return;
+    }
+
     try {
       setIsPaymentProcessing(true);
       const response = await fetch(`${API_BASE}/create-razorpay-order`, {

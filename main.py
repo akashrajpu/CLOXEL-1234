@@ -125,6 +125,7 @@ class UserLogin(BaseModel):
 class VideoRequest(BaseModel):
     scenes: List[Scene] = []
     user_id: Optional[str] = None
+    topic: Optional[str] = ""
     font_name: str = "Arial.ttf"
     font_color: str = "yellow"
     font_size: int = 220
@@ -388,7 +389,27 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
             print(f"❌ Razorpay signature verification failed: {e}")
             raise HTTPException(status_code=400, detail="Payment Signature Verification Failed. Activation Denied.")
 
-    expires_at = datetime.utcnow() + timedelta(days=30)
+    # Check if user already has an active subscription to extend by +30 days!
+    existing_user = users_collection.find_one({"internal_id": req.internal_id})
+    current_expires = None
+    if existing_user and "subscription" in existing_user:
+        existing_sub = existing_user.get("subscription", {})
+        if existing_sub.get("status") == "active" and existing_sub.get("expires_at"):
+            sub_exp = existing_sub.get("expires_at")
+            if isinstance(sub_exp, str):
+                try:
+                    sub_exp = datetime.fromisoformat(sub_exp)
+                except Exception:
+                    sub_exp = None
+            if sub_exp and sub_exp > datetime.utcnow():
+                current_expires = sub_exp
+
+    if current_expires:
+        expires_at = current_expires + timedelta(days=30)
+        print(f"🔄 Extending active membership for user {req.internal_id} by 30 days until {expires_at.isoformat()}")
+    else:
+        expires_at = datetime.utcnow() + timedelta(days=30)
+        print(f"✅ Activated new 30-day '{req.plan_type}' membership for user {req.internal_id}")
     
     subscription_data = {
         "plan_type": req.plan_type,
@@ -404,8 +425,7 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
         {"$set": {"subscription": subscription_data}}
     )
     
-    print(f"✅ Activated 30-day '{req.plan_type}' membership for user {req.internal_id}")
-    return {"message": "Payment verified and subscription activated successfully!", "expires_at": expires_at.isoformat()}
+    return {"message": "Payment verified and subscription extended successfully!", "expires_at": expires_at.isoformat()}
 
 @app.post("/register")
 async def register_user(req: UserRegister):
