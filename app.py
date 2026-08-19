@@ -6,48 +6,43 @@ def main():
     print("\n🚀 --- Zobbly Manual Engine (No-API Mode) ---")
     
     # Aapke manual scenes
-    scenes = [
-        {
-            "text": "Dosto, kya aap jaante hain ki antariksh kitna bada hai?", 
-            "keyword": "galaxy"
-        },
-        {
-            "text": "Yahan har pal naye taare bante aur khatam hote hain.", 
-            "keyword": "stars"
-        },
-        {
-            "text": "Hamari dharti is brahmand ka ek chota sa hissa hai.", 
-            "keyword": "earth space"
-        }
-    ]
+    print("\n🚀 --- Cloxel Manual Engine (No-API Mode) ---")
     
-    taiyaar_scenes = [] 
+    topic = "Black Holes Facts"
+    print(f"🎬 Generating script for topic: '{topic}'...")
     
-    for i, scene in enumerate(scenes):
-        print(f"\n🎬 Scene {i+1} ki taiyari...")
+    # 1. Script & Scenes
+    raw_script = get_ai_script(topic)
+    print("\n📝 Generated Script:\n", raw_script)
+
+    parsed_scenes = parse_script_to_scenes(raw_script)
+    print(f"\n🧩 Total Scenes Extracted: {len(parsed_scenes)}")
+
+    # 2. Download Visuals & Audio
+    taiyaar_scenes = []
+    for idx, scene in enumerate(parsed_scenes):
+        print(f"\n--- Scene {idx + 1} Processing ---")
+        text = scene['text']
+        kw = scene['keyword']
         
-        # 1. Voice generate ho rahi hai
-        audio = make_audio(scene["text"], f"voice_{i}.mp3")
+        # Audio
+        voice_file = f"voice_{idx}.mp3"
+        generate_voiceover(text, voice_file, voice_id="hi-IN-MadhurNeural")
         
-        # 2. Video download ho rahi hai
-        video = fetch_videos(scene["keyword"], f"video_{i}.mp4")
-        
-        if audio and video:
-            # FIX: Yahan 'text' pass kar rahe hain subtitles ke liye
+        # Video
+        video_file = f"bg_{idx}.mp4"
+        download_pexels_video(kw, video_file)
+
+        if os.path.exists(voice_file) and os.path.exists(video_file):
             taiyaar_scenes.append({
-                "audio": audio, 
-                "video": video,
-                "text": scene["text"]  # <-- Ye zaroori tha
+                "text": text,
+                "video_file": video_file,
+                "voice_file": voice_file
             })
-        else:
-            print(f"⏭️ Scene {i+1} skip kiya gaya data na milne ki wajah se.")
-            
+
+    # 3. Merge Final Video
     if taiyaar_scenes:
-        print("\n🔗 Sab clips ko ek saath joda ja raha hai...")
-        # FFmpeg mixing aur subtitles apply honge
-        # Agar aapke paas voiceover file hai (jaise voice_0.mp3), toh uska naam yahan likhein
-        merge_and_export(taiyaar_scenes, "zobbly_manual_video.mp4", "voice_0.mp3")
-        print("\n✅ Video successfully ban gayi: zobbly_manual_video.mp4")
+        print("\n✅ Video successfully ban gayi: cloxel_manual_video.mp4")
     else:
         print("❌ Ek bhi scene taiyaar nahi ho paya!")
 

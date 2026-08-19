@@ -239,7 +239,7 @@ function App() {
           description: `30 Days Membership (${planType.toUpperCase()})`,
           order_id: orderData.order_id,
           prefill: {
-            name: "Zobbly User",
+            name: "Cloxel User",
             email: "user@cloxel.com",
             contact: "9876543210"
           },

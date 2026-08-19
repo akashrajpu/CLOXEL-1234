@@ -510,7 +510,7 @@ async def get_status(job_id: str):
 async def download_video(job_id: str):
     job = jobs.get(job_id)
     if job and job["status"] == "completed":
-        return FileResponse(job["file"], media_type="video/mp4", filename="zobbly_reel.mp4")
+        return FileResponse(job["file"], media_type="video/mp4", filename="cloxel_video.mp4")
     return {"error": "File not ready"}
 
 @app.post("/cleanup/{job_id}")
