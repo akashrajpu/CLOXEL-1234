@@ -16,6 +16,7 @@ function Auth({ onLoginSuccess }) {
   
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
 
   // Nav Modals
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -212,7 +213,28 @@ function Auth({ onLoginSuccess }) {
                 />
               </div>
 
-              <button type="submit" disabled={isLoading} className="btn-primary auth-submit">
+              {!isLogin && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '14px', marginBottom: '16px' }}>
+                  <input 
+                    type="checkbox" 
+                    id="privacy-checkbox" 
+                    checked={agreedToPrivacy}
+                    onChange={(e) => setAgreedToPrivacy(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#a855f7' }}
+                    required
+                  />
+                  <label htmlFor="privacy-checkbox" style={{ margin: 0, fontSize: '0.85rem', color: '#cbd5e1', cursor: 'pointer', textTransform: 'none', letterSpacing: 'normal' }}>
+                    I agree to the <button type="button" onClick={() => setShowPrivacyPolicy(true)} className="btn-link" style={{ textDecoration: 'underline', color: '#c084fc', padding: 0 }}>Privacy Policy & Terms</button> *
+                  </label>
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                disabled={isLoading || (!isLogin && !agreedToPrivacy)} 
+                className="btn-primary auth-submit"
+                style={{ opacity: (!isLogin && !agreedToPrivacy && !isLoading) ? 0.5 : 1, cursor: (!isLogin && !agreedToPrivacy) ? 'not-allowed' : 'pointer' }}
+              >
                 {isLoading ? 'Processing...' : (isLogin ? 'Login to Dashboard' : 'Create Account')}
               </button>
             </form>
