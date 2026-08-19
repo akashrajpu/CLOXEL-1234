@@ -151,29 +151,31 @@ function Auth({ onLoginSuccess }) {
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label>Country *</label>
-                    <select value={country} onChange={(e) => setCountry(e.target.value)} required>
-                      <option value="India">India</option>
-                      <option value="United States">United States</option>
-                      <option value="United Kingdom">United Kingdom</option>
-                      <option value="Canada">Canada</option>
-                      <option value="Australia">Australia</option>
-                      <option value="United Arab Emirates">United Arab Emirates</option>
-                      <option value="Germany">Germany</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div className="form-group">
+                      <label>Country *</label>
+                      <select value={country} onChange={(e) => setCountry(e.target.value)} required>
+                        <option value="India">India</option>
+                        <option value="United States">United States</option>
+                        <option value="United Kingdom">United Kingdom</option>
+                        <option value="Canada">Canada</option>
+                        <option value="Australia">Australia</option>
+                        <option value="United Arab Emirates">UAE</option>
+                        <option value="Germany">Germany</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
 
-                  <div className="form-group">
-                    <label>Phone Number *</label>
-                    <input 
-                      type="tel" 
-                      placeholder="+91 9876543210" 
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      required 
-                    />
+                    <div className="form-group">
+                      <label>Phone Number *</label>
+                      <input 
+                        type="tel" 
+                        placeholder="+91 9876543210" 
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        required 
+                      />
+                    </div>
                   </div>
 
                   <div className="form-group">
