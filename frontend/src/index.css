@@ -1,13 +1,13 @@
 :root {
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --bg-dark: #0f172a;
-  --bg-panel: rgba(30, 41, 59, 0.7);
+  --primary: #a855f7;
+  --primary-hover: #9333ea;
+  --bg-dark: #0b071a;
+  --bg-panel: rgba(19, 13, 42, 0.65);
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
-  --border: rgba(255, 255, 255, 0.1);
-  --glass-blur: 12px;
-  --accent: #8b5cf6;
+  --border: rgba(168, 85, 247, 0.25);
+  --glass-blur: 16px;
+  --accent: #c084fc;
 }
 
 * {
@@ -18,12 +18,12 @@
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--bg-dark);
+  background-color: #0b071a;
   color: var(--text-main);
   min-height: 100vh;
   background-image: 
-    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
+    radial-gradient(at 0% 0%, rgba(168, 85, 247, 0.2) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.15) 0px, transparent 50%);
   background-attachment: fixed;
 }
 
@@ -39,10 +39,11 @@ body {
   align-items: center;
   margin-bottom: 2.5rem;
   padding: 1.2rem 1.8rem;
-  background: rgba(30, 41, 59, 0.4);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  background: rgba(19, 13, 42, 0.6);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .header-left {
@@ -54,14 +55,14 @@ body {
 .header-left h1 {
   font-size: 1.8rem;
   margin: 0;
-  background: linear-gradient(to right, #c084fc, #818cf8);
+  background: linear-gradient(to right, #c084fc, #ec4899);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .profile-pill-btn {
   background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.3);
   color: var(--text-main);
   padding: 8px 18px;
   border-radius: 9999px;
@@ -75,8 +76,8 @@ body {
 }
 
 .profile-pill-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: var(--primary);
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #c084fc;
 }
 
 .dashboard {
@@ -86,13 +87,13 @@ body {
 }
 
 .panel {
-  background: var(--bg-panel);
+  background: rgba(19, 13, 42, 0.65);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-radius: 20px;
   padding: 2rem;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   transition: transform 0.3s ease;
 }
 
@@ -1018,6 +1019,10 @@ input:focus, select:focus, textarea:focus {
 
 .pricing-header {
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 36px;
 }
 
@@ -1035,14 +1040,16 @@ input:focus, select:focus, textarea:focus {
 .pricing-header h2 {
   font-size: 2rem;
   font-weight: 800;
-  margin: 0 0 8px 0;
+  margin: 0 auto 8px auto;
   color: #ffffff;
+  text-align: center;
 }
 
 .pricing-header p {
-  margin: 0;
+  margin: 0 auto;
   color: #94a3b8;
   font-size: 0.95rem;
+  text-align: center;
 }
 
 .pricing-grid {
