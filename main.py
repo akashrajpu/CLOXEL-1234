@@ -229,23 +229,33 @@ async def register_user(req: UserRegister):
     if users_collection is None:
         raise HTTPException(status_code=500, detail="Database not configured")
         
-    primary_email = req.email.strip()
-    primary_phone = req.phone.strip()
+    primary_email = req.email.strip().lower()
+    # Clean phone to digits
+    primary_phone = "".join(filter(str.isdigit, req.phone))
     
     if not primary_email or not primary_phone or not req.name.strip() or not req.country.strip():
         raise HTTPException(status_code=400, detail="All fields (Name, Country, Phone, Email, Password) are mandatory.")
         
+    import re
+    email_regex = re.compile(f"^{re.escape(primary_email)}$", re.IGNORECASE)
+    
     existing_user = users_collection.find_one({
         "$or": [
-            {"email": primary_email},
+            {"email": email_regex},
             {"phone": primary_phone},
-            {"email_or_mobile": primary_email},
+            {"phone": req.phone.strip()},
+            {"email_or_mobile": email_regex},
             {"email_or_mobile": primary_phone}
         ]
     })
     
     if existing_user:
-        raise HTTPException(status_code=400, detail="An account with this Email or Phone number already exists.")
+        ex_email = existing_user.get("email", "").lower()
+        ex_phone = existing_user.get("phone", "")
+        if ex_email == primary_email:
+            raise HTTPException(status_code=400, detail="⚠️ Account Creation Failed: This Email ID is already registered! Please use a different Email or Login.")
+        else:
+            raise HTTPException(status_code=400, detail="⚠️ Account Creation Failed: This Phone Number is already registered! Please use a different Phone Number or Login.")
         
     hashed_password = pwd_context.hash(req.password)
     internal_id = str(uuid.uuid4())
@@ -255,7 +265,7 @@ async def register_user(req: UserRegister):
         "country": req.country.strip(),
         "phone": primary_phone,
         "email": primary_email,
-        "email_or_mobile": primary_email, # Fallback
+        "email_or_mobile": primary_email,
         "password_hash": hashed_password,
         "internal_id": internal_id,
         "created_at": datetime.utcnow()
@@ -269,14 +279,20 @@ async def login_user(req: UserLogin):
     if users_collection is None:
         raise HTTPException(status_code=500, detail="Database not configured")
         
-    identifier = req.email_or_mobile.strip()
-    user = users_collection.find_one({
-        "$or": [
-            {"email": identifier},
-            {"phone": identifier},
-            {"email_or_mobile": identifier}
-        ]
-    })
+    raw_identifier = req.email_or_mobile.strip()
+    clean_phone = "".join(filter(str.isdigit, raw_identifier))
+    import re
+    identifier_regex = re.compile(f"^{re.escape(raw_identifier.lower())}$", re.IGNORECASE)
+    
+    query = [
+        {"email": identifier_regex},
+        {"email_or_mobile": identifier_regex}
+    ]
+    if clean_phone:
+        query.append({"phone": clean_phone})
+        query.append({"email_or_mobile": clean_phone})
+        
+    user = users_collection.find_one({"$or": query})
     
     if not user:
         raise HTTPException(status_code=400, detail="Invalid credentials")
