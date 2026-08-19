@@ -938,11 +938,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 .modal-header {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  text-align: center !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
   margin-bottom: 14px;
   width: 100%;
 }
@@ -950,17 +950,18 @@ input:focus, select:focus, textarea:focus {
 .modal-header h2 {
   font-size: 1.4rem;
   font-weight: 800;
-  margin: 0 auto 4px auto;
+  margin: 0 auto 4px auto !important;
   color: #ffffff;
-  text-align: center;
+  text-align: center !important;
+  display: block !important;
   width: 100%;
 }
 
 .modal-header p {
-  margin: 0 auto;
+  margin: 0 auto !important;
   font-size: 0.82rem;
   color: #94a3b8;
-  text-align: center;
+  text-align: center !important;
   width: 100%;
 }
 

@@ -130,9 +130,9 @@ function Auth({ onLoginSuccess }) {
           <div className="auth-modal-card" onClick={e => e.stopPropagation()}>
             <button className="modal-close-btn" onClick={() => setShowAuthModal(false)}>×</button>
             
-            <div className="modal-header">
-              <h2>{isLogin ? 'Welcome Back to Cloxel' : 'Create an Account'}</h2>
-              <p>{isLogin ? 'Enter your credentials to access your dashboard' : 'Fill in mandatory details to get started'}</p>
+            <div className="modal-header" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '16px' }}>
+              <h2 style={{ textAlign: 'center', display: 'block', width: '100%', margin: '0 auto 6px auto' }}>{isLogin ? 'Welcome Back to Cloxel' : 'Create an Account'}</h2>
+              <p style={{ textAlign: 'center', display: 'block', width: '100%', margin: '0 auto' }}>{isLogin ? 'Enter your credentials to access your dashboard' : 'Fill in mandatory details to get started'}</p>
             </div>
 
             {error && <div className="auth-error">{error}</div>}
@@ -289,12 +289,12 @@ function Auth({ onLoginSuccess }) {
           <div className="pricing-modal-card" style={{ maxWidth: '850px', padding: '36px' }} onClick={e => e.stopPropagation()}>
             <button className="sidebar-close-btn" style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer' }} onClick={() => setShowHowItWorks(false)}>×</button>
 
-            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '28px' }}>
               <span className="pricing-badge">⚙️ AUTOMATION WORKFLOW GRAPH</span>
-              <h2 style={{ color: '#ffffff', fontSize: '2rem', marginTop: '8px', fontWeight: '800' }}>
+              <h2 style={{ color: '#ffffff', fontSize: '2rem', marginTop: '8px', fontWeight: '800', textAlign: 'center', display: 'block', width: '100%', margin: '8px auto 0 auto' }}>
                 How Cloxel AI Automation Engine Works
               </h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
+              <p style={{ color: '#94a3b8', fontSize: '0.95rem', textAlign: 'center', display: 'block', width: '100%', margin: '4px auto 0 auto' }}>
                 An end-to-end cloud pipeline converting your topics into 60FPS viral videos & auto-publishing.
               </p>
             </div>
@@ -339,12 +339,12 @@ function Auth({ onLoginSuccess }) {
           <div className="pricing-modal-card" style={{ maxWidth: '850px', padding: '36px' }} onClick={e => e.stopPropagation()}>
             <button className="sidebar-close-btn" style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer' }} onClick={() => setShowFeatures(false)}>×</button>
 
-            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '28px' }}>
               <span className="pricing-badge">⚡ CORE CAPABILITIES</span>
-              <h2 style={{ color: '#ffffff', fontSize: '2rem', marginTop: '8px', fontWeight: '800' }}>
+              <h2 style={{ color: '#ffffff', fontSize: '2rem', marginTop: '8px', fontWeight: '800', textAlign: 'center', display: 'block', width: '100%', margin: '8px auto 0 auto' }}>
                 Cloxel AI Platform Features
               </h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
+              <p style={{ color: '#94a3b8', fontSize: '0.95rem', textAlign: 'center', display: 'block', width: '100%', margin: '4px auto 0 auto' }}>
                 Everything you need to automate your YouTube & Shorts content creation.
               </p>
             </div>
@@ -384,12 +384,12 @@ function Auth({ onLoginSuccess }) {
           <div className="pricing-modal-card" style={{ maxWidth: '800px', padding: '36px' }} onClick={e => e.stopPropagation()}>
             <button className="sidebar-close-btn" style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer' }} onClick={() => setShowSupport(false)}>×</button>
 
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '24px' }}>
               <span className="pricing-badge">💬 24/7 SUPPORT CENTER</span>
-              <h2 style={{ color: '#ffffff', fontSize: '2rem', marginTop: '8px', fontWeight: '800' }}>
+              <h2 style={{ color: '#ffffff', fontSize: '2rem', marginTop: '8px', fontWeight: '800', textAlign: 'center', display: 'block', width: '100%', margin: '8px auto 0 auto' }}>
                 Cloxel AI Help & Support
               </h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
+              <p style={{ color: '#94a3b8', fontSize: '0.95rem', textAlign: 'center', display: 'block', width: '100%', margin: '4px auto 0 auto' }}>
                 Have questions or need assistance? Our support team is here to help you 24/7.
               </p>
             </div>
