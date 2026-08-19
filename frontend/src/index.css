@@ -33,22 +33,50 @@ body {
   padding: 2rem;
 }
 
-header {
-  text-align: center;
-  margin-bottom: 3rem;
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2.5rem;
+  padding: 1.2rem 1.8rem;
+  background: rgba(30, 41, 59, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
 }
 
-header h1 {
-  font-size: 3rem;
-  background: linear-gradient(to right, #a78bfa, #818cf8);
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-left h1 {
+  font-size: 1.8rem;
+  margin: 0;
+  background: linear-gradient(to right, #c084fc, #818cf8);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  margin-bottom: 0.5rem;
 }
 
-header p {
-  color: var(--text-muted);
-  font-size: 1.1rem;
+.profile-pill-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-main);
+  padding: 8px 18px;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.profile-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--primary);
 }
 
 .dashboard {

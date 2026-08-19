@@ -191,7 +191,9 @@ function App() {
           <h1>Cloxel <span>AI Video Generator</span></h1>
         </div>
         <div className="header-right">
-          <button className="btn-logout-header" onClick={handleLogout}>Logout</button>
+          <button className="profile-pill-btn" onClick={() => setIsSidebarOpen(true)}>
+            <span>👤 Account</span>
+          </button>
         </div>
       </header>
 
