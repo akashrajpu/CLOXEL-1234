@@ -19,6 +19,7 @@ import requests
 
 # Fix OAuth behind proxy (Render)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
 # Aapke modules
 from video_editor import merge_and_export
@@ -344,29 +345,36 @@ async def youtube_callback(state: str, code: str):
     if not flow:
         raise HTTPException(status_code=500, detail="YouTube Client ID/Secret not configured.")
     
-    flow.fetch_token(code=code)
-    credentials = flow.credentials
-    
-    creds_dict = {
-        'token': credentials.token,
-        'refresh_token': credentials.refresh_token,
-        'token_uri': credentials.token_uri,
-        'client_id': credentials.client_id,
-        'client_secret': credentials.client_secret,
-        'scopes': credentials.scopes
-    }
-    
-    if users_collection is not None:
-        users_collection.update_one(
-            {"internal_id": internal_id},
-            {"$set": {
-                "youtube_credentials": creds_dict,
-                "youtube_linked_at": datetime.utcnow()
-            }}
-        )
+    try:
+        flow.fetch_token(code=code)
+        credentials = flow.credentials
         
-    frontend_url = os.getenv("FRONTEND_URL", "https://cloxel.onrender.com")
-    return RedirectResponse(url=f"{frontend_url}/?yt_success=1")
+        creds_dict = {
+            'token': credentials.token,
+            'refresh_token': credentials.refresh_token,
+            'token_uri': credentials.token_uri,
+            'client_id': credentials.client_id,
+            'client_secret': credentials.client_secret,
+            'scopes': credentials.scopes
+        }
+        
+        if users_collection is not None:
+            users_collection.update_one(
+                {"internal_id": internal_id},
+                {"$set": {
+                    "youtube_credentials": creds_dict,
+                    "youtube_linked_at": datetime.utcnow()
+                }}
+            )
+            
+        frontend_url = os.getenv("FRONTEND_URL", "https://cloxel.onrender.com")
+        return RedirectResponse(url=f"{frontend_url}/?yt_success=1")
+    except Exception as e:
+        print(f"❌ Error in youtube_callback: {e}")
+        import traceback
+        traceback.print_exc()
+        frontend_url = os.getenv("FRONTEND_URL", "https://cloxel.onrender.com")
+        return RedirectResponse(url=f"{frontend_url}/?yt_error={str(e)}")
 
 @app.get("/youtube/status/{internal_id}")
 async def get_youtube_status(internal_id: str):

@@ -63,11 +63,13 @@ function App() {
 
   // Update scenes array when duration changes
   useEffect(() => {
-    // Check for youtube success param
+    // Check for youtube success or error param
     const params = new URLSearchParams(window.location.search);
     if (params.get('yt_success')) {
       alert('YouTube Account successfully linked!');
-      // Remove param from URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get('yt_error')) {
+      alert(`YouTube Link Error: ${params.get('yt_error')}`);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
