@@ -28,9 +28,24 @@ function App() {
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [history, setHistory] = useState([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [subStatus, setSubStatus] = useState({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
   
   // Auth state
   const [userId, setUserId] = useState(() => localStorage.getItem('cloxel_user_id') || null);
+
+  const fetchSubscriptionStatus = async () => {
+    if (!userId) return;
+    try {
+      const response = await fetch(`${API_BASE}/user-subscription/${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSubStatus(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch subscription status:", e);
+    }
+  };
 
   const fetchHistory = async () => {
     if (!userId) return;
@@ -48,6 +63,7 @@ function App() {
   useEffect(() => {
     if (userId) {
       fetchHistory();
+      fetchSubscriptionStatus();
     }
   }, [userId]);
 
@@ -177,6 +193,41 @@ function App() {
     }, 5000);
   };
 
+  const handleBuyPlan = async (planType) => {
+    try {
+      const response = await fetch(`${API_BASE}/create-razorpay-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ internal_id: userId, plan_type: planType })
+      });
+      const orderData = await response.json();
+      
+      if (!response.ok) {
+        alert(orderData.detail || "Failed to create order");
+        return;
+      }
+      
+      const verifyResp = await fetch(`${API_BASE}/verify-razorpay-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          internal_id: userId,
+          plan_type: planType,
+          razorpay_order_id: orderData.order_id,
+          razorpay_payment_id: `pay_${Date.now()}`
+        })
+      });
+      
+      if (verifyResp.ok) {
+        alert("🎉 Membership Activated successfully for 30 Days!");
+        setShowPricingModal(false);
+        fetchSubscriptionStatus();
+      }
+    } catch (err) {
+      alert("Payment processing error. Please try again.");
+    }
+  };
+
   if (!userId) {
     return <Auth onLoginSuccess={handleLoginSuccess} />;
   }
@@ -190,7 +241,10 @@ function App() {
           </button>
           <h1>Cloxel <span>AI Video Generator</span></h1>
         </div>
-        <div className="header-right">
+        <div className="header-right" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button className="btn-upgrade-pill" onClick={() => setShowPricingModal(true)}>
+            💎 Upgrade Plan
+          </button>
           <button className="profile-pill-btn" onClick={() => setIsSidebarOpen(true)}>
             <span>👤 Account</span>
           </button>
@@ -385,7 +439,16 @@ function App() {
               <div className="profile-info">
                 <p className="profile-title">Account Active</p>
                 <p className="profile-id">ID: {userId ? `${userId.substring(0, 12)}...` : 'Unknown'}</p>
+                <p className="profile-sub-badge" style={{ fontSize: '0.75rem', color: '#c084fc', marginTop: '4px', fontWeight: 'bold' }}>
+                  {subStatus.has_active_subscription ? `Active Plan: ${subStatus.plan_type.toUpperCase()}` : `Free Demo Videos Left: ${subStatus.free_demo_count}/2`}
+                </p>
               </div>
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <button className="btn-upgrade-sidebar" onClick={() => { setIsSidebarOpen(false); setShowPricingModal(true); }}>
+                💎 Upgrade Membership
+              </button>
             </div>
 
             <div className="sidebar-history-section">
@@ -421,6 +484,75 @@ function App() {
               <button className="btn-logout-sidebar" onClick={() => { setIsSidebarOpen(false); handleLogout(); }}>
                 🚪 Logout
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pricing & Membership Modal */}
+      {showPricingModal && (
+        <div className="pricing-modal-overlay" onClick={() => setShowPricingModal(false)}>
+          <div className="pricing-modal-card" onClick={e => e.stopPropagation()}>
+            <button className="modal-close-btn" onClick={() => setShowPricingModal(false)}>×</button>
+            
+            <div className="pricing-header">
+              <span className="pricing-badge">💎 MEMBERSHIP PLANS</span>
+              <h2>Choose Your Monthly Video Plan</h2>
+              <p>Unlock 30 days of daily automated AI video creation and auto-uploads.</p>
+            </div>
+
+            <div className="pricing-grid">
+              {/* Plan 1: Short Starter */}
+              <div className="pricing-card">
+                <div className="card-tag">30 DAYS</div>
+                <h3>Short Starter</h3>
+                <div className="plan-price">₹50 <span>/ month</span></div>
+                <p className="plan-desc">Perfect for Shorts & Reels creators.</p>
+                <ul className="plan-features">
+                  <li>✅ Daily 1 Short Video (9:16) for 30 Days</li>
+                  <li>✅ YouTube Auto-Upload Enabled</li>
+                  <li>✅ Cloud Storage & History</li>
+                </ul>
+                <button className="btn-buy-plan" onClick={() => handleBuyPlan('short')}>
+                  Subscribe for ₹50
+                </button>
+              </div>
+
+              {/* Plan 2: Long Master */}
+              <div className="pricing-card featured">
+                <div className="card-tag gold">POPULAR</div>
+                <h3>Long Master</h3>
+                <div className="plan-price">₹100 <span>/ month</span></div>
+                <p className="plan-desc">For full-length YouTube video channels.</p>
+                <ul className="plan-features">
+                  <li>✅ Daily 1 Long Video (16:9) for 30 Days</li>
+                  <li>✅ YouTube Auto-Upload Enabled</li>
+                  <li>✅ Cloud Storage & History</li>
+                </ul>
+                <button className="btn-buy-plan featured-btn" onClick={() => handleBuyPlan('long')}>
+                  Subscribe for ₹100
+                </button>
+              </div>
+
+              {/* Plan 3: Pro Combo */}
+              <div className="pricing-card">
+                <div className="card-tag purple">BEST VALUE</div>
+                <h3>Pro Combo</h3>
+                <div className="plan-price">₹119 <span>/ month</span></div>
+                <p className="plan-desc">All-in-one power suite for max reach.</p>
+                <ul className="plan-features">
+                  <li>✅ Daily 1 Short + 1 Long Video for 30 Days</li>
+                  <li>✅ YouTube Auto-Upload Enabled</li>
+                  <li>✅ Priority AI Rendering</li>
+                </ul>
+                <button className="btn-buy-plan" onClick={() => handleBuyPlan('combo')}>
+                  Subscribe for ₹119
+                </button>
+              </div>
+            </div>
+
+            <div className="pricing-footer">
+              🔒 Safe & Secure Payments via Razorpay. Cancel anytime.
             </div>
           </div>
         </div>

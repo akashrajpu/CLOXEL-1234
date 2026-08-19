@@ -954,3 +954,218 @@ input:focus, select:focus, textarea:focus {
   border-radius: 10px;
   font-size: 0.95rem;
 }
+
+/* Upgrade Pill & Pricing Modal Styles */
+.btn-upgrade-pill {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-upgrade-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(168, 85, 247, 0.6);
+}
+
+.btn-upgrade-sidebar {
+  width: 100%;
+  padding: 10px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+}
+
+.pricing-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(11, 7, 26, 0.85);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.pricing-modal-card {
+  background: #130d2a;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  border-radius: 28px;
+  width: 100%;
+  max-width: 950px;
+  padding: 40px;
+  position: relative;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+  animation: modalScale 0.25s ease-out;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.pricing-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.pricing-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.pricing-header h2 {
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0 0 8px 0;
+  color: #ffffff;
+}
+
+.pricing-header p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+  margin-bottom: 30px;
+}
+
+.pricing-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.pricing-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(168, 85, 247, 0.5);
+}
+
+.pricing-card.featured {
+  background: rgba(168, 85, 247, 0.08);
+  border: 2px solid #c084fc;
+  box-shadow: 0 10px 30px rgba(168, 85, 247, 0.2);
+}
+
+.card-tag {
+  position: absolute;
+  top: -12px;
+  right: 20px;
+  background: #334155;
+  color: #f8fafc;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.card-tag.gold {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+}
+
+.card-tag.purple {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  color: #ffffff;
+}
+
+.pricing-card h3 {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin: 0 0 12px 0;
+  color: #ffffff;
+}
+
+.plan-price {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.plan-price span {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.plan-desc {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-bottom: 20px;
+}
+
+.plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 28px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.plan-features li {
+  font-size: 0.85rem;
+  color: #cbd5e1;
+}
+
+.btn-buy-plan {
+  width: 100%;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-buy-plan:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.btn-buy-plan.featured-btn {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  border: none;
+  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
+}
+
+.btn-buy-plan.featured-btn:hover {
+  box-shadow: 0 6px 20px rgba(168, 85, 247, 0.6);
+}
+
+.pricing-footer {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #64748b;
+}

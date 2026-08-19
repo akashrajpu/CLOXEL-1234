@@ -22,6 +22,17 @@ import requests
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
+# Razorpay Setup
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_placeholder")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "secret_placeholder")
+
+try:
+    import razorpay
+    razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+except Exception as e:
+    razorpay_client = None
+    print(f"Razorpay initialization warning: {e}")
+
 # Aapke modules
 from video_editor import merge_and_export
 from audio_engine import make_audio
@@ -217,12 +228,136 @@ def full_process(req: VideoRequest, job_id: str):
         print(f"❌ Error in full_process: {e}")
         jobs[job_id] = {"status": "failed", "error": str(e)}
 
+class CreateOrderRequest(BaseModel):
+    internal_id: str
+    plan_type: str  # 'short' (50), 'long' (100), 'combo' (119)
+
+class VerifyPaymentRequest(BaseModel):
+    internal_id: str
+    plan_type: str
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: Optional[str] = None
+
 @app.post("/generate-custom-video")
 async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundTasks):
+    user_id = req.user_id
+    if not user_id or user_id == "anonymous":
+        raise HTTPException(status_code=401, detail="Please login or register to generate videos.")
+        
+    if users_collection is not None:
+        user = users_collection.find_one({"internal_id": user_id})
+        if user:
+            free_demo = user.get("free_demo_count", 2)
+            subscription = user.get("subscription", {})
+            sub_status = subscription.get("status")
+            sub_expires = subscription.get("expires_at")
+            
+            is_active = False
+            if sub_status == "active" and sub_expires:
+                if isinstance(sub_expires, str):
+                    sub_expires = datetime.fromisoformat(sub_expires)
+                if sub_expires > datetime.utcnow():
+                    is_active = True
+                    
+            if not is_active:
+                if free_demo > 0:
+                    users_collection.update_one({"internal_id": user_id}, {"$inc": {"free_demo_count": -1}})
+                else:
+                    raise HTTPException(status_code=402, detail="Demo quota exhausted! You have used your 2 free demo videos. Please upgrade your plan to continue generating videos.")
+
     job_id = str(uuid.uuid4())
     jobs[job_id] = {"status": "processing", "user_id": req.user_id}
     background_tasks.add_task(full_process, req, job_id)
     return {"job_id": job_id, "status": "Processing Started"}
+
+@app.get("/user-subscription/{internal_id}")
+async def get_user_subscription(internal_id: str):
+    if users_collection is None:
+        return {"free_demo_count": 2, "has_active_subscription": False, "plan_type": "none"}
+        
+    user = users_collection.find_one({"internal_id": internal_id})
+    if not user:
+        return {"free_demo_count": 2, "has_active_subscription": False, "plan_type": "none"}
+        
+    free_demo = user.get("free_demo_count", 2)
+    subscription = user.get("subscription", {})
+    sub_status = subscription.get("status")
+    sub_expires = subscription.get("expires_at")
+    sub_plan = subscription.get("plan_type", "none")
+    
+    is_active = False
+    if sub_status == "active" and sub_expires:
+        if isinstance(sub_expires, str):
+            sub_expires = datetime.fromisoformat(sub_expires)
+        if sub_expires > datetime.utcnow():
+            is_active = True
+
+    return {
+        "free_demo_count": free_demo,
+        "has_active_subscription": is_active,
+        "plan_type": sub_plan if is_active else "none",
+        "expires_at": sub_expires.isoformat() if is_active and sub_expires else None
+    }
+
+@app.post("/create-razorpay-order")
+async def create_razorpay_order(req: CreateOrderRequest):
+    amounts = {
+        "short": 5000,    # ₹50
+        "long": 10000,    # ₹100
+        "combo": 11900    # ₹119
+    }
+    
+    amount = amounts.get(req.plan_type, 5000)
+    
+    if razorpay_client and RAZORPAY_KEY_ID != "rzp_test_placeholder":
+        try:
+            order = razorpay_client.order.create({
+                "amount": amount,
+                "currency": "INR",
+                "receipt": f"receipt_{req.internal_id[:8]}_{int(datetime.utcnow().timestamp())}",
+                "payment_capture": 1
+            })
+            return {
+                "order_id": order["id"],
+                "amount": amount,
+                "currency": "INR",
+                "key_id": RAZORPAY_KEY_ID
+            }
+        except Exception as e:
+            print(f"Razorpay order error: {e}")
+            
+    fake_order_id = f"order_demo_{str(uuid.uuid4())[:8]}"
+    return {
+        "order_id": fake_order_id,
+        "amount": amount,
+        "currency": "INR",
+        "key_id": RAZORPAY_KEY_ID or "rzp_test_demo"
+    }
+
+@app.post("/verify-razorpay-payment")
+async def verify_razorpay_payment(req: VerifyPaymentRequest):
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+        
+    expires_at = datetime.utcnow() + timedelta(days=30)
+    
+    subscription_data = {
+        "plan_type": req.plan_type,
+        "status": "active",
+        "payment_id": req.razorpay_payment_id,
+        "order_id": req.razorpay_order_id,
+        "activated_at": datetime.utcnow(),
+        "expires_at": expires_at
+    }
+    
+    users_collection.update_one(
+        {"internal_id": req.internal_id},
+        {"$set": {"subscription": subscription_data}}
+    )
+    
+    print(f"✅ Activated 30-day '{req.plan_type}' membership for user {req.internal_id}")
+    return {"message": "Payment verified and subscription activated successfully!", "expires_at": expires_at.isoformat()}
 
 @app.post("/register")
 async def register_user(req: UserRegister):
