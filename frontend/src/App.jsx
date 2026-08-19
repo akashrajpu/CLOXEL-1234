@@ -215,8 +215,8 @@ function App() {
           key: orderData.key_id,
           amount: orderData.amount,
           currency: orderData.currency,
-          name: "Cloxel AI Video",
-          description: `30 Days Subscription (${planType.toUpperCase()})`,
+          name: "Cloxel AI Video Generator",
+          description: `30 Days Membership (${planType.toUpperCase()})`,
           order_id: orderData.order_id,
           handler: async function (res) {
             // Verify payment on backend ONLY when payment actually succeeds!
