@@ -2,6 +2,7 @@ import os
 import uuid
 import shutil
 import requests
+import urllib.parse
 import cloudinary
 import cloudinary.uploader
 from dotenv import load_dotenv
@@ -326,38 +327,62 @@ class UnlinkRequest(BaseModel):
 
 @app.get("/youtube/auth-url")
 async def get_youtube_auth_url(internal_id: str):
-    flow = get_youtube_flow()
-    if not flow:
+    client_id = os.getenv("YOUTUBE_CLIENT_ID")
+    if not client_id:
         raise HTTPException(status_code=500, detail="YouTube Client ID/Secret not configured in environment.")
     
-    auth_url, state = flow.authorization_url(
-        access_type='offline',
-        include_granted_scopes='true',
-        prompt='consent',
-        state=internal_id,
-        autogenerate_code_verifier=False
-    )
+    redirect_uri = os.getenv("YOUTUBE_REDIRECT_URI", "https://cloxel.onrender.com/youtube/callback")
+    scope = " ".join(YOUTUBE_SCOPES)
+    
+    params = {
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": scope,
+        "access_type": "offline",
+        "prompt": "consent",
+        "state": internal_id
+    }
+    
+    auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
     return {"auth_url": auth_url}
 
 @app.get("/youtube/callback")
 async def youtube_callback(state: str, code: str):
     internal_id = state
-    flow = get_youtube_flow()
-    if not flow:
+    client_id = os.getenv("YOUTUBE_CLIENT_ID")
+    client_secret = os.getenv("YOUTUBE_CLIENT_SECRET")
+    redirect_uri = os.getenv("YOUTUBE_REDIRECT_URI", "https://cloxel.onrender.com/youtube/callback")
+    
+    if not client_id or not client_secret:
         raise HTTPException(status_code=500, detail="YouTube Client ID/Secret not configured.")
     
     try:
-        flow.code_verifier = None
-        flow.fetch_token(code=code)
-        credentials = flow.credentials
+        # Direct OAuth2 Token Exchange
+        token_data = {
+            "code": code,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code"
+        }
         
+        resp = requests.post("https://oauth2.googleapis.com/token", data=token_data)
+        res_json = resp.json()
+        
+        if "error" in res_json:
+            error_msg = res_json.get("error_description", res_json.get("error"))
+            print(f"❌ Token exchange error: {error_msg}")
+            frontend_url = os.getenv("FRONTEND_URL", "https://cloxel.onrender.com")
+            return RedirectResponse(url=f"{frontend_url}/?yt_error={error_msg}")
+            
         creds_dict = {
-            'token': credentials.token,
-            'refresh_token': credentials.refresh_token,
-            'token_uri': credentials.token_uri,
-            'client_id': credentials.client_id,
-            'client_secret': credentials.client_secret,
-            'scopes': credentials.scopes
+            'token': res_json.get('access_token'),
+            'refresh_token': res_json.get('refresh_token'),
+            'token_uri': "https://oauth2.googleapis.com/token",
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'scopes': YOUTUBE_SCOPES
         }
         
         if users_collection is not None:
