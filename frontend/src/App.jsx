@@ -30,6 +30,7 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
+  const [playingHistoryVideo, setPlayingHistoryVideo] = useState(null);
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
   const [subStatus, setSubStatus] = useState({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
@@ -573,15 +574,19 @@ function App() {
                       <p className="history-card-date">
                         {vid.created_at ? new Date(vid.created_at).toLocaleString() : ''}
                       </p>
-                      {vid.cloudinary_url ? (
-                        <a href={vid.cloudinary_url} target="_blank" rel="noreferrer" className="history-watch-btn">
-                          ▶ Watch (Cloudinary)
-                        </a>
-                      ) : vid.job_id ? (
-                        <a href={`${API_BASE}/download/${vid.job_id}`} target="_blank" rel="noreferrer" className="history-watch-btn">
-                          ⬇ Download Video
-                        </a>
-                      ) : (
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                        <button 
+                          className="history-watch-btn" 
+                          style={{ flex: 1, padding: '6px 12px', fontSize: '0.8rem', border: 'none', borderRadius: '8px', cursor: 'pointer', background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)', color: 'white', fontWeight: 'bold' }}
+                          onClick={() => setPlayingHistoryVideo({
+                            topic: vid.topic || 'Untitled Video',
+                            videoUrl: vid.cloudinary_url || `${API_BASE}/download/${vid.job_id}`,
+                            downloadUrl: vid.cloudinary_url || `${API_BASE}/download/${vid.job_id}`
+                          })}
+                        >
+                          ▶ Play Video In-App
+                        </button>
+                      </div>
                         <span className="history-local-tag">Local file</span>
                       )}
                     </div>
@@ -736,6 +741,46 @@ function App() {
             <p style={{ color: '#cbd5e1', fontSize: '0.9rem', margin: 0 }}>
               Please wait a moment while we process your request.
             </p>
+          </div>
+        </div>
+      )}
+      {/* In-App Video Player Modal for Video History */}
+      {playingHistoryVideo && (
+        <div className="pricing-modal-overlay" onClick={() => setPlayingHistoryVideo(null)} style={{ zIndex: 3000 }}>
+          <div className="pricing-modal-card" style={{ maxWidth: '640px', padding: '32px 24px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <button className="modal-close-btn" onClick={() => setPlayingHistoryVideo(null)}>×</button>
+            
+            <h3 style={{ color: '#ffffff', fontSize: '1.3rem', marginBottom: '16px', fontWeight: '800' }}>
+              🎬 {playingHistoryVideo.topic}
+            </h3>
+
+            <div style={{ borderRadius: '16px', overflow: 'hidden', background: '#000', marginBottom: '20px', border: '1px solid rgba(168,85,247,0.4)', boxShadow: '0 10px 30px rgba(0,0,0,0.8)' }}>
+              <video 
+                src={playingHistoryVideo.videoUrl} 
+                controls 
+                autoPlay 
+                style={{ width: '100%', maxHeight: '65vh', display: 'block' }}
+              ></video>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <a 
+                href={playingHistoryVideo.downloadUrl} 
+                target="_blank" 
+                rel="noreferrer" 
+                className="btn-hero-cta" 
+                style={{ padding: '10px 20px', fontSize: '0.9rem', textDecoration: 'none' }}
+              >
+                ⬇ Download Video
+              </a>
+              <button 
+                className="button secondary" 
+                style={{ width: 'auto', padding: '10px 20px' }} 
+                onClick={() => setPlayingHistoryVideo(null)}
+              >
+                Close Player
+              </button>
+            </div>
           </div>
         </div>
       )}
