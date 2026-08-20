@@ -428,6 +428,7 @@ async def save_auto_schedule(req: AutoScheduleRequest):
     subscription = user.get("subscription", {})
     sub_status = subscription.get("status")
     sub_expires = subscription.get("expires_at")
+    sub_plan = subscription.get("plan_type", "none")
     
     is_active = False
     if sub_status == "active" and sub_expires:
@@ -442,14 +443,36 @@ async def save_auto_schedule(req: AutoScheduleRequest):
     if not is_active:
         raise HTTPException(status_code=403, detail="🔒 Membership Only Feature! Auto-Schedule & Auto-Upload require an active paid membership plan. Please upgrade your membership to activate automatic video generation & YouTube publishing.")
 
+    # Duration constraints enforcement per plan:
+    # Short duration: 10s to 55s
+    req.short_duration = max(10, min(55, req.short_duration))
+    # Long duration: 20s to 300s (5 mins)
+    req.long_duration = max(20, min(300, req.long_duration))
+
     schedule_data = {
         "schedule_enabled": req.schedule_enabled,
+        "plan_type": sub_plan,
+        
+        # Short schedule profile
+        "short_auto_topic": req.short_auto_topic,
+        "short_topic": req.short_topic if not req.short_auto_topic else "AI Auto Topic (Daily Dynamic)",
+        "short_voice": req.short_voice,
+        "short_font": req.short_font,
+        "short_color": req.short_color,
+        "short_duration": req.short_duration,
         "short_time": req.short_time,
+        "short_language": req.short_language,
+        
+        # Long schedule profile
+        "long_auto_topic": req.long_auto_topic,
+        "long_topic": req.long_topic if not req.long_auto_topic else "AI Auto Topic (Daily Dynamic)",
+        "long_voice": req.long_voice,
+        "long_font": req.long_font,
+        "long_color": req.long_color,
+        "long_duration": req.long_duration,
         "long_time": req.long_time,
-        "topics": req.topics,
-        "voice_id": req.voice_id,
-        "font_name": req.font_name,
-        "font_color": req.font_color,
+        "long_language": req.long_language,
+        
         "updated_at": datetime.utcnow()
     }
 
@@ -458,7 +481,7 @@ async def save_auto_schedule(req: AutoScheduleRequest):
         {"$set": {"auto_schedule": schedule_data}}
     )
 
-    print(f"✅ Saved Auto-Schedule settings in MongoDB for user {req.internal_id}")
+    print(f"✅ Saved Auto-Schedule settings in MongoDB for user {req.internal_id} (Plan: {sub_plan})")
     return {"message": "Auto-schedule settings saved successfully to MongoDB profile!", "schedule": schedule_data}
 
 @app.get("/get-auto-schedule/{internal_id}")
@@ -466,9 +489,22 @@ async def get_auto_schedule(internal_id: str):
     if users_collection is None:
         return {
             "schedule_enabled": False,
+            "short_auto_topic": True,
+            "short_topic": "Space Exploration, AI Innovations",
+            "short_voice": "hi-IN-MadhurNeural",
+            "short_font": "Arial.ttf",
+            "short_color": "yellow",
+            "short_duration": 30,
             "short_time": "10:00",
+            "short_language": "hi",
+            "long_auto_topic": True,
+            "long_topic": "Space Exploration, AI Technology",
+            "long_voice": "hi-IN-MadhurNeural",
+            "long_font": "Arial.ttf",
+            "long_color": "yellow",
+            "long_duration": 60,
             "long_time": "18:00",
-            "topics": "Space Exploration, AI Innovations, Fitness Motivation",
+            "long_language": "hi",
             "total_videos_created": 0,
             "remaining_plan_videos": 60,
             "next_scheduled_run": "Not Scheduled"
@@ -478,9 +514,22 @@ async def get_auto_schedule(internal_id: str):
     if not user:
         return {
             "schedule_enabled": False,
+            "short_auto_topic": True,
+            "short_topic": "Space Exploration, AI Innovations",
+            "short_voice": "hi-IN-MadhurNeural",
+            "short_font": "Arial.ttf",
+            "short_color": "yellow",
+            "short_duration": 30,
             "short_time": "10:00",
+            "short_language": "hi",
+            "long_auto_topic": True,
+            "long_topic": "Space Exploration, AI Technology",
+            "long_voice": "hi-IN-MadhurNeural",
+            "long_font": "Arial.ttf",
+            "long_color": "yellow",
+            "long_duration": 60,
             "long_time": "18:00",
-            "topics": "Space Exploration, AI Innovations, Fitness Motivation",
+            "long_language": "hi",
             "total_videos_created": 0,
             "remaining_plan_videos": 60,
             "next_scheduled_run": "Not Scheduled"
@@ -515,18 +564,37 @@ async def get_auto_schedule(internal_id: str):
     
     next_run = "Not Enabled"
     if schedule.get("schedule_enabled", False):
-        short_t = schedule.get("short_time", "10:00")
-        long_t = schedule.get("long_time", "18:00")
-        next_run = f"Short: Daily at {short_t} | Long: Daily at {long_t}"
+        if plan_type == "combo":
+            next_run = f"Short: Daily at {schedule.get('short_time', '10:00')} | Long: Daily at {schedule.get('long_time', '18:00')}"
+        elif plan_type == "short":
+            next_run = f"Short Reel: Daily at {schedule.get('short_time', '10:00')}"
+        elif plan_type == "long":
+            next_run = f"Long Video: Daily at {schedule.get('long_time', '18:00')}"
 
     return {
         "schedule_enabled": schedule.get("schedule_enabled", False),
+        "plan_type": plan_type,
+        
+        # Short settings
+        "short_auto_topic": schedule.get("short_auto_topic", True),
+        "short_topic": schedule.get("short_topic", "Space Exploration, AI Innovations"),
+        "short_voice": schedule.get("short_voice", "hi-IN-MadhurNeural"),
+        "short_font": schedule.get("short_font", "Arial.ttf"),
+        "short_color": schedule.get("short_color", "yellow"),
+        "short_duration": schedule.get("short_duration", 30),
         "short_time": schedule.get("short_time", "10:00"),
+        "short_language": schedule.get("short_language", "hi"),
+        
+        # Long settings
+        "long_auto_topic": schedule.get("long_auto_topic", True),
+        "long_topic": schedule.get("long_topic", "Space Exploration, AI Technology"),
+        "long_voice": schedule.get("long_voice", "hi-IN-MadhurNeural"),
+        "long_font": schedule.get("long_font", "Arial.ttf"),
+        "long_color": schedule.get("long_color", "yellow"),
+        "long_duration": schedule.get("long_duration", 60),
         "long_time": schedule.get("long_time", "18:00"),
-        "topics": schedule.get("topics", "Space Exploration, AI Innovations, Fitness Motivation"),
-        "voice_id": schedule.get("voice_id", "hi-IN-MadhurNeural"),
-        "font_name": schedule.get("font_name", "Arial.ttf"),
-        "font_color": schedule.get("font_color", "yellow"),
+        "long_language": schedule.get("long_language", "hi"),
+
         "total_videos_created": used_videos,
         "remaining_plan_videos": remaining,
         "total_plan_allowance": total_allowance,

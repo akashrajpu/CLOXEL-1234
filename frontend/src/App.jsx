@@ -135,16 +135,28 @@ function App() {
         body: JSON.stringify({
           internal_id: userId,
           schedule_enabled: autoSchedule.schedule_enabled,
-          short_time: autoSchedule.short_time,
-          long_time: autoSchedule.long_time,
-          topics: autoSchedule.topics,
-          voice_id: voiceId,
-          font_name: fontName,
-          font_color: fontColor
+          
+          short_auto_topic: autoSchedule.short_auto_topic !== false,
+          short_topic: autoSchedule.short_topic || 'Space Exploration, AI Innovations',
+          short_voice: autoSchedule.short_voice || 'hi-IN-MadhurNeural',
+          short_font: autoSchedule.short_font || 'Arial.ttf',
+          short_color: autoSchedule.short_color || 'yellow',
+          short_duration: parseInt(autoSchedule.short_duration || 30),
+          short_time: autoSchedule.short_time || '10:00',
+          short_language: autoSchedule.short_language || 'hi',
+          
+          long_auto_topic: autoSchedule.long_auto_topic !== false,
+          long_topic: autoSchedule.long_topic || 'Space Exploration, AI Technology',
+          long_voice: autoSchedule.long_voice || 'hi-IN-MadhurNeural',
+          long_font: autoSchedule.long_font || 'Arial.ttf',
+          long_color: autoSchedule.long_color || 'yellow',
+          long_duration: parseInt(autoSchedule.long_duration || 60),
+          long_time: autoSchedule.long_time || '18:00',
+          long_language: autoSchedule.long_language || 'hi'
         })
       });
       if (res.ok) {
-        alert("✅ Secret Auto-Generate Schedule Saved to MongoDB!\n\nServer will automatically track your topics and generate videos at your scheduled times (" + autoSchedule.short_time + " & " + autoSchedule.long_time + ") and auto-publish to YouTube.");
+        alert("✅ Secret Auto-Generate Schedule Saved to MongoDB!\n\nServer will automatically track your topics, voice, font, and duration settings for your active plan and publish to YouTube on schedule.");
         fetchAutoSchedule();
         setShowAutoUploadModal(false);
       } else {
@@ -941,7 +953,7 @@ function App() {
               </div>
 
               {/* Auto Schedule Switch */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <input 
                   type="checkbox" 
                   id="auto-schedule-enable"
@@ -954,49 +966,163 @@ function App() {
                 </label>
               </div>
 
-              {/* Daily Schedule Time Pickers */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', color: '#cbd5e1', fontSize: '0.82rem', marginBottom: '6px' }}>
-                    📱 Short Video Daily Time (24h):
-                  </label>
-                  <input 
-                    type="time" 
-                    value={autoSchedule.short_time || '10:00'}
-                    onChange={(e) => setAutoSchedule({ ...autoSchedule, short_time: e.target.value })}
-                    style={{ width: '100%', padding: '10px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', color: '#ffffff', fontSize: '0.9rem' }}
-                  />
-                </div>
+              {/* 1. SHORT REEL SCHEDULE PROFILE (If Short Starter or Pro Combo) */}
+              {(subStatus.plan_type === 'short' || subStatus.plan_type === 'combo') && (
+                <div style={{ background: 'rgba(168,85,247,0.08)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(168,85,247,0.3)', marginBottom: '20px' }}>
+                  <h4 style={{ color: '#c084fc', marginBottom: '14px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    📱 9:16 Short Reels Automation Settings
+                  </h4>
 
-                <div>
-                  <label style={{ display: 'block', color: '#cbd5e1', fontSize: '0.82rem', marginBottom: '6px' }}>
-                    🖥️ Long Video Daily Time (24h):
-                  </label>
-                  <input 
-                    type="time" 
-                    value={autoSchedule.long_time || '18:00'}
-                    onChange={(e) => setAutoSchedule({ ...autoSchedule, long_time: e.target.value })}
-                    style={{ width: '100%', padding: '10px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', color: '#ffffff', fontSize: '0.9rem' }}
-                  />
-                </div>
-              </div>
+                  {/* Topic Choice */}
+                  <div style={{ marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px' }}>
+                      <input 
+                        type="checkbox" 
+                        id="short-auto-topic"
+                        checked={autoSchedule.short_auto_topic !== false}
+                        onChange={(e) => setAutoSchedule({ ...autoSchedule, short_auto_topic: e.target.checked })}
+                        style={{ width: '16px', height: '16px', accentColor: '#a855f7' }}
+                      />
+                      <label htmlFor="short-auto-topic" style={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                        🎲 Dynamic AI Auto-Topic (Everyday New Trending Topic)
+                      </label>
+                    </div>
 
-              {/* Topics Input Pipeline */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', color: '#cbd5e1', fontSize: '0.82rem', marginBottom: '6px' }}>
-                  🎯 AI Auto-Topic Pipeline (Comma or Line Separated):
-                </label>
-                <textarea 
-                  rows="3"
-                  value={autoSchedule.topics || ''}
-                  onChange={(e) => setAutoSchedule({ ...autoSchedule, topics: e.target.value })}
-                  placeholder="e.g. Space Exploration, AI Innovations, Fitness Motivation, Ancient Mysteries"
-                  style={{ width: '100%', padding: '12px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', color: '#ffffff', fontSize: '0.88rem', resize: 'vertical' }}
-                ></textarea>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                  Server will cycle through these topics automatically on your scheduled daily time slots.
-                </span>
-              </div>
+                    {autoSchedule.short_auto_topic === false && (
+                      <textarea 
+                        rows="2"
+                        value={autoSchedule.short_topic || ''}
+                        onChange={(e) => setAutoSchedule({ ...autoSchedule, short_topic: e.target.value })}
+                        placeholder="Enter custom Short topics separated by comma (e.g. Space Facts, Fitness Hacks)"
+                        style={{ width: '100%', padding: '10px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem' }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Short Voice, Font, Color, Duration, Time */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.82rem' }}>
+                    <div>
+                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Voice:</label>
+                      <select value={autoSchedule.short_voice || 'hi-IN-MadhurNeural'} onChange={(e) => setAutoSchedule({ ...autoSchedule, short_voice: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                        <option value="hi-IN-MadhurNeural">Madhur (Male, Hindi)</option>
+                        <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
+                        <option value="en-US-GuyNeural">Guy (Male, English)</option>
+                        <option value="en-US-JennyNeural">Jenny (Female, English)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family:</label>
+                      <select value={autoSchedule.short_font || 'Arial.ttf'} onChange={(e) => setAutoSchedule({ ...autoSchedule, short_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                        {fontList.map((f, i) => (
+                          <option key={i} value={f}>{f.replace(/\.[^/.]+$/, "")}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Reel Duration (10s - 55s Max):</label>
+                      <input 
+                        type="number" 
+                        min="10" 
+                        max="55" 
+                        value={autoSchedule.short_duration || 30} 
+                        onChange={(e) => setAutoSchedule({ ...autoSchedule, short_duration: Math.min(55, Math.max(10, Number(e.target.value))) })}
+                        style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Daily Upload Time (24h):</label>
+                      <input 
+                        type="time" 
+                        value={autoSchedule.short_time || '10:00'} 
+                        onChange={(e) => setAutoSchedule({ ...autoSchedule, short_time: e.target.value })}
+                        style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. LONG VIDEO SCHEDULE PROFILE (If Long Master or Pro Combo) */}
+              {(subStatus.plan_type === 'long' || subStatus.plan_type === 'combo') && (
+                <div style={{ background: 'rgba(6,182,212,0.08)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(6,182,212,0.3)', marginBottom: '20px' }}>
+                  <h4 style={{ color: '#38bdf8', marginBottom: '14px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    🖥️ 16:9 Long Video Automation Settings
+                  </h4>
+
+                  {/* Topic Choice */}
+                  <div style={{ marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px' }}>
+                      <input 
+                        type="checkbox" 
+                        id="long-auto-topic"
+                        checked={autoSchedule.long_auto_topic !== false}
+                        onChange={(e) => setAutoSchedule({ ...autoSchedule, long_auto_topic: e.target.checked })}
+                        style={{ width: '16px', height: '16px', accentColor: '#06b6d4' }}
+                      />
+                      <label htmlFor="long-auto-topic" style={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                        🎲 Dynamic AI Auto-Topic (Everyday New Deep-Dive Topic)
+                      </label>
+                    </div>
+
+                    {autoSchedule.long_auto_topic === false && (
+                      <textarea 
+                        rows="2"
+                        value={autoSchedule.long_topic || ''}
+                        onChange={(e) => setAutoSchedule({ ...autoSchedule, long_topic: e.target.value })}
+                        placeholder="Enter custom Long Video topics separated by comma (e.g. Ancient Mysteries, AI Revolution)"
+                        style={{ width: '100%', padding: '10px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem' }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Long Voice, Font, Color, Duration, Time */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.82rem' }}>
+                    <div>
+                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Voice:</label>
+                      <select value={autoSchedule.long_voice || 'hi-IN-MadhurNeural'} onChange={(e) => setAutoSchedule({ ...autoSchedule, long_voice: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                        <option value="hi-IN-MadhurNeural">Madhur (Male, Hindi)</option>
+                        <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
+                        <option value="en-US-GuyNeural">Guy (Male, English)</option>
+                        <option value="en-US-JennyNeural">Jenny (Female, English)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family:</label>
+                      <select value={autoSchedule.long_font || 'Arial.ttf'} onChange={(e) => setAutoSchedule({ ...autoSchedule, long_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                        {fontList.map((f, i) => (
+                          <option key={i} value={f}>{f.replace(/\.[^/.]+$/, "")}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Video Duration (20s - 300s / 5m Max):</label>
+                      <input 
+                        type="number" 
+                        min="20" 
+                        max="300" 
+                        value={autoSchedule.long_duration || 60} 
+                        onChange={(e) => setAutoSchedule({ ...autoSchedule, long_duration: Math.min(300, Math.max(20, Number(e.target.value))) })}
+                        style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Daily Upload Time (24h):</label>
+                      <input 
+                        type="time" 
+                        value={autoSchedule.long_time || '18:00'} 
+                        onChange={(e) => setAutoSchedule({ ...autoSchedule, long_time: e.target.value })}
+                        style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {subStatus.has_active_subscription ? (
                 <button 
