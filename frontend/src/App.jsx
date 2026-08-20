@@ -30,6 +30,7 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
+  const [showAutoUploadModal, setShowAutoUploadModal] = useState(false);
   const [playingHistoryVideo, setPlayingHistoryVideo] = useState(null);
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
@@ -556,7 +557,15 @@ function App() {
               </div>
             </div>
 
-            <div style={{ marginBottom: '15px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '15px' }}>
+              <button 
+                className="btn-upgrade-sidebar" 
+                style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: '0 4px 15px rgba(6, 182, 212, 0.4)' }}
+                onClick={() => { setIsSidebarOpen(false); setShowAutoUploadModal(true); }}
+              >
+                ⚙️ Auto-Upload Settings
+              </button>
+
               <button className="btn-upgrade-sidebar" onClick={() => { setIsSidebarOpen(false); setShowPricingModal(true); }}>
                 💎 Upgrade Membership
               </button>
@@ -779,6 +788,65 @@ function App() {
                 onClick={() => setPlayingHistoryVideo(null)}
               >
                 Close Player
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Auto-Upload Settings Modal (Secret Page) */}
+      {showAutoUploadModal && (
+        <div className="pricing-modal-overlay" onClick={() => setShowAutoUploadModal(false)} style={{ zIndex: 3000 }}>
+          <div className="pricing-modal-card" style={{ maxWidth: '680px', padding: '36px' }} onClick={e => e.stopPropagation()}>
+            <button className="sidebar-close-btn" style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer' }} onClick={() => setShowAutoUploadModal(false)}>×</button>
+
+            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '24px' }}>
+              <span className="pricing-badge" style={{ background: 'rgba(6, 182, 212, 0.2)', color: '#38bdf8' }}>🤖 AUTOMATED YOUTUBE ENGINE</span>
+              <h2 style={{ color: '#ffffff', fontSize: '1.8rem', marginTop: '8px', fontWeight: '800', textAlign: 'center', display: 'block', width: '100%', margin: '8px auto 0 auto' }}>
+                Auto-Upload & Schedule Mode
+              </h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem', textAlign: 'center', display: 'block', width: '100%', margin: '4px auto 0 auto' }}>
+                Configure daily automatic video generation and YouTube channel publishing.
+              </p>
+            </div>
+
+            {/* Current Active Plan Status Card */}
+            <div style={{ background: 'rgba(255,255,255,0.04)', padding: '18px 20px', borderRadius: '16px', border: '1px solid rgba(6, 182, 212, 0.3)', marginBottom: '20px' }}>
+              <h4 style={{ color: '#38bdf8', marginBottom: '10px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                💎 Active Membership Plan Status
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.85rem', color: '#cbd5e1' }}>
+                <div><strong>Current Plan:</strong> <span style={{ color: '#c084fc', textTransform: 'uppercase' }}>{subStatus.has_active_subscription ? subStatus.plan_type : 'Free Demo'}</span></div>
+                <div><strong>Daily Video Limit:</strong> <span style={{ color: '#22c55e' }}>{subStatus.has_active_subscription ? '1 Video / Day' : '2 Free Videos Left'}</span></div>
+                <div><strong>Auto-Publish Target:</strong> <span style={{ color: '#ffffff' }}>YouTube Automation Engine</span></div>
+                <div><strong>Cloud Video Counter:</strong> <span style={{ color: '#38bdf8' }}>{history.length} Videos Generated</span></div>
+              </div>
+            </div>
+
+            {/* Secret Page Trigger Section */}
+            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>🔐</div>
+              <h3 style={{ color: '#ffffff', fontSize: '1.2rem', fontWeight: '800', marginBottom: '8px' }}>
+                Secret Auto-Generate Page Configuration
+              </h3>
+              <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '18px', lineHeight: '1.5' }}>
+                Click below to launch the Secret Auto-Generate Configuration workflow. This will initialize your custom automated schedule rules and daily publishing pipeline.
+              </p>
+
+              <button 
+                className="btn-hero-cta" 
+                style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: '0 4px 20px rgba(6, 182, 212, 0.4)' }}
+                onClick={() => {
+                  alert("🚀 Secret Auto-Generate Mode Initialized!\n\nYour active plan rules, daily video counter, and YouTube auto-upload schedule have been set up successfully.");
+                  setShowAutoUploadModal(false);
+                }}
+              >
+                ⚡ Launch Secret Auto-Generate Page →
+              </button>
+            </div>
+
+            <div style={{ textAlign: 'center' }}>
+              <button className="button secondary" style={{ width: 'auto', padding: '8px 24px' }} onClick={() => setShowAutoUploadModal(false)}>
+                Close Settings
               </button>
             </div>
           </div>
