@@ -405,6 +405,24 @@ async def save_auto_schedule(req: AutoScheduleRequest):
     if not user:
         raise HTTPException(status_code=404, detail="User profile not found")
 
+    # Safeguard: Check if user has active paid membership before saving schedule
+    subscription = user.get("subscription", {})
+    sub_status = subscription.get("status")
+    sub_expires = subscription.get("expires_at")
+    
+    is_active = False
+    if sub_status == "active" and sub_expires:
+        if isinstance(sub_expires, str):
+            try:
+                sub_expires = datetime.fromisoformat(sub_expires)
+            except Exception:
+                sub_expires = None
+        if sub_expires and sub_expires > datetime.utcnow():
+            is_active = True
+
+    if not is_active:
+        raise HTTPException(status_code=403, detail="🔒 Membership Only Feature! Auto-Schedule & Auto-Upload require an active paid membership plan. Please upgrade your membership to activate automatic video generation & YouTube publishing.")
+
     schedule_data = {
         "schedule_enabled": req.schedule_enabled,
         "short_time": req.short_time,

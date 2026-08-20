@@ -97,6 +97,12 @@ function App() {
 
   const handleSaveAutoSchedule = async () => {
     if (!userId) return;
+    if (!subStatus.has_active_subscription) {
+      alert("🔒 Active Paid Membership Required!\n\nAuto-Schedule & YouTube Auto-Upload are exclusive to active paid members. Please upgrade your plan to activate auto-scheduling!");
+      setShowAutoUploadModal(false);
+      setShowPricingModal(true);
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/save-auto-schedule`, {
         method: 'POST',
@@ -117,7 +123,8 @@ function App() {
         fetchAutoSchedule();
         setShowAutoUploadModal(false);
       } else {
-        alert("Failed to save schedule settings.");
+        const errData = await res.json();
+        alert(errData.detail || "Failed to save schedule settings.");
       }
     } catch (err) {
       alert("Error saving auto schedule.");
@@ -954,13 +961,26 @@ function App() {
                 </span>
               </div>
 
-              <button 
-                className="btn-hero-cta" 
-                style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: '0 4px 20px rgba(6, 182, 212, 0.4)' }}
-                onClick={handleSaveAutoSchedule}
-              >
-                💾 Save Schedule & Sync MongoDB →
-              </button>
+              {subStatus.has_active_subscription ? (
+                <button 
+                  className="btn-hero-cta" 
+                  style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: '0 4px 20px rgba(6, 182, 212, 0.4)' }}
+                  onClick={handleSaveAutoSchedule}
+                >
+                  💾 Save Schedule & Sync MongoDB →
+                </button>
+              ) : (
+                <button 
+                  className="btn-hero-cta" 
+                  style={{ width: '100%', padding: '14px', fontSize: '0.92rem', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)', opacity: 0.95 }}
+                  onClick={() => {
+                    setShowAutoUploadModal(false);
+                    setShowPricingModal(true);
+                  }}
+                >
+                  🔒 Active Membership Required — Click to Upgrade Plan & Unlock Auto-Schedule 💎
+                </button>
+              )}
             </div>
 
             <div style={{ textAlign: 'center' }}>
