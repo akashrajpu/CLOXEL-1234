@@ -867,7 +867,7 @@ function App() {
                 💎 Active Membership Plan Status
               </h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.85rem', color: '#cbd5e1' }}>
-                <div><strong>Current Plan:</strong> <span style={{ color: '#c084fc', textTransform: 'uppercase', fontWeight: 'bold' }}>{subStatus.has_active_subscription ? subStatus.plan_type : 'Free Demo'}</span></div>
+                <div><strong>Current Plan:</strong> <span style={{ color: '#c084fc', textTransform: 'uppercase', fontWeight: 'bold' }}>{subStatus.has_active_subscription ? `${subStatus.plan_type} (${autoSchedule.purchase_count || 1}x Stacked)` : 'Free Demo'}</span></div>
                 <div><strong>Daily Video Limit:</strong> <span style={{ color: '#22c55e', fontWeight: 'bold' }}>{subStatus.daily_limit_text || (subStatus.plan_type === 'combo' ? '2 Videos Daily (1 Short + 1 Long)' : '1 Video Daily')}</span></div>
                 <div><strong>Today Short Videos:</strong> <span style={{ color: '#38bdf8' }}>{subStatus.today_short_count || 0} / {subStatus.plan_type === 'combo' || subStatus.plan_type === 'short' ? '1' : '0'} Generated</span></div>
                 <div><strong>Today Long Videos:</strong> <span style={{ color: '#38bdf8' }}>{subStatus.today_long_count || 0} / {subStatus.plan_type === 'combo' || subStatus.plan_type === 'long' ? '1' : '0'} Generated</span></div>
@@ -892,8 +892,8 @@ function App() {
 
               {/* Plan Video Counter Bar */}
               <div style={{ background: 'rgba(6, 182, 212, 0.1)', border: '1px solid rgba(6, 182, 212, 0.3)', borderRadius: '12px', padding: '12px 16px', marginBottom: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
-                <div><span style={{ color: '#94a3b8' }}>Created:</span> <strong style={{ color: '#ffffff' }}>{autoSchedule.total_videos_created} Videos</strong></div>
-                <div><span style={{ color: '#94a3b8' }}>30-Day Plan Remaining:</span> <strong style={{ color: '#38bdf8' }}>{autoSchedule.remaining_plan_videos} / {autoSchedule.total_plan_allowance || 60} Left</strong></div>
+                <div><span style={{ color: '#94a3b8' }}>Elapsed Membership Days:</span> <strong style={{ color: '#ffffff' }}>{autoSchedule.total_videos_created} Days Passed</strong></div>
+                <div><span style={{ color: '#94a3b8' }}>Total Stacked Plan Remaining:</span> <strong style={{ color: '#38bdf8' }}>{autoSchedule.remaining_plan_videos} / {autoSchedule.total_plan_allowance || (subStatus.plan_type === 'combo' ? 60 : 30)} Videos Left</strong></div>
               </div>
 
               {/* Auto Schedule Switch */}

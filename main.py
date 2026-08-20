@@ -452,13 +452,29 @@ async def get_auto_schedule(internal_id: str):
     schedule = user.get("auto_schedule", {})
     sub = user.get("subscription", {})
     plan_type = sub.get("plan_type", "none")
+    purchase_count = sub.get("purchase_count", 1) if sub.get("status") == "active" else 0
     
-    total_allowance = 60 if plan_type == "combo" else (30 if plan_type in ["short", "long"] else 2)
-    created_count = 0
-    if videos_collection is not None:
-        created_count = videos_collection.count_documents({"internal_id": internal_id})
-        
-    remaining = max(0, total_allowance - created_count)
+    # Calculate days passed since subscription activation
+    days_elapsed = 0
+    sub_expires = sub.get("expires_at")
+    if sub.get("status") == "active" and sub_expires:
+        if isinstance(sub_expires, str):
+            try:
+                sub_expires = datetime.fromisoformat(sub_expires)
+            except Exception:
+                sub_expires = None
+        if sub_expires and sub_expires > datetime.utcnow():
+            days_left = (sub_expires - datetime.utcnow()).days + 1
+            total_days_purchased = purchase_count * 30
+            days_elapsed = max(0, total_days_purchased - days_left)
+
+    # Videos per day based on plan
+    daily_quota = 2 if plan_type == "combo" else (1 if plan_type in ["short", "long"] else 0)
+    total_allowance = purchase_count * 30 * daily_quota if daily_quota > 0 else 2
+    
+    # Videos used based on elapsed days (whether generated or missed!)
+    used_videos = days_elapsed * daily_quota if daily_quota > 0 else (2 - user.get("free_demo_count", 2))
+    remaining = max(0, total_allowance - used_videos)
     
     next_run = "Not Enabled"
     if schedule.get("schedule_enabled", False):
@@ -474,9 +490,10 @@ async def get_auto_schedule(internal_id: str):
         "voice_id": schedule.get("voice_id", "hi-IN-MadhurNeural"),
         "font_name": schedule.get("font_name", "Arial.ttf"),
         "font_color": schedule.get("font_color", "yellow"),
-        "total_videos_created": created_count,
+        "total_videos_created": used_videos,
         "remaining_plan_videos": remaining,
         "total_plan_allowance": total_allowance,
+        "purchase_count": purchase_count,
         "next_scheduled_run": next_run
     }
 
@@ -545,35 +562,38 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
             print(f"❌ Razorpay signature verification failed: {e}")
             raise HTTPException(status_code=400, detail="Payment Signature Verification Failed. Activation Denied.")
 
-    # Check if user already has an active subscription to extend by +30 days!
+    # Check if user already has an active subscription to extend duration stack!
     existing_user = users_collection.find_one({"internal_id": req.internal_id})
+    existing_sub = existing_user.get("subscription", {}) if existing_user else {}
+    purchase_count = existing_sub.get("purchase_count", 0) + 1
+
     current_expires = None
-    if existing_user and "subscription" in existing_user:
-        existing_sub = existing_user.get("subscription", {})
-        if existing_sub.get("status") == "active" and existing_sub.get("expires_at"):
-            sub_exp = existing_sub.get("expires_at")
-            if isinstance(sub_exp, str):
-                try:
-                    sub_exp = datetime.fromisoformat(sub_exp)
-                except Exception:
-                    sub_exp = None
-            if sub_exp and sub_exp > datetime.utcnow():
-                current_expires = sub_exp
+    if existing_sub.get("status") == "active" and existing_sub.get("expires_at"):
+        sub_exp = existing_sub.get("expires_at")
+        if isinstance(sub_exp, str):
+            try:
+                sub_exp = datetime.fromisoformat(sub_exp)
+            except Exception:
+                sub_exp = None
+        if sub_exp and sub_exp > datetime.utcnow():
+            current_expires = sub_exp
 
     if current_expires:
+        # Stack +30 days on top of current active expiration!
         expires_at = current_expires + timedelta(days=30)
-        print(f"🔄 Extending active membership for user {req.internal_id} by 30 days until {expires_at.isoformat()}")
+        print(f"🔄 Extending active membership for user {req.internal_id} (Purchase #{purchase_count}) by 30 days until {expires_at.isoformat()}")
     else:
         expires_at = datetime.utcnow() + timedelta(days=30)
-        print(f"✅ Activated new 30-day '{req.plan_type}' membership for user {req.internal_id}")
+        print(f"✅ Activated new 30-day '{req.plan_type}' membership (Purchase #{purchase_count}) for user {req.internal_id}")
     
     subscription_data = {
         "plan_type": req.plan_type,
         "status": "active",
         "payment_id": req.razorpay_payment_id,
         "order_id": req.razorpay_order_id,
-        "activated_at": datetime.utcnow(),
-        "expires_at": expires_at
+        "activated_at": datetime.utcnow() if not existing_sub.get("activated_at") else existing_sub.get("activated_at"),
+        "expires_at": expires_at,
+        "purchase_count": purchase_count
     }
     
     users_collection.update_one(
@@ -581,7 +601,7 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
         {"$set": {"subscription": subscription_data}}
     )
     
-    return {"message": "Payment verified and subscription extended successfully!", "expires_at": expires_at.isoformat()}
+    return {"message": f"Payment verified! Subscription extended successfully for 30 days (Total Purchases: {purchase_count})!", "expires_at": expires_at.isoformat(), "purchase_count": purchase_count}
 
 @app.post("/register")
 async def register_user(req: UserRegister):
