@@ -552,7 +552,7 @@ function App() {
                 {subStatus.country && <div>🌐 <span style={{ color: '#94a3b8' }}>Country:</span> <strong style={{ color: '#ffffff' }}>{subStatus.country}</strong></div>}
                 <div>🆔 <span style={{ color: '#94a3b8' }}>ID:</span> <span style={{ color: '#a855f7', fontFamily: 'monospace' }}>{userId ? `${userId.substring(0, 12)}...` : 'Unknown'}</span></div>
                 <div style={{ marginTop: '4px', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.1)', color: '#c084fc', fontWeight: 'bold', fontSize: '0.82rem' }}>
-                  💎 {subStatus.has_active_subscription ? `Active Plan: ${subStatus.plan_type.toUpperCase()}` : `Free Demo Videos Left: ${subStatus.free_demo_count}/2`}
+                  💎 {subStatus.has_active_subscription ? `Active Plan: ${subStatus.plan_type.toUpperCase()} (${subStatus.daily_limit_text || (subStatus.plan_type === 'combo' ? '2 Videos Daily: 1 Short + 1 Long' : '1 Video Daily')})` : `Free Demo Videos Left: ${subStatus.free_demo_count}/2`}
                 </div>
               </div>
             </div>
@@ -815,10 +815,12 @@ function App() {
                 💎 Active Membership Plan Status
               </h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.85rem', color: '#cbd5e1' }}>
-                <div><strong>Current Plan:</strong> <span style={{ color: '#c084fc', textTransform: 'uppercase' }}>{subStatus.has_active_subscription ? subStatus.plan_type : 'Free Demo'}</span></div>
-                <div><strong>Daily Video Limit:</strong> <span style={{ color: '#22c55e' }}>{subStatus.has_active_subscription ? '1 Video / Day' : '2 Free Videos Left'}</span></div>
+                <div><strong>Current Plan:</strong> <span style={{ color: '#c084fc', textTransform: 'uppercase', fontWeight: 'bold' }}>{subStatus.has_active_subscription ? subStatus.plan_type : 'Free Demo'}</span></div>
+                <div><strong>Daily Video Limit:</strong> <span style={{ color: '#22c55e', fontWeight: 'bold' }}>{subStatus.daily_limit_text || (subStatus.plan_type === 'combo' ? '2 Videos Daily (1 Short + 1 Long)' : '1 Video Daily')}</span></div>
+                <div><strong>Today Short Videos:</strong> <span style={{ color: '#38bdf8' }}>{subStatus.today_short_count || 0} / {subStatus.plan_type === 'combo' || subStatus.plan_type === 'short' ? '1' : '0'} Generated</span></div>
+                <div><strong>Today Long Videos:</strong> <span style={{ color: '#38bdf8' }}>{subStatus.today_long_count || 0} / {subStatus.plan_type === 'combo' || subStatus.plan_type === 'long' ? '1' : '0'} Generated</span></div>
                 <div><strong>Auto-Publish Target:</strong> <span style={{ color: '#ffffff' }}>YouTube Automation Engine</span></div>
-                <div><strong>Cloud Video Counter:</strong> <span style={{ color: '#38bdf8' }}>{history.length} Videos Generated</span></div>
+                <div><strong>Total History Count:</strong> <span style={{ color: '#c084fc' }}>{history.length} Videos Saved</span></div>
               </div>
             </div>
 

@@ -256,12 +256,16 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
             subscription = user.get("subscription", {})
             sub_status = subscription.get("status")
             sub_expires = subscription.get("expires_at")
+            sub_plan = subscription.get("plan_type", "none")
             
             is_active = False
             if sub_status == "active" and sub_expires:
                 if isinstance(sub_expires, str):
-                    sub_expires = datetime.fromisoformat(sub_expires)
-                if sub_expires > datetime.utcnow():
+                    try:
+                        sub_expires = datetime.fromisoformat(sub_expires)
+                    except Exception:
+                        sub_expires = None
+                if sub_expires and sub_expires > datetime.utcnow():
                     is_active = True
                     
             if not is_active:
@@ -269,6 +273,47 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
                     users_collection.update_one({"internal_id": user_id}, {"$inc": {"free_demo_count": -1}})
                 else:
                     raise HTTPException(status_code=402, detail="Demo quota exhausted! You have used your 2 free demo videos. Please upgrade your plan to continue generating videos.")
+            else:
+                # Active Subscription Quota Enforcement per Plan
+                today_str = datetime.utcnow().strftime("%Y-%m-%d")
+                daily_usage = user.get("daily_usage", {})
+                if daily_usage.get("date") != today_str:
+                    daily_usage = {"date": today_str, "short_count": 0, "long_count": 0}
+                
+                short_count = daily_usage.get("short_count", 0)
+                long_count = daily_usage.get("long_count", 0)
+                v_type = req.video_type  # 'short' or 'long'
+
+                if sub_plan == "short":
+                    if v_type == "long":
+                        raise HTTPException(status_code=403, detail="⚠️ Your SHORT STARTER plan only permits Short videos (9:16). Please upgrade to LONG MASTER or PRO COMBO to generate Long videos.")
+                    if short_count >= 1:
+                        raise HTTPException(status_code=429, detail="⚠️ Daily video limit reached! Your SHORT STARTER plan permits 1 Short video daily. Please try again tomorrow or upgrade to PRO COMBO.")
+                    daily_usage["short_count"] += 1
+
+                elif sub_plan == "long":
+                    if v_type == "short":
+                        raise HTTPException(status_code=403, detail="⚠️ Your LONG MASTER plan only permits Long videos (16:9). Please upgrade to SHORT STARTER or PRO COMBO to generate Short videos.")
+                    if long_count >= 1:
+                        raise HTTPException(status_code=429, detail="⚠️ Daily video limit reached! Your LONG MASTER plan permits 1 Long video daily. Please try again tomorrow or upgrade to PRO COMBO.")
+                    daily_usage["long_count"] += 1
+
+                elif sub_plan == "combo":
+                    # COMBO plan allows 2 videos per day: 1 Short + 1 Long!
+                    if v_type == "short":
+                        if short_count >= 1:
+                            raise HTTPException(status_code=429, detail="⚠️ Short video daily limit reached for today! Your PRO COMBO plan permits 1 Short + 1 Long video daily. You can still generate 1 Long video today!")
+                        daily_usage["short_count"] += 1
+                    else: # 'long'
+                        if long_count >= 1:
+                            raise HTTPException(status_code=429, detail="⚠️ Long video daily limit reached for today! Your PRO COMBO plan permits 1 Short + 1 Long video daily. You can still generate 1 Short video today!")
+                        daily_usage["long_count"] += 1
+
+                # Save updated daily usage tracking to MongoDB profile
+                users_collection.update_one(
+                    {"internal_id": user_id},
+                    {"$set": {"daily_usage": daily_usage}}
+                )
 
     job_id = str(uuid.uuid4())
     jobs[job_id] = {"status": "processing", "user_id": req.user_id}
@@ -312,6 +357,20 @@ async def get_user_subscription(internal_id: str):
         if sub_expires > datetime.utcnow():
             is_active = True
 
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    daily_usage = user.get("daily_usage", {})
+    if daily_usage.get("date") != today_str:
+        daily_usage = {"date": today_str, "short_count": 0, "long_count": 0}
+
+    limit_text = "2 Free Demo Videos Total"
+    if is_active:
+        if sub_plan == "combo":
+            limit_text = "2 Videos Daily (1 Short + 1 Long)"
+        elif sub_plan == "short":
+            limit_text = "1 Short Video Daily (9:16)"
+        elif sub_plan == "long":
+            limit_text = "1 Long Video Daily (16:9)"
+
     return {
         "name": user.get("name", "User"),
         "email": user.get("email", ""),
@@ -321,7 +380,10 @@ async def get_user_subscription(internal_id: str):
         "free_demo_count": free_demo,
         "has_active_subscription": is_active,
         "plan_type": sub_plan if is_active else "none",
-        "expires_at": sub_expires.isoformat() if is_active and sub_expires else None
+        "expires_at": sub_expires.isoformat() if is_active and sub_expires else None,
+        "today_short_count": daily_usage.get("short_count", 0),
+        "today_long_count": daily_usage.get("long_count", 0),
+        "daily_limit_text": limit_text
     }
 
 @app.post("/create-razorpay-order")
