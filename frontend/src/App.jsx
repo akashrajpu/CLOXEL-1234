@@ -12,9 +12,12 @@ function App() {
   
   // Customization Settings
   const [fontName, setFontName] = useState('Arial.ttf');
+  const [fontList, setFontList] = useState(['Arial.ttf', 'AgentOrange.ttf', 'BetsyFlanagan.ttf', 'CarbonBlock.ttf', 'Cartoon Blocks.ttf', 'GrapeSoda.ttf', 'HighLevel.ttf', 'RaceFlow.ttf']);
   const [fontSize, setFontSize] = useState(220);
   const [fontColor, setFontColor] = useState('yellow');
   const [voiceId, setVoiceId] = useState('hi-IN-MadhurNeural');
+  const [bgMusic, setBgMusic] = useState('cool.mp3');
+  const [bgMusicList, setBgMusicList] = useState(['cool.mp3', 'cool1.mp3', 'cool2.mp3', 'cool3.mp3', 'cool4.mp3', 'cool5.mp3', 'random', 'none']);
 
   const [scenes, setScenes] = useState([
     { text: '', keyword: '' },
@@ -87,7 +90,29 @@ function App() {
     }
   };
 
+  const fetchBgMusicAndFonts = async () => {
+    try {
+      const resM = await fetch(`${API_BASE}/bg-music-list`);
+      if (resM.ok) {
+        const dataM = await resM.json();
+        if (dataM.music_tracks && dataM.music_tracks.length > 0) {
+          setBgMusicList(['cool.mp3', 'cool1.mp3', 'cool2.mp3', 'cool3.mp3', 'cool4.mp3', 'cool5.mp3', 'random', 'none', ...dataM.music_tracks.filter(t => !['cool.mp3', 'cool1.mp3', 'cool2.mp3', 'cool3.mp3', 'cool4.mp3', 'cool5.mp3'].includes(t))]);
+        }
+      }
+      const resF = await fetch(`${API_BASE}/fonts-list`);
+      if (resF.ok) {
+        const dataF = await resF.json();
+        if (dataF.fonts && dataF.fonts.length > 0) {
+          setFontList(dataF.fonts);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch bg music or fonts:", e);
+    }
+  };
+
   useEffect(() => {
+    fetchBgMusicAndFonts();
     if (userId) {
       fetchHistory();
       fetchSubscriptionStatus();
@@ -217,6 +242,7 @@ function App() {
           language: 'hi',
           video_type: videoType,
           full_script: fullScript,
+          bg_music: bgMusic,
           user_id: userId
         })
       });
@@ -491,14 +517,25 @@ function App() {
           </div>
 
           <div className="form-group">
-            <label>Font Family</label>
+            <label>Font Family (30+ Custom Fonts)</label>
             <select value={fontName} onChange={e => setFontName(e.target.value)}>
-              <option value="Arial.ttf">Arial</option>
-              <option value="Roboto.ttf">Roboto</option>
-              <option value="Impact.ttf">Impact (Bold Shorts Style)</option>
+              {fontList.map((f, i) => (
+                <option key={i} value={f}>{f.replace(/\.[^/.]+$/, "")}</option>
+              ))}
             </select>
           </div>
           
+          <div className="form-group">
+            <label>🎵 Background Music Track</label>
+            <select value={bgMusic} onChange={e => setBgMusic(e.target.value)}>
+              {bgMusicList.map((m, i) => (
+                <option key={i} value={m}>
+                  {m === 'random' ? '🎲 Random Background Music' : (m === 'none' ? '🚫 No Background Music' : `🎵 ${m}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="form-group">
             <label>Font Size</label>
             <input 

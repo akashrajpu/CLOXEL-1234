@@ -127,11 +127,12 @@ def create_animated_text(full_text, size, duration, font_path, highlight_color, 
     mask_clip = VideoClip(make_mask, ismask=True, duration=duration).set_fps(fps)
     return clip.set_mask(mask_clip)
     
-def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", color="#FFEE00", font_size=220, target_size=(1080, 1920)):
+def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", color="#FFEE00", font_size=220, target_size=(1080, 1920), bg_music="cool.mp3"):
     """
     Har scene ka apna audio, apna video, aur apni text script merge karta hai.
+    Saves RAM by rendering individual lightweight scenes and concatenating via raw FFmpeg.
     """
-    print(f"\n🎸 Rendering scenes individually to save RAM (Size: {target_size})...")
+    print(f"\n🎸 Rendering {len(scene_list)} scenes individually to save RAM (Size: {target_size})...")
     
     temp_scene_files = []
     job_dir = os.path.dirname(output_name) if os.path.dirname(output_name) else "."
@@ -186,19 +187,38 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
     temp_merged = os.path.join(job_dir, "temp_merged_final.mp4")
     subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", temp_merged], check=True)
 
-    # Background Music
-    music_dir = "./songs" if os.path.isdir("./songs") else "./songs copy"
-    bg_music_files = []
-    if os.path.exists(music_dir):
-        bg_music_files = [os.path.join(music_dir, f) for f in os.listdir(music_dir) if f.lower().endswith(('.mp3', '.wav'))]
-        
-    if bg_music_files:
-        print("🎬 Adding background music and rendering Final Output...")
-        bg_music = random.choice(bg_music_files)
+    # Background Music Selection Logic
+    bg_music_file = None
+    if bg_music and str(bg_music).lower() != "none":
+        if os.path.exists(bg_music):
+            bg_music_file = bg_music
+        elif os.path.exists(os.path.join(".", bg_music)):
+            bg_music_file = os.path.join(".", bg_music)
+        else:
+            search_dirs = [".", "./songs", "./songs copy"]
+            possible = []
+            for d in search_dirs:
+                if os.path.exists(d):
+                    found = [os.path.join(d, f) for f in os.listdir(d) if f.lower().endswith(('.mp3', '.wav'))]
+                    possible.extend(found)
+            
+            if possible:
+                if str(bg_music).lower() == "random":
+                    bg_music_file = random.choice(possible)
+                else:
+                    for p in possible:
+                        if os.path.basename(p).lower() == str(bg_music).lower():
+                            bg_music_file = p
+                            break
+                    if not bg_music_file:
+                        bg_music_file = possible[0]
+
+    if bg_music_file and os.path.exists(bg_music_file):
+        print(f"🎬 Adding selected background music: {bg_music_file}...")
         cmd = [
             "ffmpeg", "-y",
             "-i", temp_merged,
-            "-i", bg_music,
+            "-i", bg_music_file,
             "-filter_complex", "[1:a]volume=0.12[a1];[0:a][a1]amix=inputs=2:duration=first[a]",
             "-map", "0:v",
             "-map", "[a]",
@@ -207,9 +227,10 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
             output_name
         ]
         subprocess.run(cmd, check=True)
-        os.remove(temp_merged)
+        if os.path.exists(temp_merged): os.remove(temp_merged)
     else:
-        os.rename(temp_merged, output_name)
+        print("🎬 No background music selected or file not found. Exporting final video...")
+        if os.path.exists(temp_merged): os.rename(temp_merged, output_name)
     
     # Final Cleanup
     if os.path.exists(list_path): os.remove(list_path)

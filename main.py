@@ -133,6 +133,7 @@ class VideoRequest(BaseModel):
     language: str = "hi"
     video_type: str = "short"  # 'short' or 'long'
     full_script: str = ""      # used if video_type is 'long'
+    bg_music: str = "cool.mp3" # background music track choice
 
 class ScriptRequest(BaseModel):
     topic: str
@@ -196,10 +197,10 @@ def full_process(req: VideoRequest, job_id: str):
 
         if taiyaar_scenes:
             output_file = f"output_{job_id}.mp4"
-            # Editor ko user ki choice bhejna (font, color)
+            # Editor ko user ki choice bhejna (font, color, bg_music)
             target_size = (1280, 720) if req.video_type == "long" else (720, 1280)
             adjusted_font_size = int(req.font_size * 0.7) if req.video_type == "long" else req.font_size
-            merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size) 
+            merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music) 
             
             # Upload to Cloudinary
             cloudinary_url = None
@@ -747,6 +748,26 @@ async def download_video(job_id: str):
     if job and job["status"] == "completed":
         return FileResponse(job["file"], media_type="video/mp4", filename="cloxel_video.mp4")
     return {"error": "File not ready"}
+
+@app.get("/bg-music-list")
+async def get_bg_music_list():
+    music_files = ["cool.mp3", "cool1.mp3", "cool2.mp3", "cool3.mp3", "cool4.mp3", "cool5.mp3"]
+    search_dirs = [".", "./songs", "./songs copy"]
+    found = set(music_files)
+    for d in search_dirs:
+        if os.path.exists(d):
+            for f in os.listdir(d):
+                if f.lower().endswith(('.mp3', '.wav')):
+                    found.add(f)
+    return {"music_tracks": sorted(list(found))}
+
+@app.get("/fonts-list")
+async def get_fonts_list():
+    fonts_dir = "./fonts"
+    fonts = ["Arial.ttf"]
+    if os.path.exists(fonts_dir):
+        fonts = [f for f in os.listdir(fonts_dir) if f.lower().endswith(('.ttf', '.otf'))]
+    return {"fonts": sorted(fonts)}
 
 @app.post("/cleanup/{job_id}")
 async def cleanup(job_id: str):
