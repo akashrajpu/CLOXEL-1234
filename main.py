@@ -231,6 +231,14 @@ def full_process(req: VideoRequest, job_id: str):
     except Exception as e:
         print(f"❌ Error in full_process: {e}")
         jobs[job_id] = {"status": "failed", "error": str(e)}
+    finally:
+        # Safety Disk Space Cleanup: Remove temporary raw audio & video clips to prevent server disk fill-up
+        try:
+            if os.path.exists(job_dir):
+                shutil.rmtree(job_dir, ignore_errors=True)
+                print(f"🧹 Cleaned up temp scene directory: {job_dir}")
+        except Exception as err:
+            print(f"Temp cleanup warning: {err}")
 
 class CreateOrderRequest(BaseModel):
     internal_id: str
@@ -258,7 +266,14 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
     user_id = req.user_id
     if not user_id or user_id == "anonymous":
         raise HTTPException(status_code=401, detail="Please login or register to generate videos.")
-        
+
+    # Safety Check: Script Length & Scene Count Limits (Anti-DDoS / Anti-Memory Crash)
+    if req.full_script and len(req.full_script) > 5000:
+        raise HTTPException(status_code=400, detail="⚠️ Script too long! Maximum script length allowed is 5,000 characters per video.")
+
+    if req.scenes and len(req.scenes) > 25:
+        raise HTTPException(status_code=400, detail="⚠️ Too many scenes! Maximum scenes allowed per video is 25.")
+
     if users_collection is not None:
         user = users_collection.find_one({"internal_id": user_id})
         if user:
@@ -279,9 +294,12 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
                     is_active = True
                     
             if not is_active:
-                if free_demo > 0:
-                    users_collection.update_one({"internal_id": user_id}, {"$inc": {"free_demo_count": -1}})
-                else:
+                # Atomic decrement safeguard: Prevents multi-tab parallel race conditions
+                res = users_collection.update_one(
+                    {"internal_id": user_id, "free_demo_count": {"$gt": 0}},
+                    {"$inc": {"free_demo_count": -1}}
+                )
+                if res.modified_count == 0:
                     raise HTTPException(status_code=402, detail="Demo quota exhausted! You have used your 2 free demo videos. Please upgrade your plan to continue generating videos.")
             else:
                 # Active Subscription Quota Enforcement per Plan
