@@ -35,6 +35,15 @@ function App() {
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
   const [subStatus, setSubStatus] = useState({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
+  const [autoSchedule, setAutoSchedule] = useState({
+    schedule_enabled: true,
+    short_time: '10:00',
+    long_time: '18:00',
+    topics: 'Space Exploration, AI Innovations, Ancient Mysteries, Wealth & Finance',
+    total_videos_created: 0,
+    remaining_plan_videos: 60,
+    next_scheduled_run: 'Short: Daily at 10:00 | Long: Daily at 18:00'
+  });
   
   // Auth state
   const [userId, setUserId] = useState(() => localStorage.getItem('cloxel_user_id') || null);
@@ -49,6 +58,19 @@ function App() {
       }
     } catch (e) {
       console.error("Failed to fetch subscription status:", e);
+    }
+  };
+
+  const fetchAutoSchedule = async () => {
+    if (!userId) return;
+    try {
+      const res = await fetch(`${API_BASE}/get-auto-schedule/${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAutoSchedule(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch auto schedule:", e);
     }
   };
 
@@ -69,8 +91,38 @@ function App() {
     if (userId) {
       fetchHistory();
       fetchSubscriptionStatus();
+      fetchAutoSchedule();
     }
   }, [userId]);
+
+  const handleSaveAutoSchedule = async () => {
+    if (!userId) return;
+    try {
+      const res = await fetch(`${API_BASE}/save-auto-schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          internal_id: userId,
+          schedule_enabled: autoSchedule.schedule_enabled,
+          short_time: autoSchedule.short_time,
+          long_time: autoSchedule.long_time,
+          topics: autoSchedule.topics,
+          voice_id: voiceId,
+          font_name: fontName,
+          font_color: fontColor
+        })
+      });
+      if (res.ok) {
+        alert("✅ Secret Auto-Generate Schedule Saved to MongoDB!\n\nServer will automatically track your topics and generate videos at your scheduled times (" + autoSchedule.short_time + " & " + autoSchedule.long_time + ") and auto-publish to YouTube.");
+        fetchAutoSchedule();
+        setShowAutoUploadModal(false);
+      } else {
+        alert("Failed to save schedule settings.");
+      }
+    } catch (err) {
+      alert("Error saving auto schedule.");
+    }
+  };
 
   const handleLoginSuccess = (id) => {
     setUserId(id);
@@ -824,25 +876,90 @@ function App() {
               </div>
             </div>
 
-            {/* Secret Page Trigger Section */}
-            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', textAlign: 'center', marginBottom: '24px' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>🔐</div>
-              <h3 style={{ color: '#ffffff', fontSize: '1.2rem', fontWeight: '800', marginBottom: '8px' }}>
-                Secret Auto-Generate Page Configuration
-              </h3>
-              <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '18px', lineHeight: '1.5' }}>
-                Click below to launch the Secret Auto-Generate Configuration workflow. This will initialize your custom automated schedule rules and daily publishing pipeline.
-              </p>
+            {/* Secret Auto-Generate Page Configuration Form */}
+            <div style={{ background: 'rgba(0,0,0,0.35)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(6, 182, 212, 0.3)', textAlign: 'left', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '1.8rem' }}>🔐</span>
+                <div>
+                  <h3 style={{ color: '#ffffff', fontSize: '1.15rem', fontWeight: '800', margin: 0 }}>
+                    Secret Auto-Generate Page Configuration
+                  </h3>
+                  <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: 0 }}>
+                    Set exact video generation times & topics. All data syncs directly to MongoDB.
+                  </p>
+                </div>
+              </div>
+
+              {/* Plan Video Counter Bar */}
+              <div style={{ background: 'rgba(6, 182, 212, 0.1)', border: '1px solid rgba(6, 182, 212, 0.3)', borderRadius: '12px', padding: '12px 16px', marginBottom: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                <div><span style={{ color: '#94a3b8' }}>Created:</span> <strong style={{ color: '#ffffff' }}>{autoSchedule.total_videos_created} Videos</strong></div>
+                <div><span style={{ color: '#94a3b8' }}>30-Day Plan Remaining:</span> <strong style={{ color: '#38bdf8' }}>{autoSchedule.remaining_plan_videos} / {autoSchedule.total_plan_allowance || 60} Left</strong></div>
+              </div>
+
+              {/* Auto Schedule Switch */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <input 
+                  type="checkbox" 
+                  id="auto-schedule-enable"
+                  checked={autoSchedule.schedule_enabled}
+                  onChange={(e) => setAutoSchedule({ ...autoSchedule, schedule_enabled: e.target.checked })}
+                  style={{ width: '18px', height: '18px', accentColor: '#06b6d4', cursor: 'pointer' }}
+                />
+                <label htmlFor="auto-schedule-enable" style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer' }}>
+                  Enable Daily Automated AI Video Generation & YouTube Upload
+                </label>
+              </div>
+
+              {/* Daily Schedule Time Pickers */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', color: '#cbd5e1', fontSize: '0.82rem', marginBottom: '6px' }}>
+                    📱 Short Video Daily Time (24h):
+                  </label>
+                  <input 
+                    type="time" 
+                    value={autoSchedule.short_time || '10:00'}
+                    onChange={(e) => setAutoSchedule({ ...autoSchedule, short_time: e.target.value })}
+                    style={{ width: '100%', padding: '10px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', color: '#ffffff', fontSize: '0.9rem' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', color: '#cbd5e1', fontSize: '0.82rem', marginBottom: '6px' }}>
+                    🖥️ Long Video Daily Time (24h):
+                  </label>
+                  <input 
+                    type="time" 
+                    value={autoSchedule.long_time || '18:00'}
+                    onChange={(e) => setAutoSchedule({ ...autoSchedule, long_time: e.target.value })}
+                    style={{ width: '100%', padding: '10px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', color: '#ffffff', fontSize: '0.9rem' }}
+                  />
+                </div>
+              </div>
+
+              {/* Topics Input Pipeline */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', color: '#cbd5e1', fontSize: '0.82rem', marginBottom: '6px' }}>
+                  🎯 AI Auto-Topic Pipeline (Comma or Line Separated):
+                </label>
+                <textarea 
+                  rows="3"
+                  value={autoSchedule.topics || ''}
+                  onChange={(e) => setAutoSchedule({ ...autoSchedule, topics: e.target.value })}
+                  placeholder="e.g. Space Exploration, AI Innovations, Fitness Motivation, Ancient Mysteries"
+                  style={{ width: '100%', padding: '12px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', color: '#ffffff', fontSize: '0.88rem', resize: 'vertical' }}
+                ></textarea>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                  Server will cycle through these topics automatically on your scheduled daily time slots.
+                </span>
+              </div>
 
               <button 
                 className="btn-hero-cta" 
                 style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: '0 4px 20px rgba(6, 182, 212, 0.4)' }}
-                onClick={() => {
-                  alert("🚀 Secret Auto-Generate Mode Initialized!\n\nYour active plan rules, daily video counter, and YouTube auto-upload schedule have been set up successfully.");
-                  setShowAutoUploadModal(false);
-                }}
+                onClick={handleSaveAutoSchedule}
               >
-                ⚡ Launch Secret Auto-Generate Page →
+                💾 Save Schedule & Sync MongoDB →
               </button>
             </div>
 

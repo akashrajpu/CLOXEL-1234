@@ -243,6 +243,16 @@ class VerifyPaymentRequest(BaseModel):
     razorpay_payment_id: str
     razorpay_signature: Optional[str] = None
 
+class AutoScheduleRequest(BaseModel):
+    internal_id: str
+    schedule_enabled: bool = True
+    short_time: str = "10:00"
+    long_time: str = "18:00"
+    topics: str = "Space Exploration, AI Innovations, Fitness Motivation"
+    voice_id: str = "hi-IN-MadhurNeural"
+    font_name: str = "Arial.ttf"
+    font_color: str = "yellow"
+
 @app.post("/generate-custom-video")
 async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundTasks):
     user_id = req.user_id
@@ -384,6 +394,90 @@ async def get_user_subscription(internal_id: str):
         "today_short_count": daily_usage.get("short_count", 0),
         "today_long_count": daily_usage.get("long_count", 0),
         "daily_limit_text": limit_text
+    }
+
+@app.post("/save-auto-schedule")
+async def save_auto_schedule(req: AutoScheduleRequest):
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+        
+    user = users_collection.find_one({"internal_id": req.internal_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User profile not found")
+
+    schedule_data = {
+        "schedule_enabled": req.schedule_enabled,
+        "short_time": req.short_time,
+        "long_time": req.long_time,
+        "topics": req.topics,
+        "voice_id": req.voice_id,
+        "font_name": req.font_name,
+        "font_color": req.font_color,
+        "updated_at": datetime.utcnow()
+    }
+
+    users_collection.update_one(
+        {"internal_id": req.internal_id},
+        {"$set": {"auto_schedule": schedule_data}}
+    )
+
+    print(f"✅ Saved Auto-Schedule settings in MongoDB for user {req.internal_id}")
+    return {"message": "Auto-schedule settings saved successfully to MongoDB profile!", "schedule": schedule_data}
+
+@app.get("/get-auto-schedule/{internal_id}")
+async def get_auto_schedule(internal_id: str):
+    if users_collection is None:
+        return {
+            "schedule_enabled": False,
+            "short_time": "10:00",
+            "long_time": "18:00",
+            "topics": "Space Exploration, AI Innovations, Fitness Motivation",
+            "total_videos_created": 0,
+            "remaining_plan_videos": 60,
+            "next_scheduled_run": "Not Scheduled"
+        }
+
+    user = users_collection.find_one({"internal_id": internal_id})
+    if not user:
+        return {
+            "schedule_enabled": False,
+            "short_time": "10:00",
+            "long_time": "18:00",
+            "topics": "Space Exploration, AI Innovations, Fitness Motivation",
+            "total_videos_created": 0,
+            "remaining_plan_videos": 60,
+            "next_scheduled_run": "Not Scheduled"
+        }
+
+    schedule = user.get("auto_schedule", {})
+    sub = user.get("subscription", {})
+    plan_type = sub.get("plan_type", "none")
+    
+    total_allowance = 60 if plan_type == "combo" else (30 if plan_type in ["short", "long"] else 2)
+    created_count = 0
+    if videos_collection is not None:
+        created_count = videos_collection.count_documents({"internal_id": internal_id})
+        
+    remaining = max(0, total_allowance - created_count)
+    
+    next_run = "Not Enabled"
+    if schedule.get("schedule_enabled", False):
+        short_t = schedule.get("short_time", "10:00")
+        long_t = schedule.get("long_time", "18:00")
+        next_run = f"Short: Daily at {short_t} | Long: Daily at {long_t}"
+
+    return {
+        "schedule_enabled": schedule.get("schedule_enabled", False),
+        "short_time": schedule.get("short_time", "10:00"),
+        "long_time": schedule.get("long_time", "18:00"),
+        "topics": schedule.get("topics", "Space Exploration, AI Innovations, Fitness Motivation"),
+        "voice_id": schedule.get("voice_id", "hi-IN-MadhurNeural"),
+        "font_name": schedule.get("font_name", "Arial.ttf"),
+        "font_color": schedule.get("font_color", "yellow"),
+        "total_videos_created": created_count,
+        "remaining_plan_videos": remaining,
+        "total_plan_allowance": total_allowance,
+        "next_scheduled_run": next_run
     }
 
 @app.post("/create-razorpay-order")
