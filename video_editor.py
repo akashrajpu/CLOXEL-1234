@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 import textwrap
 import subprocess
-from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips, CompositeVideoClip, ImageSequenceClip, VideoClip
+from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip, ColorClip, CompositeVideoClip, ImageSequenceClip, VideoClip
 from PIL import Image, ImageDraw, ImageFont
 
 warnings.filterwarnings("ignore")
@@ -145,8 +145,21 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
         a_clip = AudioFileClip(audio_path)
         clip_duration = a_clip.duration
         
-        # Video clip
-        v_clip = VideoFileClip(video_path, audio=False).resize(height=target_size[1])
+        # Video/Image clip load with fail-safe fallback
+        is_image = str(video_path).lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
+        
+        try:
+            if is_image and os.path.exists(video_path):
+                v_clip = ImageClip(video_path).resize(height=target_size[1])
+            elif os.path.exists(video_path):
+                v_clip = VideoFileClip(video_path, audio=False).resize(height=target_size[1])
+            else:
+                print(f"⚠️ Media file missing ({video_path}), using ColorClip background fallback...")
+                v_clip = ColorClip(size=target_size, color=(15, 10, 35))
+        except Exception as e_clip:
+            print(f"⚠️ Media load error ({video_path}): {e_clip}. Using solid color fallback...")
+            v_clip = ColorClip(size=target_size, color=(15, 10, 35))
+
         if v_clip.w > target_size[0]:
             v_clip = v_clip.crop(x_center=v_clip.w/2, width=target_size[0])
         elif v_clip.w < target_size[0]:

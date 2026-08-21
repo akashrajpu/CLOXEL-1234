@@ -91,9 +91,9 @@ def fetch_pixabay_videos(keyword, job_id, count=1, orientation="portrait"):
     return []
 
 def fetch_pinterest_pins(keyword, job_id, count=1, orientation="portrait"):
-    """Pinterest API se HD Pins media download karta hai"""
+    """Pinterest API se HD Pins media download karta hai (100% Optional & Fail-Safe)"""
     token = os.getenv("PINTEREST_ACCESS_TOKEN") or PINTEREST_ACCESS_TOKEN
-    if not token:
+    if not token or str(token).strip() == "":
         return []
         
     print(f"📥 [Pinterest] '{keyword}' ke liye Pins search kar rahe hain...")
@@ -101,8 +101,9 @@ def fetch_pinterest_pins(keyword, job_id, count=1, orientation="portrait"):
     url = f"https://api.pinterest.com/v5/search/pins?query={requests.utils.quote(keyword)}&page_size=5"
     
     try:
-        res = requests.get(url, headers=headers, timeout=12)
+        res = requests.get(url, headers=headers, timeout=8)
         if res.status_code != 200:
+            print(f"⚠️ [Pinterest] Token/API response ({res.status_code}). Skipping to next provider...")
             return []
         data = res.json()
         pins = data.get('items', [])
@@ -116,60 +117,73 @@ def fetch_pinterest_pins(keyword, job_id, count=1, orientation="portrait"):
                 base_name = os.path.basename(job_id)
                 filename = os.path.join(dir_name, f"pinterest_{base_name}_{i}.jpg") if dir_name else f"pinterest_{base_name}_{i}.jpg"
                 
-                img_data = requests.get(img_url, timeout=15).content
+                img_data = requests.get(img_url, timeout=10).content
                 with open(filename, "wb") as f:
                     f.write(img_data)
                 media_paths.append(filename)
                 print(f"✅ [Pinterest] Pin media downloaded: {filename}")
             return media_paths
     except Exception as e:
-        print(f"⚠️ [Pinterest] Error: {e}")
+        print(f"⚠️ [Pinterest Non-Blocking Warning]: {e}. Falling back to next provider...")
     return []
 
 def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Random"):
     """
-    Category-Smart Multi-Provider Media Fetcher:
-    - Documentary, Comedy, Cartoon, Anime, Horror, Mythology -> Priority Pinterest HD Pins & Animation Photos with Motion Effects.
-    - Short Videos / Reels -> Photo + Video Hybrid Mix for next-level visual retention.
-    - General / Tech -> Pexels & Pixabay HD Clips.
+    100% Optional & Non-Blocking Multi-Provider Media Fetcher:
+    - Never crashes video generation even if ALL keys are missing or invalid!
+    - Try order: Pinterest (optional) -> Pexels -> Pixabay -> Generic Fallback
     """
     cat_lower = str(category).lower()
     
-    # Check if category prefers Pinterest HD Pins & Cartoon/Anime/Documentary Visuals
+    # Optional Pinterest priority check
     prefer_pinterest = any(c in cat_lower for c in ['cartoon', 'animation', 'documentary', 'comedy', 'horror', 'mythology', 'history', 'anime', 'art', 'photo'])
     
     if prefer_pinterest:
-        print(f"🎨 [Category: {category}] Pinterest HD Pins & Animations ko priority dedi gayi hai!")
-        # Search Pinterest with category prefix for ultra-targeted HD visual pins
-        search_term = f"{keyword} {category.replace('🎲', '').replace('🎨', '').replace('✍️', '').strip()}"
-        pins = fetch_pinterest_pins(search_term, job_id, count=count, orientation=orientation)
-        if not pins:
-            pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation)
-        if pins:
-            return pins
+        try:
+            print(f"🎨 [Category: {category}] Trying Pinterest HD Pins (Optional Priority)...")
+            search_term = f"{keyword} {category.replace('🎲', '').replace('🎨', '').replace('✍️', '').strip()}"
+            pins = fetch_pinterest_pins(search_term, job_id, count=count, orientation=orientation)
+            if not pins:
+                pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation)
+            if pins:
+                return pins
+        except Exception as e_p:
+            print(f"⚠️ [Pinterest Skip]: {e_p}")
 
     # 1. Primary: Try Pexels Video Search
-    clips = fetch_pexels_videos(keyword, job_id, count=count, orientation=orientation)
-    if clips:
-        return clips
+    try:
+        clips = fetch_pexels_videos(keyword, job_id, count=count, orientation=orientation)
+        if clips:
+            return clips
+    except Exception as e_px:
+        print(f"⚠️ [Pexels Skip]: {e_px}")
         
     # 2. Fallback 1: Try Pixabay Video Search
-    clips = fetch_pixabay_videos(keyword, job_id, count=count, orientation=orientation)
-    if clips:
-        return clips
+    try:
+        clips = fetch_pixabay_videos(keyword, job_id, count=count, orientation=orientation)
+        if clips:
+            return clips
+    except Exception as e_pb:
+        print(f"⚠️ [Pixabay Skip]: {e_pb}")
 
     # 3. Fallback 2: Try Pinterest Pins Search
-    pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation)
-    if pins:
-        return pins
+    try:
+        pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation)
+        if pins:
+            return pins
+    except Exception as e_p2:
+        print(f"⚠️ [Pinterest Fallback Skip]: {e_p2}")
 
     # 4. Fallback 3: Retry Pexels with generic safe keywords
     for fallback_kw in ["nature", "technology", "abstract", "city"]:
         if fallback_kw != keyword.lower():
-            print(f"🔄 Retrying with fallback keyword: '{fallback_kw}'...")
-            clips = fetch_pexels_videos(fallback_kw, job_id, count=count, orientation=orientation)
-            if clips:
-                return clips
+            try:
+                print(f"🔄 Retrying with fallback keyword: '{fallback_kw}'...")
+                clips = fetch_pexels_videos(fallback_kw, job_id, count=count, orientation=orientation)
+                if clips:
+                    return clips
+            except Exception:
+                continue
                 
-    print(f"❌ No videos/pins found for '{keyword}' across all API providers.")
+    print(f"⚠️ [Media Fetcher] No online media found for '{keyword}'. Using internal canvas background...")
     return []

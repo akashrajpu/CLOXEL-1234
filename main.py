@@ -191,7 +191,16 @@ def full_process(req: VideoRequest, job_id: str):
             orientation = "landscape" if req.video_type == "long" else "portrait"
             v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random")
             
-            if os.path.exists(a_path) and v_paths:
+            if os.path.exists(a_path):
+                if not v_paths:
+                    # Internal fail-safe visual canvas fallback if no API key/media available
+                    fallback_img_path = os.path.join(job_dir, f"fallback_canvas_{i}.jpg")
+                    from PIL import Image
+                    target_w, target_h = (1280, 720) if req.video_type == "long" else (720, 1280)
+                    blank_img = Image.new('RGB', (target_w, target_h), color=(15, 10, 35))
+                    blank_img.save(fallback_img_path)
+                    v_paths = [fallback_img_path]
+
                 taiyaar_scenes.append({
                     "audio": a_path, 
                     "video": v_paths, 
