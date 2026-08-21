@@ -524,22 +524,43 @@ function App() {
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button 
                   className={`button ${videoType === 'short' ? 'primary' : 'secondary'}`}
-                  onClick={() => setVideoType('short')}
-                  style={{ flex: 1 }}
+                  onClick={() => {
+                    setVideoType('short');
+                    if (duration > 55) setDuration(30);
+                  }}
+                  style={{ flex: 1, border: videoType === 'short' ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.1)' }}
                 >📱 Short (9:16)</button>
                 <button 
                   className={`button ${videoType === 'long' ? 'primary' : 'secondary'}`}
-                  onClick={() => setVideoType('long')}
-                  style={{ flex: 1 }}
+                  onClick={() => {
+                    setVideoType('long');
+                    if (duration < 20) setDuration(60);
+                  }}
+                  style={{ flex: 1, border: videoType === 'long' ? '2px solid #06b6d4' : '1px solid rgba(255,255,255,0.1)' }}
                 >🖥️ Long (16:9)</button>
               </div>
             </div>
             <div className="form-group">
               <label>Target Duration (Seconds)</label>
               <select value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-                <option value={20}>20 Seconds (2 Scenes)</option>
-                <option value={30}>30 Seconds (3 Scenes)</option>
-                <option value={60}>60 Seconds (6 Scenes)</option>
+                {videoType === 'short' ? (
+                  <>
+                    <option value={10}>10 Seconds (1 Scene)</option>
+                    <option value={20}>20 Seconds (2 Scenes)</option>
+                    <option value={30}>30 Seconds (3 Scenes)</option>
+                    <option value={45}>45 Seconds (4 Scenes)</option>
+                    <option value={55}>55 Seconds (5 Scenes)</option>
+                  </>
+                ) : (
+                  <>
+                    <option value={20}>20 Seconds (2 Scenes)</option>
+                    <option value={30}>30 Seconds (3 Scenes)</option>
+                    <option value={60}>60 Seconds (6 Scenes)</option>
+                    <option value={120}>2 Minutes (12 Scenes)</option>
+                    <option value={180}>3 Minutes (18 Scenes)</option>
+                    <option value={300}>5 Minutes (30 Scenes)</option>
+                  </>
+                )}
               </select>
             </div>
           </div>

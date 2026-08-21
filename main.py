@@ -356,14 +356,10 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
                     daily_usage["long_count"] += 1
 
                 elif sub_plan == "combo":
-                    # COMBO plan allows 2 videos per day: 1 Short + 1 Long!
+                    # COMBO plan: Unlimited manual video generation (1 Short + 1 Long daily for Auto-Upload engine)
                     if v_type == "short":
-                        if short_count >= 1:
-                            raise HTTPException(status_code=429, detail="⚠️ Short video daily limit reached for today! Your PRO COMBO plan permits 1 Short + 1 Long video daily. You can still generate 1 Long video today!")
                         daily_usage["short_count"] += 1
-                    else: # 'long'
-                        if long_count >= 1:
-                            raise HTTPException(status_code=429, detail="⚠️ Long video daily limit reached for today! Your PRO COMBO plan permits 1 Short + 1 Long video daily. You can still generate 1 Short video today!")
+                    else:
                         daily_usage["long_count"] += 1
 
                 # Save updated daily usage tracking to MongoDB profile
