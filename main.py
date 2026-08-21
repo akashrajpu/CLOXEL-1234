@@ -542,19 +542,31 @@ async def get_auto_schedule(internal_id: str):
     plan_type = sub.get("plan_type", "none")
     purchase_count = sub.get("purchase_count", 1) if sub.get("status") == "active" else 0
     
-    # Calculate days passed since subscription activation
+    # Calculate exact days passed since subscription activation timestamp
     days_elapsed = 0
-    sub_expires = sub.get("expires_at")
-    if sub.get("status") == "active" and sub_expires:
-        if isinstance(sub_expires, str):
-            try:
-                sub_expires = datetime.fromisoformat(sub_expires)
-            except Exception:
-                sub_expires = None
-        if sub_expires and sub_expires > datetime.utcnow():
-            days_left = (sub_expires - datetime.utcnow()).days + 1
-            total_days_purchased = purchase_count * 30
-            days_elapsed = max(0, total_days_purchased - days_left)
+    activated_at = sub.get("activated_at")
+    if sub.get("status") == "active":
+        if activated_at:
+            if isinstance(activated_at, str):
+                try:
+                    activated_at = datetime.fromisoformat(activated_at)
+                except Exception:
+                    activated_at = None
+            if isinstance(activated_at, datetime):
+                time_passed = datetime.utcnow() - activated_at
+                days_elapsed = max(0, time_passed.days)
+        else:
+            sub_expires = sub.get("expires_at")
+            if sub_expires:
+                if isinstance(sub_expires, str):
+                    try:
+                        sub_expires = datetime.fromisoformat(sub_expires)
+                    except Exception:
+                        sub_expires = None
+                if isinstance(sub_expires, datetime) and sub_expires > datetime.utcnow():
+                    days_left = (sub_expires - datetime.utcnow()).days
+                    total_days_purchased = purchase_count * 30
+                    days_elapsed = max(0, total_days_purchased - days_left)
 
     # Videos per day based on plan
     daily_quota = 2 if plan_type == "combo" else (1 if plan_type in ["short", "long"] else 0)

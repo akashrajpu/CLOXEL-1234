@@ -156,7 +156,7 @@ function App() {
         })
       });
       if (res.ok) {
-        alert("✅ Secret Auto-Generate Schedule Saved to MongoDB!\n\nServer will automatically track your topics, voice, font, and duration settings for your active plan and publish to YouTube on schedule.");
+        alert("✅ Secret Auto-Generate Schedule Saved & Activated!\n\nServer will automatically track your topics, voice, font, and duration settings for your active plan and publish to YouTube on schedule.");
         fetchAutoSchedule();
         setShowAutoUploadModal(false);
       } else {
@@ -941,7 +941,7 @@ function App() {
                     Secret Auto-Generate Page Configuration
                   </h3>
                   <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: 0 }}>
-                    Set exact video generation times & topics. All data syncs directly to MongoDB.
+                    Set exact video generation times & topics. All data syncs directly to your secure account.
                   </p>
                 </div>
               </div>
@@ -1130,7 +1130,7 @@ function App() {
                   style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: '0 4px 20px rgba(6, 182, 212, 0.4)' }}
                   onClick={handleSaveAutoSchedule}
                 >
-                  💾 Save Schedule & Sync MongoDB →
+                  💾 Save Schedule & Activate Automation →
                 </button>
               ) : (
                 <button 
