@@ -128,6 +128,7 @@ class VideoRequest(BaseModel):
     scenes: List[Scene] = []
     user_id: Optional[str] = None
     topic: Optional[str] = ""
+    category: Optional[str] = "Random" # 30+ categories
     font_name: str = "Arial.ttf"
     font_color: str = "yellow"
     font_size: int = 220
@@ -152,7 +153,7 @@ def full_process(req: VideoRequest, job_id: str):
         os.makedirs(job_dir, exist_ok=True)
         
         user_id = req.user_id if req.user_id else "anonymous"
-        print(f"🎬 Processing video for User: {user_id}")
+        print(f"🎬 Processing video for User: {user_id} (Category: {req.category})")
         
         # Scenes ki taiyari
         scenes_data = []
@@ -188,7 +189,7 @@ def full_process(req: VideoRequest, job_id: str):
             # Custom settings apply karna
             make_audio(sc["text"], a_path, req.voice_id)
             orientation = "landscape" if req.video_type == "long" else "portrait"
-            v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation)
+            v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random")
             
             if os.path.exists(a_path) and v_paths:
                 taiyaar_scenes.append({

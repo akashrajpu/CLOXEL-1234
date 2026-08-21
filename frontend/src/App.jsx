@@ -331,6 +331,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: topic,
+          category: (category || '').includes('Custom Category') ? (customCategory || 'Random') : category,
           scenes: scenes,
           font_name: fontName,
           font_color: fontColor,

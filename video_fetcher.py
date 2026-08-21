@@ -126,14 +126,28 @@ def fetch_pinterest_pins(keyword, job_id, count=1, orientation="portrait"):
         print(f"⚠️ [Pinterest] Error: {e}")
     return []
 
-def fetch_videos(keyword, job_id, count=1, orientation="portrait"):
+def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Random"):
     """
-    Multi-Provider Stock Video Fetcher:
-    1. Primary: Pexels Video API (PEXELS_API_KEY)
-    2. Fallback 1: Pixabay Video API (PIXABAY_API_KEY)
-    3. Fallback 2: Pinterest API (PINTEREST_ACCESS_TOKEN)
-    4. Fallback 3: General Keyword Retry ('nature', 'technology', 'city')
+    Category-Smart Multi-Provider Media Fetcher:
+    - Documentary, Comedy, Cartoon, Anime, Horror, Mythology -> Priority Pinterest HD Pins & Animation Photos with Motion Effects.
+    - Short Videos / Reels -> Photo + Video Hybrid Mix for next-level visual retention.
+    - General / Tech -> Pexels & Pixabay HD Clips.
     """
+    cat_lower = str(category).lower()
+    
+    # Check if category prefers Pinterest HD Pins & Cartoon/Anime/Documentary Visuals
+    prefer_pinterest = any(c in cat_lower for c in ['cartoon', 'animation', 'documentary', 'comedy', 'horror', 'mythology', 'history', 'anime', 'art', 'photo'])
+    
+    if prefer_pinterest:
+        print(f"🎨 [Category: {category}] Pinterest HD Pins & Animations ko priority dedi gayi hai!")
+        # Search Pinterest with category prefix for ultra-targeted HD visual pins
+        search_term = f"{keyword} {category.replace('🎲', '').replace('🎨', '').replace('✍️', '').strip()}"
+        pins = fetch_pinterest_pins(search_term, job_id, count=count, orientation=orientation)
+        if not pins:
+            pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation)
+        if pins:
+            return pins
+
     # 1. Primary: Try Pexels Video Search
     clips = fetch_pexels_videos(keyword, job_id, count=count, orientation=orientation)
     if clips:
@@ -144,10 +158,10 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait"):
     if clips:
         return clips
 
-    # 3. Fallback 2: Try Pinterest Search
-    clips = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation)
-    if clips:
-        return clips
+    # 3. Fallback 2: Try Pinterest Pins Search
+    pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation)
+    if pins:
+        return pins
 
     # 4. Fallback 3: Retry Pexels with generic safe keywords
     for fallback_kw in ["nature", "technology", "abstract", "city"]:
@@ -157,5 +171,5 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait"):
             if clips:
                 return clips
                 
-    print(f"❌ No videos found for '{keyword}' across all API providers.")
+    print(f"❌ No videos/pins found for '{keyword}' across all API providers.")
     return []
