@@ -798,6 +798,7 @@ function App() {
                           ▶ Play Video In-App
                         </button>
                       </div>
+                      {!vid.cloudinary_url && (
                         <span className="history-local-tag">Local file</span>
                       )}
                     </div>
