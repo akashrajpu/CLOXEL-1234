@@ -257,12 +257,28 @@ class VerifyPaymentRequest(BaseModel):
 class AutoScheduleRequest(BaseModel):
     internal_id: str
     schedule_enabled: bool = True
+    
+    # Short / Reel Settings
+    short_auto_topic: bool = True
+    short_topic: str = "Space Exploration, AI Innovations"
+    short_category: str = "Random" # 30+ categories or custom
+    short_voice: str = "hi-IN-MadhurNeural"
+    short_font: str = "Arial.ttf"
+    short_color: str = "yellow"
+    short_duration: int = 30
     short_time: str = "10:00"
+    short_language: str = "hi"
+    
+    # Long Video Settings
+    long_auto_topic: bool = True
+    long_topic: str = "Space Exploration, AI Technology"
+    long_category: str = "Random" # 30+ categories or custom
+    long_voice: str = "hi-IN-MadhurNeural"
+    long_font: str = "Arial.ttf"
+    long_color: str = "yellow"
+    long_duration: int = 60
     long_time: str = "18:00"
-    topics: str = "Space Exploration, AI Innovations, Fitness Motivation"
-    voice_id: str = "hi-IN-MadhurNeural"
-    font_name: str = "Arial.ttf"
-    font_color: str = "yellow"
+    long_language: str = "hi"
 
 @app.post("/generate-custom-video")
 async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundTasks):
@@ -458,6 +474,7 @@ async def save_auto_schedule(req: AutoScheduleRequest):
         # Short schedule profile
         "short_auto_topic": req.short_auto_topic,
         "short_topic": req.short_topic if not req.short_auto_topic else "AI Auto Topic (Daily Dynamic)",
+        "short_category": req.short_category,
         "short_voice": req.short_voice,
         "short_font": req.short_font,
         "short_color": req.short_color,
@@ -468,6 +485,7 @@ async def save_auto_schedule(req: AutoScheduleRequest):
         # Long schedule profile
         "long_auto_topic": req.long_auto_topic,
         "long_topic": req.long_topic if not req.long_auto_topic else "AI Auto Topic (Daily Dynamic)",
+        "long_category": req.long_category,
         "long_voice": req.long_voice,
         "long_font": req.long_font,
         "long_color": req.long_color,
@@ -493,6 +511,7 @@ async def get_auto_schedule(internal_id: str):
             "schedule_enabled": False,
             "short_auto_topic": True,
             "short_topic": "Space Exploration, AI Innovations",
+            "short_category": "Random",
             "short_voice": "hi-IN-MadhurNeural",
             "short_font": "Arial.ttf",
             "short_color": "yellow",
@@ -501,6 +520,7 @@ async def get_auto_schedule(internal_id: str):
             "short_language": "hi",
             "long_auto_topic": True,
             "long_topic": "Space Exploration, AI Technology",
+            "long_category": "Random",
             "long_voice": "hi-IN-MadhurNeural",
             "long_font": "Arial.ttf",
             "long_color": "yellow",
@@ -518,6 +538,7 @@ async def get_auto_schedule(internal_id: str):
             "schedule_enabled": False,
             "short_auto_topic": True,
             "short_topic": "Space Exploration, AI Innovations",
+            "short_category": "Random",
             "short_voice": "hi-IN-MadhurNeural",
             "short_font": "Arial.ttf",
             "short_color": "yellow",
@@ -526,6 +547,7 @@ async def get_auto_schedule(internal_id: str):
             "short_language": "hi",
             "long_auto_topic": True,
             "long_topic": "Space Exploration, AI Technology",
+            "long_category": "Random",
             "long_voice": "hi-IN-MadhurNeural",
             "long_font": "Arial.ttf",
             "long_color": "yellow",
@@ -592,6 +614,7 @@ async def get_auto_schedule(internal_id: str):
         # Short settings
         "short_auto_topic": schedule.get("short_auto_topic", True),
         "short_topic": schedule.get("short_topic", "Space Exploration, AI Innovations"),
+        "short_category": schedule.get("short_category", "Random"),
         "short_voice": schedule.get("short_voice", "hi-IN-MadhurNeural"),
         "short_font": schedule.get("short_font", "Arial.ttf"),
         "short_color": schedule.get("short_color", "yellow"),
@@ -602,6 +625,7 @@ async def get_auto_schedule(internal_id: str):
         # Long settings
         "long_auto_topic": schedule.get("long_auto_topic", True),
         "long_topic": schedule.get("long_topic", "Space Exploration, AI Technology"),
+        "long_category": schedule.get("long_category", "Random"),
         "long_voice": schedule.get("long_voice", "hi-IN-MadhurNeural"),
         "long_font": schedule.get("long_font", "Arial.ttf"),
         "long_color": schedule.get("long_color", "yellow"),
@@ -1021,20 +1045,24 @@ async def unlink_youtube(req: UnlinkRequest):
 
 class AIScriptRequest(BaseModel):
     topic: str
+    category: Optional[str] = "Random" # 30+ categories or custom
     duration_seconds: int = 30
     video_type: Optional[str] = "short"  # 'short' or 'long'
     language: Optional[str] = "hinglish" # 'hindi', 'english', 'hinglish'
     tone: Optional[str] = "viral"        # 'viral', 'informative', 'mysterious', 'funny'
 
-def generate_ai_script_core(topic: str, duration: int, video_type: str = "short", language: str = "hinglish", tone: str = "viral"):
+def generate_ai_script_core(topic: str, duration: int, video_type: str = "short", language: str = "hinglish", tone: str = "viral", category: str = "Random"):
     ai_server_url = os.getenv("AI_SERVER_URL", "https://ai-script-generator-service.onrender.com").rstrip("/")
     scene_count = max(1, duration // 10)
     word_count = int(duration * 2.5)
+
+    cat_niche = f" in the '{category}' category" if category and str(category).lower() != "random" else ""
 
     # 1. Primary Attempt: Call External Dedicated Render AI Script Service
     try:
         payload = {
             "topic": topic,
+            "category": category,
             "duration_seconds": duration,
             "video_type": video_type,
             "language": language,

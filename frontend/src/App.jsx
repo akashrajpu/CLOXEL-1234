@@ -17,7 +17,43 @@ function App() {
   const [fontColor, setFontColor] = useState('yellow');
   const [voiceId, setVoiceId] = useState('hi-IN-MadhurNeural');
   const [bgMusic, setBgMusic] = useState('cool.mp3');
-  const [bgMusicList, setBgMusicList] = useState(['cool.mp3', 'cool1.mp3', 'cool2.mp3', 'cool3.mp3', 'cool4.mp3', 'cool5.mp3', 'random', 'none']);
+  const CATEGORIES = [
+    '🎲 Random / All Categories',
+    '🤖 AI & Technology',
+    '🌌 Space & Astronomy',
+    '🦁 Nature & Wildlife',
+    '🏛️ History & Ancient Mysteries',
+    '💰 Wealth & Finance',
+    '🏋️ Fitness & Health',
+    '🎨 Cartoon & Animation',
+    '👻 Horror & Paranormal',
+    '🎮 Gaming & Esports',
+    '🍕 Food & Cooking',
+    '🔥 Motivation & Success',
+    '🎬 Movie Recaps & Reviews',
+    '💡 Life Hacks & Science Facts',
+    '🧠 Philosophy & Psychology',
+    '💼 Business & Startups',
+    '🕵️ True Crime & Mystery',
+    '📱 Tech Gadgets & Unboxing',
+    '🔱 Mythology & Legends',
+    '✈️ Travel & Adventure',
+    '🚗 Luxury Cars & Supercars',
+    '⚽ Sports & Athletics',
+    '👗 Fashion & Lifestyle',
+    '🎶 Music & Pop Culture',
+    '🧪 Physics & Chemistry Wonders',
+    '🐶 Pets & Animals',
+    '🧘 Meditation & Mindfulness',
+    '📖 Book Summaries & Literature',
+    '🚀 Future Tech & Sci-Fi',
+    '🌐 World News & Geopolitics',
+    '🛠️ DIY & Crafts',
+    '✍️ Custom Category (Type Below)'
+  ];
+
+  const [category, setCategory] = useState('🎲 Random / All Categories');
+  const [customCategory, setCustomCategory] = useState('');
 
   const [scenes, setScenes] = useState([
     { text: '', keyword: '' },
@@ -138,6 +174,7 @@ function App() {
           
           short_auto_topic: autoSchedule.short_auto_topic !== false,
           short_topic: autoSchedule.short_topic || 'Space Exploration, AI Innovations',
+          short_category: autoSchedule.short_category || 'Random',
           short_voice: autoSchedule.short_voice || 'hi-IN-MadhurNeural',
           short_font: autoSchedule.short_font || 'Arial.ttf',
           short_color: autoSchedule.short_color || 'yellow',
@@ -147,6 +184,7 @@ function App() {
           
           long_auto_topic: autoSchedule.long_auto_topic !== false,
           long_topic: autoSchedule.long_topic || 'Space Exploration, AI Technology',
+          long_category: autoSchedule.long_category || 'Random',
           long_voice: autoSchedule.long_voice || 'hi-IN-MadhurNeural',
           long_font: autoSchedule.long_font || 'Arial.ttf',
           long_color: autoSchedule.long_color || 'yellow',
@@ -233,12 +271,14 @@ function App() {
 
   const handleAutoGenerate = async () => {
     setIsGeneratingScript(true);
+    const finalCategory = category.includes('Custom Category') ? (customCategory || 'Random') : category;
     try {
       const response = await fetch(`${API_BASE}/generate-script`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: topic,
+          category: finalCategory,
           duration_seconds: duration,
           video_type: videoType
         })
@@ -485,15 +525,38 @@ function App() {
             </div>
           </div>
 
-          <div className="form-group">
-            <label>Main Topic</label>
-            <input 
-              type="text" 
-              value={topic} 
-              onChange={e => setTopic(e.target.value)} 
-              placeholder="e.g. History of AI, Space Exploration, Fitness Motivation"
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label>Main Topic</label>
+              <input 
+                type="text" 
+                value={topic} 
+                onChange={e => setTopic(e.target.value)} 
+                placeholder="e.g. History of AI, Space Exploration"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Category / Niche (30+ Categories)</label>
+              <select value={category} onChange={e => setCategory(e.target.value)}>
+                {CATEGORIES.map((cat, i) => (
+                  <option key={i} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
           </div>
+
+          {category === '✍️ Custom Category (Type Below)' && (
+            <div className="form-group">
+              <label>Custom Category / Niche Name</label>
+              <input 
+                type="text" 
+                value={customCategory} 
+                onChange={e => setCustomCategory(e.target.value)} 
+                placeholder="Type your custom niche (e.g. Cyberpunk Anime, Ancient Rome)"
+              />
+            </div>
+          )}
 
           <div className="form-group">
             <button 
@@ -1033,8 +1096,17 @@ function App() {
                     )}
                   </div>
 
-                  {/* Short Voice, Font, Color, Duration, Time */}
+                  {/* Short Voice, Font, Category, Color, Duration, Time */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.82rem' }}>
+                    <div>
+                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche (30+ Options):</label>
+                      <select value={autoSchedule.short_category || '🎲 Random / All Categories'} onChange={(e) => setAutoSchedule({ ...autoSchedule, short_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                        {CATEGORIES.map((cat, i) => (
+                          <option key={i} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+
                     <div>
                       <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Voice:</label>
                       <select value={autoSchedule.short_voice || 'hi-IN-MadhurNeural'} onChange={(e) => setAutoSchedule({ ...autoSchedule, short_voice: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
@@ -1112,8 +1184,17 @@ function App() {
                     )}
                   </div>
 
-                  {/* Long Voice, Font, Color, Duration, Time */}
+                  {/* Long Voice, Font, Category, Color, Duration, Time */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.82rem' }}>
+                    <div>
+                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche (30+ Options):</label>
+                      <select value={autoSchedule.long_category || '🎲 Random / All Categories'} onChange={(e) => setAutoSchedule({ ...autoSchedule, long_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                        {CATEGORIES.map((cat, i) => (
+                          <option key={i} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+
                     <div>
                       <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Voice:</label>
                       <select value={autoSchedule.long_voice || 'hi-IN-MadhurNeural'} onChange={(e) => setAutoSchedule({ ...autoSchedule, long_voice: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
