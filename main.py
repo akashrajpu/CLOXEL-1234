@@ -1015,10 +1015,60 @@ class AIScriptRequest(BaseModel):
     tone: Optional[str] = "viral"        # 'viral', 'informative', 'mysterious', 'funny'
 
 def generate_ai_script_core(topic: str, duration: int, video_type: str = "short", language: str = "hinglish", tone: str = "viral"):
-    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    ai_server_url = os.getenv("AI_SERVER_URL", "https://ai-script-generator-service.onrender.com").rstrip("/")
     scene_count = max(1, duration // 10)
     word_count = int(duration * 2.5)
 
+    # 1. Primary Attempt: Call External Dedicated Render AI Script Service
+    try:
+        payload = {
+            "topic": topic,
+            "duration_seconds": duration,
+            "video_type": video_type,
+            "language": language,
+            "tone": tone
+        }
+        
+        # Try both /generate-script and /api/generate-ai-script on the external AI service
+        for endpoint in ["/generate-script", "/api/generate-ai-script", "/generate"]:
+            target_url = f"{ai_server_url}{endpoint}"
+            try:
+                resp = requests.post(target_url, json=payload, timeout=15)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    full_script = data.get("full_script") or data.get("script") or ""
+                    scenes = data.get("scenes") or []
+                    
+                    if full_script or scenes:
+                        # Auto-build scenes if missing
+                        if not scenes and full_script:
+                            stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko"}
+                            kws = [w.lower() for w in topic.split() if w.isalpha() and w.lower() not in stop_words]
+                            kw = kws[0] if kws else topic
+                            chunks = full_script.split(".")
+                            scenes = [{"text": c.strip(), "keyword": kw} for c in chunks if len(c.strip()) > 5][:scene_count]
+                            
+                        print(f"✅ External Render AI Script Service Success ({target_url})!")
+                        return {
+                            "status": "success",
+                            "source": "external_render_ai_service",
+                            "topic": topic,
+                            "duration_seconds": duration,
+                            "video_type": video_type,
+                            "language": language,
+                            "tone": tone,
+                            "estimated_word_count": word_count,
+                            "full_script": full_script,
+                            "scenes": scenes
+                        }
+            except Exception as e_inner:
+                continue
+
+    except Exception as err_ext:
+        print(f"⚠️ External Render AI Service Connection Warning: {err_ext}")
+
+    # 2. Secondary Attempt: Fallback to Gemini AI Direct Key
+    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if gemini_key:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
