@@ -4,6 +4,41 @@ import YouTubeIntegration from './YouTubeIntegration';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
+const CATEGORIES = [
+  '🎲 Random / All Categories',
+  '🤖 AI & Technology',
+  '🌌 Space & Astronomy',
+  '🦁 Nature & Wildlife',
+  '🏛️ History & Ancient Mysteries',
+  '💰 Wealth & Finance',
+  '🏋️ Fitness & Health',
+  '🎨 Cartoon & Animation',
+  '👻 Horror & Paranormal',
+  '🎮 Gaming & Esports',
+  '🍕 Food & Cooking',
+  '🔥 Motivation & Success',
+  '🎬 Movie Recaps & Reviews',
+  '💡 Life Hacks & Science Facts',
+  '🧠 Philosophy & Psychology',
+  '💼 Business & Startups',
+  '🕵️ True Crime & Mystery',
+  '📱 Tech Gadgets & Unboxing',
+  '🔱 Mythology & Legends',
+  '✈️ Travel & Adventure',
+  '🚗 Luxury Cars & Supercars',
+  '⚽ Sports & Athletics',
+  '👗 Fashion & Lifestyle',
+  '🎶 Music & Pop Culture',
+  '🧪 Physics & Chemistry Wonders',
+  '🐶 Pets & Animals',
+  '🧘 Meditation & Mindfulness',
+  '📖 Book Summaries & Literature',
+  '🚀 Future Tech & Sci-Fi',
+  '🌐 World News & Geopolitics',
+  '🛠️ DIY & Crafts',
+  '✍️ Custom Category (Type Below)'
+];
+
 function App() {
   const [topic, setTopic] = useState('Space Exploration');
   const [duration, setDuration] = useState(20);
@@ -17,40 +52,7 @@ function App() {
   const [fontColor, setFontColor] = useState('yellow');
   const [voiceId, setVoiceId] = useState('hi-IN-MadhurNeural');
   const [bgMusic, setBgMusic] = useState('cool.mp3');
-  const CATEGORIES = [
-    '🎲 Random / All Categories',
-    '🤖 AI & Technology',
-    '🌌 Space & Astronomy',
-    '🦁 Nature & Wildlife',
-    '🏛️ History & Ancient Mysteries',
-    '💰 Wealth & Finance',
-    '🏋️ Fitness & Health',
-    '🎨 Cartoon & Animation',
-    '👻 Horror & Paranormal',
-    '🎮 Gaming & Esports',
-    '🍕 Food & Cooking',
-    '🔥 Motivation & Success',
-    '🎬 Movie Recaps & Reviews',
-    '💡 Life Hacks & Science Facts',
-    '🧠 Philosophy & Psychology',
-    '💼 Business & Startups',
-    '🕵️ True Crime & Mystery',
-    '📱 Tech Gadgets & Unboxing',
-    '🔱 Mythology & Legends',
-    '✈️ Travel & Adventure',
-    '🚗 Luxury Cars & Supercars',
-    '⚽ Sports & Athletics',
-    '👗 Fashion & Lifestyle',
-    '🎶 Music & Pop Culture',
-    '🧪 Physics & Chemistry Wonders',
-    '🐶 Pets & Animals',
-    '🧘 Meditation & Mindfulness',
-    '📖 Book Summaries & Literature',
-    '🚀 Future Tech & Sci-Fi',
-    '🌐 World News & Geopolitics',
-    '🛠️ DIY & Crafts',
-    '✍️ Custom Category (Type Below)'
-  ];
+  const [bgMusicList, setBgMusicList] = useState(['cool.mp3', 'cool1.mp3', 'cool2.mp3', 'cool3.mp3', 'cool4.mp3', 'cool5.mp3', 'random', 'none']);
 
   const [category, setCategory] = useState('🎲 Random / All Categories');
   const [customCategory, setCustomCategory] = useState('');
@@ -76,8 +78,24 @@ function App() {
   const [subStatus, setSubStatus] = useState({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
   const [autoSchedule, setAutoSchedule] = useState({
     schedule_enabled: true,
+    short_auto_topic: true,
+    short_topic: 'Space Exploration, AI Innovations',
+    short_category: '🎲 Random / All Categories',
+    short_voice: 'hi-IN-MadhurNeural',
+    short_font: 'Arial.ttf',
+    short_color: 'yellow',
+    short_duration: 30,
     short_time: '10:00',
+    short_language: 'hi',
+    long_auto_topic: true,
+    long_topic: 'Space Exploration, AI Technology',
+    long_category: '🎲 Random / All Categories',
+    long_voice: 'hi-IN-MadhurNeural',
+    long_font: 'Arial.ttf',
+    long_color: 'yellow',
+    long_duration: 60,
     long_time: '18:00',
+    long_language: 'hi',
     topics: 'Space Exploration, AI Innovations, Ancient Mysteries, Wealth & Finance',
     total_videos_created: 0,
     remaining_plan_videos: 60,
@@ -271,7 +289,7 @@ function App() {
 
   const handleAutoGenerate = async () => {
     setIsGeneratingScript(true);
-    const finalCategory = category.includes('Custom Category') ? (customCategory || 'Random') : category;
+    const finalCategory = (category || '').includes('Custom Category') ? (customCategory || 'Random') : category;
     try {
       const response = await fetch(`${API_BASE}/generate-script`, {
         method: 'POST',
