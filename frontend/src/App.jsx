@@ -174,9 +174,28 @@ function App() {
   };
 
   const handleLogout = () => {
+    // 1. Complete Security Wipe: Clear all localStorage and sessionStorage
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (e) {
+      console.error("Error clearing browser storage:", e);
+    }
+
+    // 2. Reset all in-memory user states
     setUserId(null);
     setHistory([]);
-    localStorage.removeItem('cloxel_user_id');
+    setFullScript('');
+    setTopic('Space Exploration');
+    setJobId(null);
+    setJobStatus(null);
+    setCloudinaryUrl(null);
+    setDownloadUrl(null);
+    setPlayingHistoryVideo(null);
+    setSubStatus({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
+
+    // 3. Hard page reload & redirect to origin for a clean fresh login state
+    window.location.href = window.location.origin + window.location.pathname;
   };
 
   // Update scenes array when duration changes
