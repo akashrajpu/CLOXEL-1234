@@ -215,17 +215,25 @@ function App() {
   const handleAutoGenerate = async () => {
     setIsGeneratingScript(true);
     try {
-      const response = await fetch('https://cloxel.onrender.com/generate-script', {
+      const response = await fetch(`${API_BASE}/generate-script`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: topic,
-          duration_seconds: duration
+          duration_seconds: duration,
+          video_type: videoType
         })
       });
       const data = await response.json();
-      if (data.scenes) {
+      if (data.full_script) {
+        setFullScript(data.full_script);
+      }
+      if (data.scenes && data.scenes.length > 0) {
         setScenes(data.scenes);
+        if (!data.full_script) {
+          const combinedScript = data.scenes.map(s => s.text).join(" ");
+          setFullScript(combinedScript);
+        }
       }
     } catch (error) {
       alert("Failed to auto-generate script. Backend might be off.");
