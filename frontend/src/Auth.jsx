@@ -263,18 +263,11 @@ function Auth({ onLoginSuccess }) {
 
       {/* Big Full-Screen Loading Animation Overlay */}
       {isLoading && (
-        <div className="pricing-modal-overlay" style={{ zIndex: 2000 }}>
-          <div style={{ maxWidth: '400px', textAlign: 'center', padding: '40px 24px', background: 'transparent', border: 'none', boxShadow: 'none' }}>
-            <lottie-player 
-              src="/loding.json" 
-              background="transparent" 
-              speed="1" 
-              style={{ width: '220px', height: '220px', margin: '0 auto' }} 
-              loop 
-              autoplay
-            ></lottie-player>
-            <h3 style={{ color: '#ffffff', fontSize: '1.5rem', marginTop: '16px', marginBottom: '8px' }}>
-              {isLogin ? 'Logging into Dashboard...' : 'Creating Your Account...'}
+        <div className="pricing-modal-overlay" style={{ zIndex: 5000, background: 'rgba(10, 7, 24, 0.88)', backdropFilter: 'blur(10px)' }}>
+          <div style={{ maxWidth: '440px', textAlign: 'center', padding: '40px 24px', background: 'rgba(255,255,255,0.03)', borderRadius: '20px', border: '1px solid rgba(168,85,247,0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }}>
+            <div className="spinner"></div>
+            <h3 style={{ color: '#ffffff', fontSize: '1.5rem', marginTop: '16px', marginBottom: '8px', fontWeight: '800' }}>
+              {isLogin ? 'Logging into Dashboard...' : 'Creating Your Account & Free Demos...'}
             </h3>
             <p style={{ color: '#cbd5e1', fontSize: '0.9rem', margin: 0 }}>
               Please wait a moment while we set up your session.

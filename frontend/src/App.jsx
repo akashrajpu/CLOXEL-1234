@@ -841,21 +841,17 @@ function App() {
         </div>
       )}
       {/* Big Clean Full-Screen Loading Animation Overlay */}
-      {(isGeneratingScript || isPaymentProcessing) && (
-        <div className="pricing-modal-overlay" style={{ zIndex: 2500 }}>
-          <div style={{ maxWidth: '420px', textAlign: 'center', padding: '40px 24px', background: 'transparent', border: 'none', boxShadow: 'none' }}>
-            <lottie-player 
-              src="/loding.json" 
-              background="transparent" 
-              speed="1" 
-              style={{ width: '220px', height: '220px', margin: '0 auto' }} 
-              loop 
-              autoplay
-            ></lottie-player>
-            <h3 style={{ color: '#ffffff', fontSize: '1.5rem', marginTop: '16px', marginBottom: '8px' }}>
-              {isGeneratingScript ? 'Generating AI Video Script...' : 'Preparing Payment Checkout...'}
+      {(isGeneratingScript || isPaymentProcessing || jobStatus === 'processing') && (
+        <div className="pricing-modal-overlay" style={{ zIndex: 4000, background: 'rgba(10, 7, 24, 0.88)', backdropFilter: 'blur(10px)' }}>
+          <div style={{ maxWidth: '440px', textAlign: 'center', padding: '40px 24px', background: 'rgba(255,255,255,0.03)', borderRadius: '20px', border: '1px solid rgba(168,85,247,0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }}>
+            <div className="spinner"></div>
+            <h3 style={{ color: '#ffffff', fontSize: '1.5rem', marginTop: '16px', marginBottom: '8px', fontWeight: '800' }}>
+              {isGeneratingScript ? 'Generating AI Video Script...' : (jobStatus === 'processing' ? 'Rendering Your AI Video...' : 'Preparing Checkout...')}
             </h3>
-            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', margin: 0 }}>
+            <p style={{ color: '#c084fc', fontSize: '0.92rem', fontWeight: 'bold', marginBottom: '6px' }}>
+              {jobStatus === 'processing' ? 'Combining Voice, Visual Clips, Subtitles & Background Music' : 'Processing request via Cloxel AI Cloud'}
+            </p>
+            <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0 }}>
               Please wait a moment while we process your request.
             </p>
           </div>
