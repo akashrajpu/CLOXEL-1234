@@ -201,10 +201,10 @@ function App() {
     });
   };
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
+  const [enableCheckbox, setEnableCheckbox] = useState(false);
   const [subStatus, setSubStatus] = useState({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
   const [autoSchedule, setAutoSchedule] = useState({
-    schedule_enabled: true,
+    schedule_enabled: false,
     short_auto_topic: true,
     short_topic: 'Space Exploration, AI Innovations',
     short_category: '🎲 Random / All Categories',
@@ -252,6 +252,7 @@ function App() {
       if (res.ok) {
         const data = await res.json();
         setAutoSchedule(data);
+        setEnableCheckbox(!!data.schedule_enabled);
       }
     } catch (e) {
       console.error("Failed to fetch auto schedule:", e);
@@ -318,10 +319,21 @@ function App() {
       return;
     }
 
-    const finalEnabledState = explicitEnabledState !== null ? explicitEnabledState : autoSchedule.schedule_enabled;
+    const finalEnabledState = explicitEnabledState !== null ? explicitEnabledState : enableCheckbox;
 
     if (finalEnabledState) {
-      // YouTube Connection Check
+      // 1. Checkbox Check
+      if (!enableCheckbox) {
+        triggerAlert(
+          "Checkbox Selection Required",
+          "Please check the \"ENABLE DAILY AUTOMATED AI VIDEO GENERATION & YOUTUBE UPLOAD\" checkbox first before clicking the Start button!",
+          "☑️",
+          "info"
+        );
+        return;
+      }
+
+      // 2. YouTube Connection Check
       if (!ytStatus || !ytStatus.linked) {
         triggerAlert(
           "🔴 YouTube Channel Not Connected",
@@ -368,19 +380,27 @@ function App() {
         })
       });
       if (res.ok) {
-        setAutoSchedule({ ...autoSchedule, schedule_enabled: finalEnabledState });
+        const data = await res.json();
+        setAutoSchedule(data.schedule || { ...autoSchedule, schedule_enabled: finalEnabledState });
+        setEnableCheckbox(finalEnabledState);
         setShowStopScheduleWarningModal(false);
+        setShowAutoUploadModal(false);
+
         if (finalEnabledState) {
           triggerAlert(
-            "⚡ Auto-Publishing Engine ACTIVE & SAVED",
+            "⚡ Auto-Publishing Engine ACTIVE & SAVED IN DB",
             "Saved to backend database! Your account is now active for daily 1-hour pre-rendering & automated YouTube publishing.",
             "🟢",
             "success"
           );
+        } else {
+          triggerAlert(
+            "🛑 Auto-Publishing Engine STOPPED",
+            "Auto-publishing has been stopped and saved in your profile database.",
+            "🛑",
+            "info"
+          );
         }
-        fetchAutoSchedule();
-        setShowAutoUploadModal(false);
-        setShowStopScheduleWarningModal(false);
       } else {
         const errData = await res.json();
         triggerAlert("Error", errData.detail || "Failed to save schedule settings.", "⚠️", "danger");
@@ -1377,8 +1397,8 @@ function App() {
                 <input 
                   type="checkbox" 
                   id="auto-schedule-enable"
-                  checked={autoSchedule.schedule_enabled}
-                  onChange={(e) => setAutoSchedule({ ...autoSchedule, schedule_enabled: e.target.checked })}
+                  checked={enableCheckbox}
+                  onChange={(e) => setEnableCheckbox(e.target.checked)}
                   style={{ width: '18px', height: '18px', accentColor: '#06b6d4', cursor: 'pointer' }}
                 />
                 <label htmlFor="auto-schedule-enable" style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer' }}>
