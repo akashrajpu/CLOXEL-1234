@@ -1019,64 +1019,58 @@ function App() {
               <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>×</button>
             </div>
 
-            <div className="sidebar-profile" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', background: 'rgba(255,255,255,0.04)', padding: '24px 16px', borderRadius: '20px', border: '1px solid rgba(168,85,247,0.3)', marginBottom: '18px' }}>
-              <div style={{ position: 'relative', cursor: 'pointer', marginBottom: '12px' }} title="Click to change profile picture">
+            <div className="sidebar-profile" style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.04)', padding: '12px 14px', borderRadius: '16px', border: '1px solid rgba(168,85,247,0.3)', marginBottom: '12px' }}>
+              <div style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} title="Click to change profile picture">
                 {subStatus.profile_pic ? (
-                  <img src={subStatus.profile_pic} alt="Profile" style={{ width: '76px', height: '76px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #a855f7', boxShadow: '0 0 20px rgba(168,85,247,0.4)' }} />
+                  <img src={subStatus.profile_pic} alt="Profile" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #a855f7' }} />
                 ) : (
-                  <div className="profile-avatar" style={{ width: '76px', height: '76px', fontSize: '2.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #3b0764 0%, #6b21a8 100%)', borderRadius: '50%', color: '#c084fc', border: '3px solid #a855f7', boxShadow: '0 0 20px rgba(168,85,247,0.4)' }}>
+                  <div className="profile-avatar" style={{ width: '48px', height: '48px', fontSize: '1.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #3b0764 0%, #6b21a8 100%)', borderRadius: '50%', color: '#c084fc', border: '2px solid #a855f7' }}>
                     {subStatus.name ? subStatus.name.charAt(0).toUpperCase() : '👤'}
                   </div>
                 )}
-                <label htmlFor="profile-pic-input" style={{ position: 'absolute', bottom: '0px', right: '0px', background: '#a855f7', color: 'white', borderRadius: '50%', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>
+                <label htmlFor="profile-pic-input" style={{ position: 'absolute', bottom: '-2px', right: '-2px', background: '#a855f7', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', cursor: 'pointer' }}>
                   📷
                 </label>
-                <input 
-                  id="profile-pic-input" 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleProfilePicUpload} 
-                  style={{ display: 'none' }} 
-                />
+                <input id="profile-pic-input" type="file" accept="image/*" onChange={handleProfilePicUpload} style={{ display: 'none' }} />
               </div>
 
-              <h3 style={{ margin: '0 0 10px 0', fontSize: '1.25rem', color: '#ffffff', fontWeight: '800' }}>
-                {subStatus.name || 'Account Active'}
-              </h3>
-
-              <div style={{ width: '100%', textAlign: 'left', background: 'rgba(0,0,0,0.25)', padding: '12px 14px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.82rem', color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.06)' }}>
-                {subStatus.email && <div>✉️ <span style={{ color: '#94a3b8' }}>Email:</span> <strong style={{ color: '#ffffff' }}>{subStatus.email}</strong></div>}
-                {subStatus.phone && <div>📞 <span style={{ color: '#94a3b8' }}>Phone:</span> <strong style={{ color: '#ffffff' }}>{subStatus.phone}</strong></div>}
-                {subStatus.country && <div>🌐 <span style={{ color: '#94a3b8' }}>Country:</span> <strong style={{ color: '#ffffff' }}>{subStatus.country}</strong></div>}
-                <div>🆔 <span style={{ color: '#94a3b8' }}>ID:</span> <span style={{ color: '#a855f7', fontFamily: 'monospace' }}>{userId ? `${userId.substring(0, 12)}...` : 'Unknown'}</span></div>
-                <div style={{ marginTop: '4px', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.1)', color: '#c084fc', fontWeight: 'bold', fontSize: '0.82rem' }}>
-                  💎 {subStatus.has_active_subscription ? `Active Plan: ${subStatus.plan_type.toUpperCase()} (${subStatus.daily_limit_text || (subStatus.plan_type === 'combo' ? '2 Videos Daily: 1 Short + 1 Long' : '1 Video Daily')})` : `Free Demo Videos Left: ${subStatus.free_demo_count}/2`}
+              <div style={{ textAlign: 'left', flex: 1, overflow: 'hidden' }}>
+                <h4 style={{ margin: '0 0 2px 0', fontSize: '1rem', color: '#ffffff', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {subStatus.name || 'Account Active'}
+                </h4>
+                <div style={{ fontSize: '0.75rem', color: '#c084fc', fontWeight: 'bold' }}>
+                  💎 {subStatus.has_active_subscription ? `${subStatus.plan_type.toUpperCase()} PLAN` : `Free Demo (${subStatus.free_demo_count}/2)`}
                 </div>
               </div>
             </div>
 
-            {/* YOUTUBE INTEGRATION INSIDE SIDEBAR DRAWER */}
-            <div style={{ marginBottom: '16px' }}>
+            {/* YOUTUBE INTEGRATION INSIDE SIDEBAR DRAWER (COMPACT MODE) */}
+            <div style={{ marginBottom: '12px' }}>
               <YouTubeIntegration 
                 userId={userId} 
                 hasActiveSubscription={subStatus.has_active_subscription} 
                 onUpgradeClick={() => setShowPricingModal(true)} 
                 onStatusChange={(statusData) => setYtStatus(statusData)}
                 triggerAlert={triggerAlert}
+                compact={true}
               />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '15px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
               <button 
                 className="btn-upgrade-sidebar" 
-                style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: '0 4px 15px rgba(6, 182, 212, 0.4)' }}
+                style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: '0 4px 15px rgba(6, 182, 212, 0.3)', padding: '8px 10px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
                 onClick={() => { setIsSidebarOpen(false); setShowAutoUploadModal(true); }}
               >
-                ⚙️ Auto-Upload Settings
+                ⚙️ Auto-Schedule
               </button>
 
-              <button className="btn-upgrade-sidebar" onClick={() => { setIsSidebarOpen(false); setShowPricingModal(true); }}>
-                💎 Upgrade Membership
+              <button 
+                className="btn-upgrade-sidebar" 
+                style={{ padding: '8px 10px', fontSize: '0.8rem', whiteSpace: 'nowrap' }} 
+                onClick={() => { setIsSidebarOpen(false); setShowPricingModal(true); }}
+              >
+                💎 Upgrade
               </button>
             </div>
 
