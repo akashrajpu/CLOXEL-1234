@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
-function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick }) {
+function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onStatusChange, triggerAlert }) {
   const [status, setStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,6 +13,7 @@ function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick }) {
       const response = await fetch(`${API_BASE}/youtube/status/${userId}`);
       const data = await response.json();
       setStatus(data);
+      if (onStatusChange) onStatusChange(data);
     } catch (err) {
       setError("Failed to fetch YouTube status");
     } finally {

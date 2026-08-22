@@ -39,7 +39,120 @@ const CATEGORIES = [
   '✍️ Custom Category (Type Below)'
 ];
 
+function CustomSelect({ value, onChange, options }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const selectedOption = options.find(opt => (typeof opt === 'object' ? opt.value : opt) === value);
+  const selectedLabel = selectedOption 
+    ? (typeof selectedOption === 'object' ? selectedOption.label : selectedOption) 
+    : value;
+
+  return (
+    <div className="custom-select-container" style={{ position: 'relative', width: '100%' }}>
+      <div 
+        className="custom-select-trigger" 
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          width: '100%',
+          padding: '0.85rem 1.1rem',
+          background: isOpen ? 'rgba(24, 18, 55, 0.95)' : 'rgba(15, 23, 42, 0.7)',
+          border: isOpen ? '1px solid #c084fc' : '1px solid rgba(168, 85, 247, 0.35)',
+          borderRadius: '14px',
+          color: '#ffffff',
+          fontSize: '0.95rem',
+          fontWeight: '600',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          cursor: 'pointer',
+          boxShadow: isOpen ? '0 0 0 3px rgba(192, 132, 252, 0.35), 0 8px 25px rgba(0,0,0,0.5)' : 'inset 0 2px 4px rgba(0,0,0,0.3)',
+          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selectedLabel}
+        </span>
+        <span style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s ease', color: '#c084fc', fontSize: '0.8rem', fontWeight: 'bold' }}>
+          ▼
+        </span>
+      </div>
+
+      {isOpen && (
+        <>
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 }} onClick={() => setIsOpen(false)} />
+          <div 
+            className="custom-select-dropdown"
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 6px)',
+              left: 0,
+              width: '100%',
+              maxHeight: '260px',
+              overflowY: 'auto',
+              background: 'rgba(19, 13, 42, 0.96)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(168, 85, 247, 0.45)',
+              borderRadius: '16px',
+              boxShadow: '0 15px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(168, 85, 247, 0.25)',
+              zIndex: 999,
+              padding: '6px'
+            }}
+          >
+            {options.map((opt, idx) => {
+              const optValue = typeof opt === 'object' ? opt.value : opt;
+              const optLabel = typeof opt === 'object' ? opt.label : opt;
+              const isSelected = optValue === value;
+
+              return (
+                <div 
+                  key={idx}
+                  onClick={() => {
+                    onChange(optValue);
+                    setIsOpen(false);
+                  }}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    margin: '2px 0',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    fontWeight: isSelected ? '700' : '500',
+                    color: isSelected ? '#ffffff' : '#cbd5e1',
+                    background: isSelected ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.4) 0%, rgba(6, 182, 212, 0.3) 100%)' : 'transparent',
+                    border: isSelected ? '1px solid rgba(192, 132, 252, 0.4)' : '1px solid transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSelected) {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                      e.currentTarget.style.color = '#ffffff';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSelected) {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#cbd5e1';
+                    }
+                  }}
+                >
+                  <span>{optLabel}</span>
+                  {isSelected && <span style={{ color: '#c084fc', fontWeight: 'bold' }}>✓</span>}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function App() {
+  const [ytStatus, setYtStatus] = useState(null);
   const [topic, setTopic] = useState('Space Exploration');
   const [duration, setDuration] = useState(20);
   const [videoType, setVideoType] = useState('short'); // 'short' or 'long'
@@ -206,6 +319,22 @@ function App() {
     }
 
     const finalEnabledState = explicitEnabledState !== null ? explicitEnabledState : autoSchedule.schedule_enabled;
+
+    // REQUIREMENT 2: If enabling auto-upload, verify YouTube account is linked FIRST!
+    if (finalEnabledState && (!ytStatus || !ytStatus.linked)) {
+      triggerAlert(
+        "🔴 YouTube Channel Not Connected",
+        "Your YouTube channel is NOT connected yet!\n\nPlease open the ☰ Menu Drawer and link your YouTube account first before starting the Auto-Publishing Engine.",
+        "📺",
+        "danger",
+        () => {
+          setShowAutoUploadModal(false);
+          setIsSidebarOpen(true);
+        },
+        "🔗 Open ☰ Menu & Connect YouTube →"
+      );
+      return;
+    }
 
     try {
       const res = await fetch(`${API_BASE}/save-auto-schedule`, {
@@ -636,26 +765,24 @@ function App() {
             </div>
             <div className="form-group">
               <label>Target Duration (Seconds)</label>
-              <select value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-                {videoType === 'short' ? (
-                  <>
-                    <option value={10}>10 Seconds (1 Scene)</option>
-                    <option value={20}>20 Seconds (2 Scenes)</option>
-                    <option value={30}>30 Seconds (3 Scenes)</option>
-                    <option value={45}>45 Seconds (4 Scenes)</option>
-                    <option value={55}>55 Seconds (5 Scenes)</option>
-                  </>
-                ) : (
-                  <>
-                    <option value={20}>20 Seconds (2 Scenes)</option>
-                    <option value={30}>30 Seconds (3 Scenes)</option>
-                    <option value={60}>60 Seconds (6 Scenes)</option>
-                    <option value={120}>2 Minutes (12 Scenes)</option>
-                    <option value={180}>3 Minutes (18 Scenes)</option>
-                    <option value={300}>5 Minutes (30 Scenes)</option>
-                  </>
-                )}
-              </select>
+              <CustomSelect 
+                value={duration} 
+                onChange={(val) => setDuration(Number(val))}
+                options={videoType === 'short' ? [
+                  { value: 10, label: '10 Seconds (1 Scene)' },
+                  { value: 20, label: '20 Seconds (2 Scenes)' },
+                  { value: 30, label: '30 Seconds (3 Scenes)' },
+                  { value: 45, label: '45 Seconds (4 Scenes)' },
+                  { value: 55, label: '55 Seconds (5 Scenes)' }
+                ] : [
+                  { value: 20, label: '20 Seconds (2 Scenes)' },
+                  { value: 30, label: '30 Seconds (3 Scenes)' },
+                  { value: 60, label: '60 Seconds (6 Scenes)' },
+                  { value: 120, label: '2 Minutes (12 Scenes)' },
+                  { value: 180, label: '3 Minutes (18 Scenes)' },
+                  { value: 300, label: '5 Minutes (30 Scenes)' }
+                ]}
+              />
             </div>
           </div>
 
@@ -672,11 +799,11 @@ function App() {
 
             <div className="form-group">
               <label>Category / Niche (30+ Categories)</label>
-              <select value={category} onChange={e => setCategory(e.target.value)}>
-                {CATEGORIES.map((cat, i) => (
-                  <option key={i} value={cat}>{cat}</option>
-                ))}
-              </select>
+              <CustomSelect 
+                value={category} 
+                onChange={(val) => setCategory(val)}
+                options={CATEGORIES}
+              />
             </div>
           </div>
 
@@ -759,32 +886,37 @@ function App() {
           
           <div className="form-group">
             <label>AI Voice</label>
-            <select value={voiceId} onChange={e => setVoiceId(e.target.value)}>
-              <option value="hi-IN-MadhurNeural">Madhur (Male, Hindi)</option>
-              <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
-              <option value="en-US-GuyNeural">Guy (Male, English)</option>
-              <option value="en-US-JennyNeural">Jenny (Female, English)</option>
-            </select>
+            <CustomSelect 
+              value={voiceId} 
+              onChange={(val) => setVoiceId(val)}
+              options={[
+                { value: 'hi-IN-MadhurNeural', label: 'Madhur (Male, Hindi)' },
+                { value: 'hi-IN-SwaraNeural', label: 'Swara (Female, Hindi)' },
+                { value: 'en-US-GuyNeural', label: 'Guy (Male, English)' },
+                { value: 'en-US-JennyNeural', label: 'Jenny (Female, English)' }
+              ]}
+            />
           </div>
 
           <div className="form-group">
             <label>Font Family (30+ Custom Fonts)</label>
-            <select value={fontName} onChange={e => setFontName(e.target.value)}>
-              {fontList.map((f, i) => (
-                <option key={i} value={f}>{f.replace(/\.[^/.]+$/, "")}</option>
-              ))}
-            </select>
+            <CustomSelect 
+              value={fontName} 
+              onChange={(val) => setFontName(val)}
+              options={fontList.map(f => ({ value: f, label: f.replace(/\.[^/.]+$/, "") }))}
+            />
           </div>
           
           <div className="form-group">
             <label>🎵 Background Music Track</label>
-            <select value={bgMusic} onChange={e => setBgMusic(e.target.value)}>
-              {bgMusicList.map((m, i) => (
-                <option key={i} value={m}>
-                  {m === 'random' ? '🎲 Random Background Music' : (m === 'none' ? '🚫 No Background Music' : `🎵 ${m}`)}
-                </option>
-              ))}
-            </select>
+            <CustomSelect 
+              value={bgMusic} 
+              onChange={(val) => setBgMusic(val)}
+              options={bgMusicList.map(m => ({ 
+                value: m, 
+                label: m === 'random' ? '🎲 Random Background Music' : (m === 'none' ? '🚫 No Background Music' : `🎵 ${m}`) 
+              }))}
+            />
           </div>
 
           <div className="form-group">
@@ -798,12 +930,16 @@ function App() {
 
           <div className="form-group">
             <label>Highlight Color</label>
-            <select value={fontColor} onChange={e => setFontColor(e.target.value)}>
-              <option value="yellow">Yellow</option>
-              <option value="#00FF00">Neon Green</option>
-              <option value="#FF00FF">Magenta</option>
-              <option value="cyan">Cyan</option>
-            </select>
+            <CustomSelect 
+              value={fontColor} 
+              onChange={(val) => setFontColor(val)}
+              options={[
+                { value: 'yellow', label: '🟨 Yellow' },
+                { value: '#00FF00', label: '🟩 Neon Green' },
+                { value: '#FF00FF', label: '🟪 Magenta' },
+                { value: 'cyan', label: '🟦 Cyan' }
+              ]}
+            />
           </div>
 
           <button 
@@ -871,13 +1007,6 @@ function App() {
               </a>
             </div>
           ) : null}
-
-          {/* YOUTUBE INTEGRATION */}
-          <YouTubeIntegration 
-            userId={userId} 
-            hasActiveSubscription={subStatus.has_active_subscription} 
-            onUpgradeClick={() => setShowPricingModal(true)} 
-          />
         </aside>
       </div>
 
@@ -924,6 +1053,17 @@ function App() {
                   💎 {subStatus.has_active_subscription ? `Active Plan: ${subStatus.plan_type.toUpperCase()} (${subStatus.daily_limit_text || (subStatus.plan_type === 'combo' ? '2 Videos Daily: 1 Short + 1 Long' : '1 Video Daily')})` : `Free Demo Videos Left: ${subStatus.free_demo_count}/2`}
                 </div>
               </div>
+            </div>
+
+            {/* YOUTUBE INTEGRATION INSIDE SIDEBAR DRAWER */}
+            <div style={{ marginBottom: '16px' }}>
+              <YouTubeIntegration 
+                userId={userId} 
+                hasActiveSubscription={subStatus.has_active_subscription} 
+                onUpgradeClick={() => setShowPricingModal(true)} 
+                onStatusChange={(statusData) => setYtStatus(statusData)}
+                triggerAlert={triggerAlert}
+              />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '15px' }}>
