@@ -707,26 +707,33 @@ function App() {
             disabled={jobStatus === 'processing'}
             style={{ marginTop: '2rem' }}
           >
-            {jobStatus === 'processing' ? 'Processing...' : '🚀 Generate Video'}
+            {jobStatus === 'processing' ? '⏳ Rendering Video in Background...' : '🚀 Generate Video'}
           </button>
 
           {jobStatus && (
-            <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-              <div className={`status-badge status-${jobStatus}`}>
+            <div style={{ marginTop: '1.5rem', textAlign: 'center', background: 'rgba(255, 255, 255, 0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(168, 85, 247, 0.3)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+              <div className={`status-badge status-${jobStatus}`} style={{ display: 'inline-block', padding: '6px 14px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '12px' }}>
                 Status: {jobStatus.toUpperCase()}
               </div>
+
               {jobStatus === 'processing' && (
-                <div style={{ marginTop: '1rem' }}>
+                <div style={{ marginTop: '0.5rem' }}>
                   <lottie-player 
                     src="/loding.json" 
                     background="transparent" 
                     speed="1" 
-                    style={{ width: '120px', height: '120px', margin: '0 auto' }} 
+                    style={{ width: '180px', height: '180px', margin: '0 auto', display: 'block' }} 
                     loop 
                     autoplay
                   ></lottie-player>
-                  <p className="animate-pulse" style={{ marginTop: '0.5rem', color: 'var(--text-muted)' }}>
-                    Rendering video scenes & mixing audio... please wait.
+                  <h4 style={{ color: '#ffffff', fontSize: '1.15rem', marginTop: '10px', marginBottom: '6px', fontWeight: '800' }}>
+                    🎬 Rendering Your AI Video...
+                  </h4>
+                  <p style={{ color: '#c084fc', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '6px' }}>
+                    Combining Voice, Visual Clips, Subtitles & Background Music
+                  </p>
+                  <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: 0 }}>
+                    💡 You can keep using the dashboard! Edit scripts, change settings, or view history while rendering proceeds.
                   </p>
                 </div>
               )}
@@ -976,7 +983,7 @@ function App() {
         </div>
       )}
       {/* Big Clean Full-Screen Loading Animation Overlay */}
-      {(isGeneratingScript || isPaymentProcessing || jobStatus === 'processing') && (
+      {(isGeneratingScript || isPaymentProcessing) && (
         <div className="pricing-modal-overlay" style={{ zIndex: 4000, background: 'rgba(10, 7, 24, 0.85)', backdropFilter: 'blur(10px)' }}>
           <div style={{ maxWidth: '480px', textAlign: 'center', padding: '20px' }}>
             <lottie-player 
@@ -988,10 +995,10 @@ function App() {
               autoplay
             ></lottie-player>
             <h3 style={{ color: '#ffffff', fontSize: '1.5rem', marginTop: '14px', marginBottom: '8px', fontWeight: '800' }}>
-              {isGeneratingScript ? 'Generating AI Video Script...' : (jobStatus === 'processing' ? 'Rendering Your AI Video...' : 'Preparing Checkout...')}
+              {isGeneratingScript ? 'Generating AI Video Script...' : 'Preparing Checkout...'}
             </h3>
             <p style={{ color: '#c084fc', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '6px' }}>
-              {jobStatus === 'processing' ? 'Combining Voice, Visual Clips, Subtitles & Background Music' : 'Processing request via Cloxel AI Cloud'}
+              Processing request via Cloxel AI Cloud
             </p>
             <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0 }}>
               Please wait a moment while we process your request.
