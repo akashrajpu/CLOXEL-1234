@@ -589,26 +589,6 @@ function App() {
             )}
             <span>{subStatus.name ? subStatus.name.split(' ')[0] : 'Account'}</span>
           </button>
-          <button 
-            className="btn-logout-header" 
-            onClick={handleLogout}
-            style={{ 
-              background: 'rgba(239, 68, 68, 0.15)', 
-              border: '1px solid rgba(239, 68, 68, 0.4)', 
-              color: '#ef4444', 
-              padding: '8px 16px', 
-              borderRadius: '999px', 
-              fontWeight: 'bold', 
-              fontSize: '0.85rem', 
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-            title="Sign Out of Your Account"
-          >
-            🚪 Logout
-          </button>
         </div>
       </header>
 
