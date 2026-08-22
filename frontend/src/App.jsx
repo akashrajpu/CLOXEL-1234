@@ -599,14 +599,22 @@ function App() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
               <label>Video Type</label>
-              <div style={{ display: 'flex', gap: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button 
                   className={`button ${videoType === 'short' ? 'primary' : 'secondary'}`}
                   onClick={() => {
                     setVideoType('short');
                     if (duration > 55) setDuration(30);
                   }}
-                  style={{ flex: 1, border: videoType === 'short' ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.1)' }}
+                  style={{ 
+                    flex: 1, 
+                    background: videoType === 'short' ? 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)' : 'rgba(255, 255, 255, 0.05)',
+                    border: videoType === 'short' ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    borderRadius: '14px',
+                    boxShadow: videoType === 'short' ? '0 4px 18px rgba(168, 85, 247, 0.45)' : 'none'
+                  }}
                 >📱 Short (9:16)</button>
                 <button 
                   className={`button ${videoType === 'long' ? 'primary' : 'secondary'}`}
@@ -614,7 +622,15 @@ function App() {
                     setVideoType('long');
                     if (duration < 20) setDuration(60);
                   }}
-                  style={{ flex: 1, border: videoType === 'long' ? '2px solid #06b6d4' : '1px solid rgba(255,255,255,0.1)' }}
+                  style={{ 
+                    flex: 1, 
+                    background: videoType === 'long' ? 'linear-gradient(135deg, #06b6d4 0%, #0284c7 100%)' : 'rgba(255, 255, 255, 0.05)',
+                    border: videoType === 'long' ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    borderRadius: '14px',
+                    boxShadow: videoType === 'long' ? '0 4px 18px rgba(6, 182, 212, 0.45)' : 'none'
+                  }}
                 >🖥️ Long (16:9)</button>
               </div>
             </div>
@@ -678,10 +694,21 @@ function App() {
 
           <div className="form-group">
             <button 
-              className="button secondary" 
+              className="button" 
               onClick={handleAutoGenerate}
               disabled={isGeneratingScript}
-              style={{ width: '100%', marginBottom: '1.5rem', background: '#3b82f6', color: 'white' }}
+              style={{ 
+                width: '100%', 
+                marginBottom: '1.5rem', 
+                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)', 
+                color: 'white',
+                border: 'none',
+                borderRadius: '14px',
+                padding: '13px 20px',
+                fontWeight: '800',
+                fontSize: '0.98rem',
+                boxShadow: '0 6px 22px rgba(59, 130, 246, 0.45)'
+              }}
             >
               {isGeneratingScript ? 'Generating Script via Gemini AI...' : '✨ Auto-Generate Script via AI'}
             </button>
@@ -783,7 +810,18 @@ function App() {
             className="button" 
             onClick={handleGenerateVideo}
             disabled={jobStatus === 'processing'}
-            style={{ marginTop: '2rem' }}
+            style={{ 
+              marginTop: '2rem',
+              background: 'linear-gradient(135deg, #a855f7 0%, #c084fc 50%, #06b6d4 100%)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '16px',
+              padding: '14px 24px',
+              fontSize: '1.05rem',
+              fontWeight: '900',
+              boxShadow: '0 8px 30px rgba(168, 85, 247, 0.55)',
+              textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+            }}
           >
             {jobStatus === 'processing' ? '⏳ Rendering Video in Background...' : '🚀 Generate Video'}
           </button>
