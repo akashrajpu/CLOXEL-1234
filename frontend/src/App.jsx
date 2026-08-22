@@ -320,20 +320,33 @@ function App() {
 
     const finalEnabledState = explicitEnabledState !== null ? explicitEnabledState : autoSchedule.schedule_enabled;
 
-    // REQUIREMENT 2: If enabling auto-upload, verify YouTube account is linked FIRST!
-    if (finalEnabledState && (!ytStatus || !ytStatus.linked)) {
-      triggerAlert(
-        "🔴 YouTube Channel Not Connected",
-        "Your YouTube channel is NOT connected yet!\n\nPlease open the ☰ Menu Drawer and link your YouTube account first before starting the Auto-Publishing Engine.",
-        "📺",
-        "danger",
-        () => {
-          setShowAutoUploadModal(false);
-          setIsSidebarOpen(true);
-        },
-        "🔗 Open ☰ Menu & Connect YouTube →"
-      );
-      return;
+    if (finalEnabledState) {
+      // 1. YouTube Connection Check
+      if (!ytStatus || !ytStatus.linked) {
+        triggerAlert(
+          "🔴 YouTube Channel Not Connected",
+          "Your YouTube channel is NOT connected yet!\n\nPlease open the ☰ Menu Drawer and link your YouTube account first before starting the Auto-Publishing Engine.",
+          "📺",
+          "danger",
+          () => {
+            setShowAutoUploadModal(false);
+            setIsSidebarOpen(true);
+          },
+          "🔗 Open ☰ Menu & Connect YouTube →"
+        );
+        return;
+      }
+
+      // 2. Checkbox Check
+      if (!autoSchedule.schedule_enabled) {
+        triggerAlert(
+          "Checkbox Confirmation Required",
+          "Please check the \"ENABLE DAILY AUTOMATED AI VIDEO GENERATION & YOUTUBE UPLOAD\" checkbox first before starting the engine!",
+          "☑️",
+          "info"
+        );
+        return;
+      }
     }
 
     try {

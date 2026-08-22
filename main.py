@@ -473,8 +473,20 @@ async def save_auto_schedule(req: AutoScheduleRequest):
     # Long duration: 20s to 300s (5 mins)
     req.long_duration = max(20, min(300, req.long_duration))
 
+    existing_schedule = user.get("auto_schedule", {})
+    existing_started_at = existing_schedule.get("schedule_started_at")
+
+    if req.schedule_enabled:
+        if not existing_started_at or not existing_schedule.get("schedule_enabled"):
+            schedule_started_at = datetime.utcnow()
+        else:
+            schedule_started_at = existing_started_at
+    else:
+        schedule_started_at = None
+
     schedule_data = {
         "schedule_enabled": req.schedule_enabled,
+        "schedule_started_at": schedule_started_at,
         "plan_type": sub_plan,
         
         # Short schedule profile
@@ -613,8 +625,21 @@ async def get_auto_schedule(internal_id: str):
         elif plan_type == "long":
             next_run = f"Long Video: Daily at {schedule.get('long_time', '18:00')}"
 
+    started_at = schedule.get("schedule_started_at")
+    hours_active = 0
+    if started_at:
+        if isinstance(started_at, str):
+            try:
+                started_at = datetime.fromisoformat(started_at)
+            except Exception:
+                started_at = None
+        if isinstance(started_at, datetime):
+            hours_active = round((datetime.utcnow() - started_at).total_seconds() / 3600, 1)
+
     return {
         "schedule_enabled": schedule.get("schedule_enabled", False),
+        "schedule_started_at": started_at.isoformat() if isinstance(started_at, datetime) else None,
+        "hours_active": hours_active,
         "plan_type": plan_type,
         
         # Short settings
