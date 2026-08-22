@@ -270,15 +270,15 @@ function App() {
   };
 
   const handleLogout = () => {
-    // 1. Complete Security Wipe: Clear all localStorage and sessionStorage
     try {
       localStorage.clear();
       sessionStorage.clear();
+      localStorage.removeItem('cloxel_user_id');
+      localStorage.removeItem('user_data');
     } catch (e) {
       console.error("Error clearing browser storage:", e);
     }
 
-    // 2. Reset all in-memory user states
     setUserId(null);
     setHistory([]);
     setFullScript('');
@@ -288,9 +288,13 @@ function App() {
     setCloudinaryUrl(null);
     setDownloadUrl(null);
     setPlayingHistoryVideo(null);
+    setIsSidebarOpen(false);
+    setShowPricingModal(false);
+    setShowAutoUploadModal(false);
+    setShowStopScheduleWarningModal(false);
+    setCustomAlert(null);
     setSubStatus({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
 
-    // 3. Hard page reload & redirect to origin for a clean fresh login state
     window.location.href = window.location.origin + window.location.pathname;
   };
 
@@ -580,6 +584,26 @@ function App() {
               <span>👤</span>
             )}
             <span>{subStatus.name ? subStatus.name.split(' ')[0] : 'Account'}</span>
+          </button>
+          <button 
+            className="btn-logout-header" 
+            onClick={handleLogout}
+            style={{ 
+              background: 'rgba(239, 68, 68, 0.15)', 
+              border: '1px solid rgba(239, 68, 68, 0.4)', 
+              color: '#ef4444', 
+              padding: '8px 16px', 
+              borderRadius: '999px', 
+              fontWeight: 'bold', 
+              fontSize: '0.85rem', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            title="Sign Out of Your Account"
+          >
+            🚪 Logout
           </button>
         </div>
       </header>
