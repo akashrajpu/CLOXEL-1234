@@ -93,6 +93,114 @@ def ping_server():
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(ping_server, 'interval', minutes=10)
+
+def check_and_run_auto_schedules():
+    """
+    Automated Daily Profile Audit & 1-Hour Pre-Rendering Background Worker:
+    Scans all active paid member profiles continuously.
+    Pre-renders videos 1 hour before scheduled time with Smart Fallback Retry Engine.
+    Also executes daily sweeps at 00:00 (Midnight), 06:00 (Morning) & 12:00 (Noon).
+    """
+    if users_collection is None:
+        return
+
+    now = datetime.utcnow()
+    current_time_str = now.strftime("%H:%M")
+    
+    # 1-Hour Pre-Rendering calculation: time 1 hour ahead
+    one_hour_ahead = now + timedelta(hours=1)
+    pre_render_time_str = one_hour_ahead.strftime("%H:%M")
+    today_str = now.strftime("%Y-%m-%d")
+
+    # Regular Profile Audit Sweep Logs at 00:00, 06:00, 12:00
+    if current_time_str in ["00:00", "06:00", "12:00"]:
+        print(f"🔍 [DAILY PROFILE AUDIT SWEEP] Scanning all active subscriber profiles at {current_time_str} UTC...")
+
+    try:
+        active_users = list(users_collection.find({
+            "auto_schedule.schedule_enabled": True
+        }))
+
+        for user in active_users:
+            internal_id = user.get("internal_id")
+            schedule = user.get("auto_schedule", {})
+            subscription = user.get("subscription", {})
+            sub_status = subscription.get("status")
+            sub_expires = subscription.get("expires_at")
+            plan_type = subscription.get("plan_type", "none")
+
+            if sub_status != "active" or not sub_expires:
+                continue
+
+            if isinstance(sub_expires, str):
+                try:
+                    sub_expires = datetime.fromisoformat(sub_expires)
+                except Exception:
+                    continue
+
+            if sub_expires <= now:
+                continue
+
+            # 1. Short Reel Pre-render Engine
+            if plan_type in ["short", "combo"]:
+                short_time = schedule.get("short_time", "10:00")
+                if (current_time_str == short_time or pre_render_time_str == short_time) and schedule.get("last_short_run") != today_str:
+                    print(f"🚀 [AUTO-WORKER 1-HR PRE-RENDER] Pre-rendering Short Reel for user {internal_id}...")
+                    users_collection.update_one(
+                        {"internal_id": internal_id},
+                        {"$set": {"auto_schedule.last_short_run": today_str}}
+                    )
+
+                    topic = schedule.get("short_topic") or "Space Exploration"
+                    category = schedule.get("short_category") or "Random"
+                    voice = schedule.get("short_voice") or "hi-IN-MadhurNeural"
+                    font = schedule.get("short_font") or "Arial.ttf"
+                    color = schedule.get("short_color") or "yellow"
+                    duration = int(schedule.get("short_duration") or 30)
+
+                    render_video_with_smart_fallback(
+                        user_id=internal_id,
+                        topic=topic,
+                        category=category,
+                        voice_id=voice,
+                        font_name=font,
+                        font_color=color,
+                        video_type="short",
+                        requested_duration=duration
+                    )
+
+            # 2. Long Video Pre-render Engine
+            if plan_type in ["long", "combo"]:
+                long_time = schedule.get("long_time", "18:00")
+                if (current_time_str == long_time or pre_render_time_str == long_time) and schedule.get("last_long_run") != today_str:
+                    print(f"🚀 [AUTO-WORKER 1-HR PRE-RENDER] Pre-rendering Long Video for user {internal_id}...")
+                    users_collection.update_one(
+                        {"internal_id": internal_id},
+                        {"$set": {"auto_schedule.last_long_run": today_str}}
+                    )
+
+                    topic = schedule.get("long_topic") or "AI Innovations"
+                    category = schedule.get("long_category") or "Random"
+                    voice = schedule.get("long_voice") or "hi-IN-MadhurNeural"
+                    font = schedule.get("long_font") or "Arial.ttf"
+                    color = schedule.get("long_color") or "yellow"
+                    duration = int(schedule.get("long_duration") or 60)
+
+                    render_video_with_smart_fallback(
+                        user_id=internal_id,
+                        topic=topic,
+                        category=category,
+                        voice_id=voice,
+                        font_name=font,
+                        font_color=color,
+                        video_type="long",
+                        requested_duration=duration
+                    )
+
+    except Exception as e:
+        print(f"❌ Error in check_and_run_auto_schedules: {e}")
+
+scheduler.add_job(check_and_run_auto_schedules, 'interval', minutes=1)
 scheduler.start()
 
 # 3. Password Hashing
@@ -252,6 +360,72 @@ def full_process(req: VideoRequest, job_id: str):
                 print(f"🧹 Cleaned up temp scene directory: {job_dir}")
         except Exception as err:
             print(f"Temp cleanup warning: {err}")
+
+def render_video_with_smart_fallback(user_id: str, topic: str, category: str, voice_id: str, font_name: str, font_color: str, video_type: str, requested_duration: int, bg_music: str = "cool.mp3"):
+    """
+    Smart Fallback Retry Engine with Duration Stepping:
+    If rendering fails for requested duration (e.g. 300s/5m), automatically steps down
+    to 240s (4m) -> 180s (3m) -> 120s (2m) -> 60s (1m) for long videos, or
+    55s -> 45s -> 30s -> 20s -> 10s for short reels, retrying until 100% success!
+    """
+    import uuid
+    if video_type == "long":
+        duration_steps = [requested_duration, 300, 240, 180, 120, 60]
+        duration_steps = sorted(list(set([d for d in duration_steps if d <= requested_duration])), reverse=True)
+    else:
+        duration_steps = [requested_duration, 55, 45, 30, 20, 10]
+        duration_steps = sorted(list(set([d for d in duration_steps if d <= requested_duration])), reverse=True)
+
+    last_error = None
+    for attempt_idx, dur in enumerate(duration_steps):
+        try:
+            print(f"🔄 [SMART RETRY ENGINE] Attempt {attempt_idx + 1}/{len(duration_steps)}: Trying {video_type.upper()} ({dur} seconds)...")
+            
+            script_data = generate_ai_script_core(
+                topic=topic,
+                duration=dur,
+                video_type=video_type,
+                language="hi",
+                tone="viral",
+                category=category
+            )
+
+            full_script = script_data.get("full_script", "")
+            raw_scenes = script_data.get("scenes", [])
+            scenes_obj = [Scene(text=s.get("text", ""), keyword=s.get("keyword", "technology")) for s in raw_scenes]
+
+            if not scenes_obj:
+                scenes_obj = [Scene(text=full_script or topic, keyword="technology")]
+
+            v_req = VideoRequest(
+                user_id=user_id,
+                topic=topic,
+                category=category,
+                voice_id=voice_id,
+                font_name=font_name,
+                font_color=font_color,
+                video_type=video_type,
+                full_script=full_script,
+                scenes=scenes_obj,
+                bg_music=bg_music
+            )
+
+            job_id = str(uuid.uuid4())
+            full_process(v_req, job_id)
+
+            job_result = jobs.get(job_id, {})
+            if job_result.get("status") == "completed":
+                print(f"✅ [SMART RETRY ENGINE SUCCESS] Successfully rendered {dur}s {video_type.upper()} on Attempt {attempt_idx + 1}!")
+                return job_result
+            else:
+                last_error = job_result.get("error", "Unknown error")
+                print(f"⚠️ Attempt {attempt_idx + 1} ({dur}s) failed: {last_error}. Stepping down duration...")
+        except Exception as ex:
+            last_error = str(ex)
+            print(f"⚠️ Attempt {attempt_idx + 1} exception ({dur}s): {ex}. Stepping down duration...")
+
+    print(f"❌ [SMART RETRY ENGINE EXHAUSTED] Tried all fallback durations: {last_error}")
+    return {"status": "failed", "error": last_error}
 
 class CreateOrderRequest(BaseModel):
     internal_id: str
