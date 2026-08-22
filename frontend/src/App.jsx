@@ -72,21 +72,7 @@ function App() {
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
   const [showAutoUploadModal, setShowAutoUploadModal] = useState(false);
-  const [showStopScheduleWarningModal, setShowStopScheduleWarningModal] = useState(false);
-  const [customAlert, setCustomAlert] = useState(null);
   const [playingHistoryVideo, setPlayingHistoryVideo] = useState(null);
-
-  const triggerAlert = (title, message, icon = '⚠️', type = 'info', onConfirm = null, confirmText = 'OK', cancelText = 'Cancel') => {
-    setCustomAlert({
-      title,
-      message,
-      icon,
-      type,
-      onConfirm,
-      confirmText,
-      cancelText
-    });
-  };
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
   const [subStatus, setSubStatus] = useState({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
@@ -188,32 +174,21 @@ function App() {
     }
   }, [userId]);
 
-  const handleSaveAutoSchedule = async (explicitEnabledState = null) => {
+  const handleSaveAutoSchedule = async () => {
     if (!userId) return;
     if (!subStatus.has_active_subscription) {
-      triggerAlert(
-        "Active Membership Required",
-        "Auto-Schedule & YouTube Auto-Upload are exclusive to active paid members. Please upgrade your plan to activate auto-scheduling!",
-        "🔒",
-        "danger",
-        () => {
-          setShowAutoUploadModal(false);
-          setShowPricingModal(true);
-        },
-        "Upgrade Membership Plan →"
-      );
+      alert("🔒 Active Paid Membership Required!\n\nAuto-Schedule & YouTube Auto-Upload are exclusive to active paid members. Please upgrade your plan to activate auto-scheduling!");
+      setShowAutoUploadModal(false);
+      setShowPricingModal(true);
       return;
     }
-
-    const finalEnabledState = explicitEnabledState !== null ? explicitEnabledState : autoSchedule.schedule_enabled;
-
     try {
       const res = await fetch(`${API_BASE}/save-auto-schedule`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           internal_id: userId,
-          schedule_enabled: finalEnabledState,
+          schedule_enabled: autoSchedule.schedule_enabled,
           
           short_auto_topic: autoSchedule.short_auto_topic !== false,
           short_topic: autoSchedule.short_topic || 'Space Exploration, AI Innovations',
@@ -237,30 +212,15 @@ function App() {
         })
       });
       if (res.ok) {
-        if (finalEnabledState) {
-          triggerAlert(
-            "Auto-Publishing Activated",
-            "Server will automatically track your topics, voice, font, and duration settings for your active plan and publish to YouTube on schedule.",
-            "⚡",
-            "success"
-          );
-        } else {
-          triggerAlert(
-            "Auto-Publishing Stopped",
-            "Automated video generation and YouTube publishing have been completely suspended until you re-enable it.",
-            "🛑",
-            "danger"
-          );
-        }
+        alert("✅ Secret Auto-Generate Schedule Saved & Activated!\n\nServer will automatically track your topics, voice, font, and duration settings for your active plan and publish to YouTube on schedule.");
         fetchAutoSchedule();
         setShowAutoUploadModal(false);
-        setShowStopScheduleWarningModal(false);
       } else {
         const errData = await res.json();
-        triggerAlert("Error", errData.detail || "Failed to save schedule settings.", "⚠️", "danger");
+        alert(errData.detail || "Failed to save schedule settings.");
       }
     } catch (err) {
-      triggerAlert("Error", "Error saving auto schedule.", "⚠️", "danger");
+      alert("Error saving auto schedule.");
     }
   };
 
@@ -270,15 +230,15 @@ function App() {
   };
 
   const handleLogout = () => {
+    // 1. Complete Security Wipe: Clear all localStorage and sessionStorage
     try {
       localStorage.clear();
       sessionStorage.clear();
-      localStorage.removeItem('cloxel_user_id');
-      localStorage.removeItem('user_data');
     } catch (e) {
       console.error("Error clearing browser storage:", e);
     }
 
+    // 2. Reset all in-memory user states
     setUserId(null);
     setHistory([]);
     setFullScript('');
@@ -288,13 +248,9 @@ function App() {
     setCloudinaryUrl(null);
     setDownloadUrl(null);
     setPlayingHistoryVideo(null);
-    setIsSidebarOpen(false);
-    setShowPricingModal(false);
-    setShowAutoUploadModal(false);
-    setShowStopScheduleWarningModal(false);
-    setCustomAlert(null);
     setSubStatus({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
 
+    // 3. Hard page reload & redirect to origin for a clean fresh login state
     window.location.href = window.location.origin + window.location.pathname;
   };
 
@@ -375,7 +331,6 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: topic,
-          category: (category || '').includes('Custom Category') ? (customCategory || 'Random') : category,
           scenes: scenes,
           font_name: fontName,
           font_color: fontColor,
@@ -449,10 +404,14 @@ function App() {
     reader.readAsDataURL(file);
   };
 
-  const PLAN_RANKS = { short: 1, long: 2, combo: 3 };
-  const PLAN_NAMES = { short: 'Short Starter (₹50)', long: 'Long Master (₹100)', combo: 'Pro Combo (₹119)' };
+  const handleBuyPlan = async (planType) => {
+    if (subStatus.has_active_subscription) {
+      const confirmExtend = window.confirm(
+        `⚠️ WARNING: You already have an active membership plan (Current Plan: ${subStatus.plan_type.toUpperCase()}).\n\nPurchasing this plan will extend your active membership by an additional 30 days.\n\nDo you want to proceed to payment?`
+      );
+      if (!confirmExtend) return;
+    }
 
-  const executeCheckout = async (planType) => {
     try {
       setIsPaymentProcessing(true);
       const response = await fetch(`${API_BASE}/create-razorpay-order`, {
@@ -464,7 +423,7 @@ function App() {
       setIsPaymentProcessing(false);
       
       if (!response.ok) {
-        triggerAlert("Order Creation Failed", orderData.detail || "Failed to create order.", "❌", "danger");
+        alert(orderData.detail || "Failed to create order");
         return;
       }
 
@@ -496,72 +455,34 @@ function App() {
               })
             });
             
-            const verifyData = await verifyResp.json();
             if (verifyResp.ok) {
               setShowPricingModal(false);
               setShowPaymentSuccessModal(true);
               fetchSubscriptionStatus();
-              fetchAutoSchedule();
             } else {
-              triggerAlert("Payment Verification Failed", verifyData.detail || "Payment Verification Failed.", "❌", "danger");
+              const errData = await verifyResp.json();
+              alert(errData.detail || "Payment Verification Failed.");
             }
           },
           modal: {
-            ondismiss: function () {
-              triggerAlert("Payment Cancelled", "Transaction was cancelled.", "ℹ️", "info");
+            ondismiss: function() {
+              alert("⚠️ Payment cancelled. Membership was NOT activated.");
             }
-          }
+          },
+          theme: { color: "#8b5cf6" }
         };
 
         const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', function (res) {
+          alert(`❌ Payment Failed: ${res.error.description || 'Transaction declined'}`);
+        });
         rzp.open();
       } else {
-        triggerAlert("Razorpay Notice", "Live Razorpay API Keys are not configured in Render. Please add RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET to Render.", "⚠️", "info");
+        alert("⚠️ Live Razorpay API Keys are not yet configured in Render environment variables (RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET).\n\nPlease add your Razorpay keys to Render to allow live user payments!");
       }
     } catch (err) {
-      setIsPaymentProcessing(false);
-      triggerAlert("Payment Error", "Payment processing error. Please try again.", "❌", "danger");
+      alert("Payment processing error. Please try again.");
     }
-  };
-
-  const handleBuyPlan = async (planType) => {
-    if (subStatus.has_active_subscription) {
-      const currRank = PLAN_RANKS[subStatus.plan_type] || 0;
-      const newRank = PLAN_RANKS[planType] || 0;
-
-      if (newRank < currRank) {
-        triggerAlert(
-          "Plan Downgrade Restricted",
-          `You currently have an active high-tier plan (${PLAN_NAMES[subStatus.plan_type] || subStatus.plan_type.toUpperCase()}).\n\nYou cannot downgrade to ${PLAN_NAMES[planType]} until your current high-tier plan expires on ${subStatus.expires_at ? new Date(subStatus.expires_at).toLocaleDateString() : 'expiry'}.`,
-          "⚠️",
-          "danger"
-        );
-        return;
-      } else if (newRank > currRank) {
-        triggerAlert(
-          "Upgrade Membership Notice",
-          `Upgrading to ${PLAN_NAMES[planType]} will replace your current ${PLAN_NAMES[subStatus.plan_type]} plan and start a fresh 30-day high-tier subscription immediately!`,
-          "🚀",
-          "info",
-          () => executeCheckout(planType),
-          `Upgrade Now (₹${planType === 'combo' ? 119 : 100})`,
-          "Cancel"
-        );
-        return;
-      } else {
-        triggerAlert(
-          "Same Plan Duration Stacking",
-          `You already have an active ${PLAN_NAMES[planType]} plan.\n\nPurchasing this plan again will stack and extend your active membership duration by an additional +30 days!`,
-          "🔄",
-          "info",
-          () => executeCheckout(planType),
-          "Proceed to Stack (+30 Days)",
-          "Cancel"
-        );
-        return;
-      }
-    }
-    executeCheckout(planType);
   };
 
   if (!userId) {
@@ -589,26 +510,6 @@ function App() {
             )}
             <span>{subStatus.name ? subStatus.name.split(' ')[0] : 'Account'}</span>
           </button>
-          <button 
-            className="btn-logout-header" 
-            onClick={handleLogout}
-            style={{ 
-              background: 'rgba(239, 68, 68, 0.15)', 
-              border: '1px solid rgba(239, 68, 68, 0.4)', 
-              color: '#ef4444', 
-              padding: '8px 16px', 
-              borderRadius: '999px', 
-              fontWeight: 'bold', 
-              fontSize: '0.85rem', 
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-            title="Sign Out of Your Account"
-          >
-            🚪 Logout
-          </button>
         </div>
       </header>
 
@@ -622,43 +523,22 @@ function App() {
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button 
                   className={`button ${videoType === 'short' ? 'primary' : 'secondary'}`}
-                  onClick={() => {
-                    setVideoType('short');
-                    if (duration > 55) setDuration(30);
-                  }}
-                  style={{ flex: 1, border: videoType === 'short' ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.1)' }}
+                  onClick={() => setVideoType('short')}
+                  style={{ flex: 1 }}
                 >📱 Short (9:16)</button>
                 <button 
                   className={`button ${videoType === 'long' ? 'primary' : 'secondary'}`}
-                  onClick={() => {
-                    setVideoType('long');
-                    if (duration < 20) setDuration(60);
-                  }}
-                  style={{ flex: 1, border: videoType === 'long' ? '2px solid #06b6d4' : '1px solid rgba(255,255,255,0.1)' }}
+                  onClick={() => setVideoType('long')}
+                  style={{ flex: 1 }}
                 >🖥️ Long (16:9)</button>
               </div>
             </div>
             <div className="form-group">
               <label>Target Duration (Seconds)</label>
               <select value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-                {videoType === 'short' ? (
-                  <>
-                    <option value={10}>10 Seconds (1 Scene)</option>
-                    <option value={20}>20 Seconds (2 Scenes)</option>
-                    <option value={30}>30 Seconds (3 Scenes)</option>
-                    <option value={45}>45 Seconds (4 Scenes)</option>
-                    <option value={55}>55 Seconds (5 Scenes)</option>
-                  </>
-                ) : (
-                  <>
-                    <option value={20}>20 Seconds (2 Scenes)</option>
-                    <option value={30}>30 Seconds (3 Scenes)</option>
-                    <option value={60}>60 Seconds (6 Scenes)</option>
-                    <option value={120}>2 Minutes (12 Scenes)</option>
-                    <option value={180}>3 Minutes (18 Scenes)</option>
-                    <option value={300}>5 Minutes (30 Scenes)</option>
-                  </>
-                )}
+                <option value={20}>20 Seconds (2 Scenes)</option>
+                <option value={30}>30 Seconds (3 Scenes)</option>
+                <option value={60}>60 Seconds (6 Scenes)</option>
               </select>
             </div>
           </div>
@@ -805,33 +685,26 @@ function App() {
             disabled={jobStatus === 'processing'}
             style={{ marginTop: '2rem' }}
           >
-            {jobStatus === 'processing' ? '⏳ Rendering Video in Background...' : '🚀 Generate Video'}
+            {jobStatus === 'processing' ? 'Processing...' : '🚀 Generate Video'}
           </button>
 
           {jobStatus && (
-            <div style={{ marginTop: '1.5rem', textAlign: 'center', background: 'rgba(255, 255, 255, 0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(168, 85, 247, 0.3)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-              <div className={`status-badge status-${jobStatus}`} style={{ display: 'inline-block', padding: '6px 14px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '12px' }}>
+            <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+              <div className={`status-badge status-${jobStatus}`}>
                 Status: {jobStatus.toUpperCase()}
               </div>
-
               {jobStatus === 'processing' && (
-                <div style={{ marginTop: '0.5rem' }}>
+                <div style={{ marginTop: '1rem' }}>
                   <lottie-player 
                     src="/loding.json" 
                     background="transparent" 
                     speed="1" 
-                    style={{ width: '180px', height: '180px', margin: '0 auto', display: 'block' }} 
+                    style={{ width: '120px', height: '120px', margin: '0 auto' }} 
                     loop 
                     autoplay
                   ></lottie-player>
-                  <h4 style={{ color: '#ffffff', fontSize: '1.15rem', marginTop: '10px', marginBottom: '6px', fontWeight: '800' }}>
-                    🎬 Rendering Your AI Video...
-                  </h4>
-                  <p style={{ color: '#c084fc', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '6px' }}>
-                    Combining Voice, Visual Clips, Subtitles & Background Music
-                  </p>
-                  <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: 0 }}>
-                    💡 You can keep using the dashboard! Edit scripts, change settings, or view history while rendering proceeds.
+                  <p className="animate-pulse" style={{ marginTop: '0.5rem', color: 'var(--text-muted)' }}>
+                    Rendering video scenes & mixing audio... please wait.
                   </p>
                 </div>
               )}
@@ -855,11 +728,7 @@ function App() {
           ) : null}
 
           {/* YOUTUBE INTEGRATION */}
-          <YouTubeIntegration 
-            userId={userId} 
-            hasActiveSubscription={subStatus.has_active_subscription} 
-            onUpgradeClick={() => setShowPricingModal(true)} 
-          />
+          <YouTubeIntegration userId={userId} />
         </aside>
       </div>
 
@@ -1085,7 +954,7 @@ function App() {
         </div>
       )}
       {/* Big Clean Full-Screen Loading Animation Overlay */}
-      {(isGeneratingScript || isPaymentProcessing) && (
+      {(isGeneratingScript || isPaymentProcessing || jobStatus === 'processing') && (
         <div className="pricing-modal-overlay" style={{ zIndex: 4000, background: 'rgba(10, 7, 24, 0.85)', backdropFilter: 'blur(10px)' }}>
           <div style={{ maxWidth: '480px', textAlign: 'center', padding: '20px' }}>
             <lottie-player 
@@ -1097,10 +966,10 @@ function App() {
               autoplay
             ></lottie-player>
             <h3 style={{ color: '#ffffff', fontSize: '1.5rem', marginTop: '14px', marginBottom: '8px', fontWeight: '800' }}>
-              {isGeneratingScript ? 'Generating AI Video Script...' : 'Preparing Checkout...'}
+              {isGeneratingScript ? 'Generating AI Video Script...' : (jobStatus === 'processing' ? 'Rendering Your AI Video...' : 'Preparing Checkout...')}
             </h3>
             <p style={{ color: '#c084fc', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '6px' }}>
-              Processing request via Cloxel AI Cloud
+              {jobStatus === 'processing' ? 'Combining Voice, Visual Clips, Subtitles & Background Music' : 'Processing request via Cloxel AI Cloud'}
             </p>
             <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0 }}>
               Please wait a moment while we process your request.
@@ -1390,23 +1259,13 @@ function App() {
               )}
 
               {subStatus.has_active_subscription ? (
-                autoSchedule.schedule_enabled ? (
-                  <button 
-                    className="btn-hero-cta" 
-                    style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)' }}
-                    onClick={() => setShowStopScheduleWarningModal(true)}
-                  >
-                    🛑 Stop Auto-Publishing Engine →
-                  </button>
-                ) : (
-                  <button 
-                    className="btn-hero-cta" 
-                    style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: '0 4px 20px rgba(6, 182, 212, 0.4)' }}
-                    onClick={() => handleSaveAutoSchedule(true)}
-                  >
-                    ⚡ Start Auto-Publishing Engine →
-                  </button>
-                )
+                <button 
+                  className="btn-hero-cta" 
+                  style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: '0 4px 20px rgba(6, 182, 212, 0.4)' }}
+                  onClick={handleSaveAutoSchedule}
+                >
+                  💾 Save Schedule & Activate Automation →
+                </button>
               ) : (
                 <button 
                   className="btn-hero-cta" 
@@ -1425,140 +1284,6 @@ function App() {
               <button className="button secondary" style={{ width: 'auto', padding: '8px 24px' }} onClick={() => setShowAutoUploadModal(false)}>
                 Close Settings
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stop Auto-Publishing Confirmation Warning Modal */}
-      {showStopScheduleWarningModal && (
-        <div className="pricing-modal-overlay" style={{ zIndex: 4000 }} onClick={() => setShowStopScheduleWarningModal(false)}>
-          <div 
-            style={{ 
-              maxWidth: '460px', 
-              width: '90%',
-              padding: '32px 28px', 
-              textAlign: 'center',
-              background: 'rgba(255, 255, 255, 0.04)', 
-              borderRadius: '24px', 
-              border: '1px solid rgba(239, 68, 68, 0.45)', 
-              boxShadow: '0 20px 50px rgba(239, 68, 68, 0.25)', 
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)'
-            }} 
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ fontSize: '3rem', marginBottom: '12px' }}>⚠️</div>
-            <h3 style={{ color: '#ef4444', fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>
-              Stop Auto-Publishing Warning
-            </h3>
-            <p style={{ color: '#cbd5e1', fontSize: '0.92rem', lineHeight: '1.5', marginBottom: '24px' }}>
-              If you stop auto-publishing now, your automated daily video generation and YouTube channel publishing will be <strong>completely STOPPED</strong>.<br/><br/>
-              When you re-enable it in the future, you will need to re-configure your daily upload schedule. Are you sure you want to stop?
-            </p>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button 
-                className="button secondary" 
-                style={{ flex: 1, padding: '12px' }}
-                onClick={() => setShowStopScheduleWarningModal(false)}
-              >
-                Cancel / Keep Active
-              </button>
-              <button 
-                className="button" 
-                style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: '#fff', border: 'none', fontWeight: 'bold' }}
-                onClick={() => handleSaveAutoSchedule(false)}
-              >
-                🛑 Yes, Stop Everything Now
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Custom Glassmorphism Transparent Warning & Alert Modal */}
-      {customAlert && (
-        <div 
-          className="pricing-modal-overlay" 
-          style={{ zIndex: 5000, background: 'rgba(10, 7, 24, 0.45)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}
-          onClick={() => setCustomAlert(null)}
-        >
-          <div 
-            style={{ 
-              maxWidth: '460px', 
-              width: '90%',
-              padding: '36px 28px', 
-              textAlign: 'center', 
-              background: 'rgba(255, 255, 255, 0.04)', 
-              borderRadius: '24px', 
-              border: customAlert.type === 'danger' ? '1px solid rgba(239, 68, 68, 0.45)' : (customAlert.type === 'success' ? '1px solid rgba(34, 197, 94, 0.45)' : '1px solid rgba(168, 85, 247, 0.45)'), 
-              boxShadow: customAlert.type === 'danger' ? '0 20px 50px rgba(239, 68, 68, 0.25)' : '0 20px 50px rgba(168, 85, 247, 0.25)', 
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)'
-            }} 
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ fontSize: '3.2rem', marginBottom: '14px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}>
-              {customAlert.icon || '⚠️'}
-            </div>
-            
-            <h3 style={{ color: customAlert.type === 'danger' ? '#ef4444' : (customAlert.type === 'success' ? '#22c55e' : '#ffffff'), fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>
-              {customAlert.title}
-            </h3>
-            
-            <div style={{ color: '#e2e8f0', fontSize: '0.92rem', lineHeight: '1.55', marginBottom: '28px', whiteSpace: 'pre-line' }}>
-              {customAlert.message}
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-              {customAlert.onConfirm ? (
-                <>
-                  <button 
-                    className="button secondary" 
-                    style={{ flex: 1, padding: '12px', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.08)', color: '#cbd5e1', border: '1px solid rgba(255, 255, 255, 0.15)' }}
-                    onClick={() => setCustomAlert(null)}
-                  >
-                    {customAlert.cancelText || 'Cancel'}
-                  </button>
-                  <button 
-                    className="button" 
-                    style={{ 
-                      flex: 1, 
-                      padding: '12px', 
-                      borderRadius: '12px', 
-                      background: customAlert.type === 'danger' ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 'linear-gradient(135deg, #a855f7 0%, #06b6d4 100%)', 
-                      color: '#ffffff', 
-                      border: 'none', 
-                      fontWeight: 'bold',
-                      boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
-                    }}
-                    onClick={() => {
-                      const cb = customAlert.onConfirm;
-                      setCustomAlert(null);
-                      if (cb) cb();
-                    }}
-                  >
-                    {customAlert.confirmText || 'Confirm'}
-                  </button>
-                </>
-              ) : (
-                <button 
-                  className="button" 
-                  style={{ 
-                    width: '100%', 
-                    padding: '13px', 
-                    borderRadius: '12px', 
-                    background: customAlert.type === 'danger' ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : (customAlert.type === 'success' ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : 'linear-gradient(135deg, #a855f7 0%, #06b6d4 100%)'), 
-                    color: '#ffffff', 
-                    border: 'none', 
-                    fontWeight: 'bold',
-                    fontSize: '0.95rem'
-                  }}
-                  onClick={() => setCustomAlert(null)}
-                >
-                  {customAlert.confirmText || 'Got It →'}
-                </button>
-              )}
             </div>
           </div>
         </div>
