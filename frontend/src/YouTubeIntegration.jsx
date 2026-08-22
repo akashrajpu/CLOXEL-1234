@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
-function YouTubeIntegration({ userId }) {
+function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick }) {
   const [status, setStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,12 +25,21 @@ function YouTubeIntegration({ userId }) {
   }, [userId]);
 
   const handleLink = async () => {
+    if (!hasActiveSubscription) {
+      alert("🔒 Active Paid Membership Required!\n\nConnecting a YouTube account for automatic video publishing is exclusive to active paid membership plans (Short Starter, Long Master, Pro Combo). Please upgrade your plan first!");
+      if (onUpgradeClick) onUpgradeClick();
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE}/youtube/auth-url?internal_id=${userId}`);
       const data = await response.json();
       
       if (!response.ok) {
         alert(data.detail || "Error connecting to YouTube API. Make sure YouTube Credentials are set in Render.");
+        if (data.detail && data.detail.includes("Membership") && onUpgradeClick) {
+          onUpgradeClick();
+        }
         return;
       }
       

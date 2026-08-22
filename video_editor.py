@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 import textwrap
 import subprocess
-from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips, CompositeVideoClip, ImageSequenceClip, VideoClip
+from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip, ColorClip, CompositeVideoClip, ImageSequenceClip, VideoClip
 from PIL import Image, ImageDraw, ImageFont
 
 warnings.filterwarnings("ignore")
@@ -16,32 +16,32 @@ if not hasattr(Image, 'ANTIALIAS'):
 
 def create_animated_text(full_text, size, duration, font_path, highlight_color, font_size=220):
     """
-    Ek specific segment ke liye VIRAL STYLE animation banata hai (SUPER BADA TEXT)
+    Auto-fitting, non-overflowing subtitle renderer with ultra-fast execution and zero memory leaks.
     """
     frames = []
     fps = 10
-    total_frames = int(duration * fps)
+    total_frames = max(int(duration * fps), 1)
     
-    # 1. Text ko Capital kiya taaki aur clear dikhe
-    full_text = full_text.upper()
+    full_text = full_text.upper().strip()
     words = full_text.split()
     
-    try:
-        font = ImageFont.truetype(font_path, font_size) 
-    except:
-        print(f"\n⚠️ WARNING: Aapka font '{font_path}' nahi mila! Default 'Arial' use kar raha hu taaki text bada dikhe.")
-        try:
-            # Agar custom font na mile toh system ka Arial use karega
-            font = ImageFont.truetype("arial.ttf", font_size)
-        except:
-            # Mac users ke liye fallback
-            try:
-                font = ImageFont.truetype("/Library/Fonts/Arial.ttf", font_size)
-            except:
-                font = ImageFont.load_default()
-                print("❌ ERROR: Koi font nahi mila! Text chhota hi aayega. Please ek sahi .ttf file ./fonts folder mein dalein.")
+    # Base Target Font Size calculation based on screen dimensions
+    target_width = int(size[0] * 0.86) # 86% screen margin
+    max_font_size = int(size[1] * 0.08) if size[0] > size[1] else int(size[0] * 0.09) # Smart responsive size
+    user_font_size = min(font_size, max_font_size) if font_size > 50 else max_font_size
 
-    # Cache variable to avoid drawing twice per frame (once for RGB, once for mask)
+    def load_font(fs):
+        try:
+            return ImageFont.truetype(font_path, fs)
+        except Exception:
+            try:
+                return ImageFont.truetype("arial.ttf", fs)
+            except Exception:
+                try:
+                    return ImageFont.truetype("/Library/Fonts/Arial.ttf", fs)
+                except Exception:
+                    return ImageFont.load_default()
+
     cache = {'t': -1, 'img': None}
 
     def get_img(t):
@@ -57,13 +57,11 @@ def create_animated_text(full_text, size, duration, font_path, highlight_color, 
             cache['img'] = img
             return img
             
-        # Current word highlight logic
         word_idx = int((i / total_frames) * len(words))
         if word_idx >= len(words): word_idx = len(words) - 1
         
-        # 3. Text ko chunks mein baantna
         is_landscape = size[0] > size[1]
-        chunk_size = 8 if is_landscape else 3
+        chunk_size = 6 if is_landscape else 3
         chunk_idx = word_idx // chunk_size
         
         start_idx = chunk_idx * chunk_size
@@ -71,47 +69,64 @@ def create_animated_text(full_text, size, duration, font_path, highlight_color, 
         current_chunk_words = words[start_idx:end_idx]
         target_local_idx = word_idx - start_idx
         
-        chunk_text = " ".join(current_chunk_words)
+        # Determine optimal font size so NO word/line overflows screen
+        active_font = load_font(user_font_size)
         
-        # Dynamic text wrap based on screen width
-        estimated_char_width = font_size * 0.55
-        wrap_width = max(int((size[0] * 0.85) / estimated_char_width), 1)
-        wrapped_text = textwrap.fill(chunk_text, width=wrap_width) # Ek line mein words
-        lines = wrapped_text.split('\n')
-        
-        # 4. Spacing ko Font Size ke hisaab se responsive banaya
-        line_spacing = int(font_size * 1.15) 
+        lines = []
+        curr_line = []
+        for w in current_chunk_words:
+            test_line = " ".join(curr_line + [w])
+            bbox = draw.textbbox((0, 0), test_line, font=active_font)
+            if (bbox[2] - bbox[0]) <= target_width or not curr_line:
+                curr_line.append(w)
+            else:
+                lines.append(curr_line)
+                curr_line = [w]
+        if curr_line:
+            lines.append(curr_line)
+
+        # Scale down font size if any line is still too wide for long custom font words
+        for line_words in lines:
+            line_str = " ".join(line_words)
+            bbox = draw.textbbox((0, 0), line_str, font=active_font)
+            line_w = bbox[2] - bbox[0]
+            if line_w > target_width:
+                scaled_fs = max(int(user_font_size * (target_width / line_w)), 24)
+                active_font = load_font(scaled_fs)
+                break
+
+        line_spacing = int(active_font.size * 1.2)
         total_h = len(lines) * line_spacing
         
         if is_landscape:
-            y_text = size[1] - total_h - int(size[1] * 0.1) # Bottom se 10% upar
+            y_text = size[1] - total_h - int(size[1] * 0.12)
         else:
-            y_text = (size[1] - total_h) / 2 # Center screen
+            y_text = (size[1] - total_h) / 2
         
         local_word_count = 0
-        shadow_offset = max(4, int(font_size * 0.04))
+        shadow_offset = max(3, int(active_font.size * 0.04))
         
-        for line in lines:
-            line_words = line.split()
-            # Bounding box logic
-            bbox = draw.textbbox((0, 0), line, font=font)
-            line_width = bbox[2] - bbox[0]
-            current_x = (size[0] - line_width) / 2
+        for line_words in lines:
+            # Measure complete line width for center alignment
+            space_bbox = draw.textbbox((0, 0), " ", font=active_font)
+            space_w = space_bbox[2] - space_bbox[0]
             
-            for word in line_words:
-                color = highlight_color if local_word_count <= target_local_idx else "white" 
+            line_total_w = sum((draw.textbbox((0, 0), w, font=active_font)[2] - draw.textbbox((0, 0), w, font=active_font)[0]) for w in line_words) + space_w * (len(line_words) - 1)
+            current_x = (size[0] - line_total_w) / 2
+            
+            for w in line_words:
+                color = highlight_color if local_word_count <= target_local_idx else "white"
                 
-                # Shadow aur Text draw karna
-                draw.text((current_x + shadow_offset, y_text + shadow_offset), word, font=font, fill=(0,0,0,255)) # Dark Shadow
-                draw.text((current_x, y_text), word, font=font, fill=color)
+                # Draw high-contrast text outline & drop shadow (No screen overflow)
+                draw.text((current_x + shadow_offset, y_text + shadow_offset), w, font=active_font, fill=(0, 0, 0, 240))
+                draw.text((current_x, y_text), w, font=active_font, fill=color)
                 
-                # Agle word ki X position
-                word_bbox = draw.textbbox((0, 0), word + " ", font=font)
-                current_x += (word_bbox[2] - word_bbox[0])
+                w_bbox = draw.textbbox((0, 0), w, font=active_font)
+                w_w = w_bbox[2] - w_bbox[0]
+                current_x += w_w + space_w
                 local_word_count += 1
                 
-            # Agli line ki Y position
-            y_text += line_spacing 
+            y_text += line_spacing
             
         cache['t'] = t
         cache['img'] = img
@@ -145,8 +160,21 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
         a_clip = AudioFileClip(audio_path)
         clip_duration = a_clip.duration
         
-        # Video clip
-        v_clip = VideoFileClip(video_path, audio=False).resize(height=target_size[1])
+        # Video/Image clip load with fail-safe fallback
+        is_image = str(video_path).lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
+        
+        try:
+            if is_image and os.path.exists(video_path):
+                v_clip = ImageClip(video_path).resize(height=target_size[1])
+            elif os.path.exists(video_path):
+                v_clip = VideoFileClip(video_path, audio=False).resize(height=target_size[1])
+            else:
+                print(f"⚠️ Media file missing ({video_path}), using ColorClip background fallback...")
+                v_clip = ColorClip(size=target_size, color=(15, 10, 35))
+        except Exception as e_clip:
+            print(f"⚠️ Media load error ({video_path}): {e_clip}. Using solid color fallback...")
+            v_clip = ColorClip(size=target_size, color=(15, 10, 35))
+
         if v_clip.w > target_size[0]:
             v_clip = v_clip.crop(x_center=v_clip.w/2, width=target_size[0])
         elif v_clip.w < target_size[0]:
@@ -162,12 +190,21 @@ def merge_and_export(scene_list, output_name, font_path="./fonts/Arial.ttf", col
         
         scene_combined = CompositeVideoClip([v_clip, txt_clip.set_position('center')])
         
-        # Render scene individually to disk to free RAM immediately
+        # Render scene individually to disk with ultrafast preset & low thread overhead
         scene_output = os.path.join(job_dir, f"temp_rendered_scene_{i}.mp4")
-        print(f"🎬 Rendering Scene {i+1}/{len(scene_list)} to {scene_output}...")
-        scene_combined.write_videofile(scene_output, codec="libx264", audio_codec="aac", fps=24, preset="ultrafast", threads=1, logger=None)
+        print(f"🎬 [Fast-Render] Scene {i+1}/{len(scene_list)} -> {scene_output}...")
+        scene_combined.write_videofile(
+            scene_output, 
+            codec="libx264", 
+            audio_codec="aac", 
+            fps=20, 
+            preset="ultrafast", 
+            threads=2, 
+            ffmpeg_params=["-crf", "26", "-pix_fmt", "yuv420p"],
+            logger=None
+        )
         
-        # Immediate Cleanup to prevent OOM
+        # Immediate Cleanup & Garbage Collection to prevent Render 512MB RAM crash
         scene_combined.close()
         v_clip.close()
         a_clip.close()
