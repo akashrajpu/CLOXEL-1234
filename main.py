@@ -646,6 +646,13 @@ async def get_auto_schedule(internal_id: str):
         "next_scheduled_run": next_run
     }
 
+PLAN_RANKS = {"short": 1, "long": 2, "combo": 3}
+PLAN_NAMES = {
+    "short": "Short Starter (₹50/mo)",
+    "long": "Long Master (₹100/mo)",
+    "combo": "Pro Combo (₹119/mo)"
+}
+
 @app.post("/create-razorpay-order")
 async def create_razorpay_order(req: CreateOrderRequest):
     amounts = {
@@ -654,6 +661,36 @@ async def create_razorpay_order(req: CreateOrderRequest):
         "combo": 11900    # ₹119
     }
     
+    # Rule A: Check for Active High-Tier Plan to Prevent Unintended Downgrades
+    if users_collection is not None and req.internal_id:
+        user = users_collection.find_one({"internal_id": req.internal_id})
+        if user:
+            sub = user.get("subscription", {})
+            sub_status = sub.get("status")
+            sub_expires = sub.get("expires_at")
+            current_plan = sub.get("plan_type", "none")
+            
+            is_active = False
+            if sub_status == "active" and sub_expires:
+                if isinstance(sub_expires, str):
+                    try:
+                        sub_expires = datetime.fromisoformat(sub_expires)
+                    except Exception:
+                        sub_expires = None
+                if isinstance(sub_expires, datetime) and sub_expires > datetime.utcnow():
+                    is_active = True
+
+            if is_active:
+                curr_rank = PLAN_RANKS.get(current_plan, 0)
+                new_rank = PLAN_RANKS.get(req.plan_type, 0)
+                
+                if new_rank < curr_rank:
+                    exp_date_str = sub_expires.strftime("%b %d, %Y") if isinstance(sub_expires, datetime) else "expiry"
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"⚠️ Plan Downgrade Restricted! You already have an active high-tier plan ({PLAN_NAMES.get(current_plan, current_plan)}). You cannot downgrade to {PLAN_NAMES.get(req.plan_type, req.plan_type)} until your current plan expires on {exp_date_str}."
+                    )
+
     amount = amounts.get(req.plan_type, 5000)
     
     key_id = os.getenv("RAZORPAY_KEY_ID", "rzp_test_TRfILFpcp5Owd4").strip().strip('"').strip("'")
@@ -711,29 +748,39 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
             print(f"❌ Razorpay signature verification failed: {e}")
             raise HTTPException(status_code=400, detail="Payment Signature Verification Failed. Activation Denied.")
 
-    # Check if user already has an active subscription to extend duration stack!
+    # Mathematical Precision: Handle Plan Upgrades & Same-Plan Stacking
     existing_user = users_collection.find_one({"internal_id": req.internal_id})
     existing_sub = existing_user.get("subscription", {}) if existing_user else {}
-    purchase_count = existing_sub.get("purchase_count", 0) + 1
+    current_plan = existing_sub.get("plan_type", "none")
+    sub_status = existing_sub.get("status")
+    sub_exp = existing_sub.get("expires_at")
+    purchase_count = existing_sub.get("purchase_count", 0)
 
-    current_expires = None
-    if existing_sub.get("status") == "active" and existing_sub.get("expires_at"):
-        sub_exp = existing_sub.get("expires_at")
+    is_active = False
+    if sub_status == "active" and sub_exp:
         if isinstance(sub_exp, str):
             try:
                 sub_exp = datetime.fromisoformat(sub_exp)
             except Exception:
                 sub_exp = None
-        if sub_exp and sub_exp > datetime.utcnow():
-            current_expires = sub_exp
+        if isinstance(sub_exp, datetime) and sub_exp > datetime.utcnow():
+            is_active = True
 
-    if current_expires:
-        # Stack +30 days on top of current active expiration!
-        expires_at = current_expires + timedelta(days=30)
-        print(f"🔄 Extending active membership for user {req.internal_id} (Purchase #{purchase_count}) by 30 days until {expires_at.isoformat()}")
+    if is_active:
+        if current_plan == req.plan_type:
+            # Rule C: Same plan stacking! Add +30 days to existing active expiration date!
+            expires_at = sub_exp + timedelta(days=30)
+            purchase_count += 1
+            print(f"🔄 Stacked +30 days on '{req.plan_type}' for user {req.internal_id} (Purchase #{purchase_count}, Expiry: {expires_at.isoformat()})")
+        else:
+            # Rule B: Upgrading from lower tier to higher tier plan! Start fresh 30 days!
+            expires_at = datetime.utcnow() + timedelta(days=30)
+            purchase_count = 1
+            print(f"🚀 Upgraded user {req.internal_id} from '{current_plan}' to '{req.plan_type}'! Expiry set to {expires_at.isoformat()}")
     else:
         expires_at = datetime.utcnow() + timedelta(days=30)
-        print(f"✅ Activated new 30-day '{req.plan_type}' membership (Purchase #{purchase_count}) for user {req.internal_id}")
+        purchase_count = 1
+        print(f"✅ Activated new 30-day '{req.plan_type}' membership for user {req.internal_id}")
     
     subscription_data = {
         "plan_type": req.plan_type,
@@ -750,7 +797,11 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
         {"$set": {"subscription": subscription_data}}
     )
     
-    return {"message": f"Payment verified! Subscription extended successfully for 30 days (Total Purchases: {purchase_count})!", "expires_at": expires_at.isoformat(), "purchase_count": purchase_count}
+    return {
+        "message": f"Payment verified! '{PLAN_NAMES.get(req.plan_type, req.plan_type)}' activated successfully until {expires_at.strftime('%b %d, %Y')}!",
+        "expires_at": expires_at.isoformat(),
+        "purchase_count": purchase_count
+    }
 
 @app.post("/register")
 async def register_user(req: UserRegister):
@@ -924,6 +975,31 @@ class UnlinkRequest(BaseModel):
 
 @app.get("/youtube/auth-url")
 async def get_youtube_auth_url(internal_id: str):
+    if not internal_id:
+        raise HTTPException(status_code=400, detail="Missing user internal_id")
+
+    # Check for active paid membership before allowing YouTube connection
+    if users_collection is not None:
+        user = users_collection.find_one({"internal_id": internal_id})
+        if user:
+            sub = user.get("subscription", {})
+            sub_status = sub.get("status")
+            sub_expires = sub.get("expires_at")
+            is_active = False
+            if sub_status == "active" and sub_expires:
+                if isinstance(sub_expires, str):
+                    try:
+                        sub_expires = datetime.fromisoformat(sub_expires)
+                    except Exception:
+                        sub_expires = None
+                if isinstance(sub_expires, datetime) and sub_expires > datetime.utcnow():
+                    is_active = True
+            if not is_active:
+                raise HTTPException(
+                    status_code=403,
+                    detail="⚠️ YouTube Connection Requires Active Paid Membership! Please upgrade your plan (Short Starter, Long Master, Pro Combo) to link your YouTube account."
+                )
+
     client_id = os.getenv("YOUTUBE_CLIENT_ID")
     if not client_id:
         raise HTTPException(status_code=500, detail="YouTube Client ID/Secret not configured in environment.")

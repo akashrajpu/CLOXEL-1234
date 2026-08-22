@@ -72,6 +72,7 @@ function App() {
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
   const [showAutoUploadModal, setShowAutoUploadModal] = useState(false);
+  const [showStopScheduleWarningModal, setShowStopScheduleWarningModal] = useState(false);
   const [playingHistoryVideo, setPlayingHistoryVideo] = useState(null);
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
@@ -174,7 +175,7 @@ function App() {
     }
   }, [userId]);
 
-  const handleSaveAutoSchedule = async () => {
+  const handleSaveAutoSchedule = async (explicitEnabledState = null) => {
     if (!userId) return;
     if (!subStatus.has_active_subscription) {
       alert("🔒 Active Paid Membership Required!\n\nAuto-Schedule & YouTube Auto-Upload are exclusive to active paid members. Please upgrade your plan to activate auto-scheduling!");
@@ -182,13 +183,16 @@ function App() {
       setShowPricingModal(true);
       return;
     }
+
+    const finalEnabledState = explicitEnabledState !== null ? explicitEnabledState : autoSchedule.schedule_enabled;
+
     try {
       const res = await fetch(`${API_BASE}/save-auto-schedule`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           internal_id: userId,
-          schedule_enabled: autoSchedule.schedule_enabled,
+          schedule_enabled: finalEnabledState,
           
           short_auto_topic: autoSchedule.short_auto_topic !== false,
           short_topic: autoSchedule.short_topic || 'Space Exploration, AI Innovations',
@@ -212,9 +216,14 @@ function App() {
         })
       });
       if (res.ok) {
-        alert("✅ Secret Auto-Generate Schedule Saved & Activated!\n\nServer will automatically track your topics, voice, font, and duration settings for your active plan and publish to YouTube on schedule.");
+        if (finalEnabledState) {
+          alert("⚡ Auto-Publishing Engine Started & Activated!\n\nServer will automatically track your topics, voice, font, and duration settings for your active plan and publish to YouTube on schedule.");
+        } else {
+          alert("🛑 Auto-Publishing Engine Completely Stopped!\n\nAutomated video generation and YouTube publishing have been suspended until you re-enable it.");
+        }
         fetchAutoSchedule();
         setShowAutoUploadModal(false);
+        setShowStopScheduleWarningModal(false);
       } else {
         const errData = await res.json();
         alert(errData.detail || "Failed to save schedule settings.");
@@ -405,12 +414,30 @@ function App() {
     reader.readAsDataURL(file);
   };
 
+  const PLAN_RANKS = { short: 1, long: 2, combo: 3 };
+  const PLAN_NAMES = { short: 'Short Starter (₹50)', long: 'Long Master (₹100)', combo: 'Pro Combo (₹119)' };
+
   const handleBuyPlan = async (planType) => {
     if (subStatus.has_active_subscription) {
-      const confirmExtend = window.confirm(
-        `⚠️ WARNING: You already have an active membership plan (Current Plan: ${subStatus.plan_type.toUpperCase()}).\n\nPurchasing this plan will extend your active membership by an additional 30 days.\n\nDo you want to proceed to payment?`
-      );
-      if (!confirmExtend) return;
+      const currRank = PLAN_RANKS[subStatus.plan_type] || 0;
+      const newRank = PLAN_RANKS[planType] || 0;
+
+      if (newRank < currRank) {
+        alert(
+          `⚠️ Plan Downgrade Restricted!\n\nYou currently have an active high-tier plan (${PLAN_NAMES[subStatus.plan_type] || subStatus.plan_type.toUpperCase()}).\n\nYou cannot downgrade to ${PLAN_NAMES[planType]} until your current high-tier plan expires on ${subStatus.expires_at ? new Date(subStatus.expires_at).toLocaleDateString() : 'expiry'}.`
+        );
+        return;
+      } else if (newRank > currRank) {
+        const confirmUpgrade = window.confirm(
+          `🚀 UPGRADE CONFIRMATION:\n\nUpgrading to ${PLAN_NAMES[planType]} will replace your current ${PLAN_NAMES[subStatus.plan_type]} plan and start a fresh 30-day high-tier subscription immediately!\n\nDo you want to proceed with upgrading for ₹${planType === 'combo' ? 119 : 100}?`
+        );
+        if (!confirmUpgrade) return;
+      } else {
+        const confirmExtend = window.confirm(
+          `🔄 SAME PLAN STACKING:\n\nYou already have an active ${PLAN_NAMES[planType]} plan.\n\nPurchasing this plan again will stack and extend your active membership duration by an additional +30 days!\n\nDo you want to proceed to payment?`
+        );
+        if (!confirmExtend) return;
+      }
     }
 
     try {
@@ -757,7 +784,11 @@ function App() {
           ) : null}
 
           {/* YOUTUBE INTEGRATION */}
-          <YouTubeIntegration userId={userId} />
+          <YouTubeIntegration 
+            userId={userId} 
+            hasActiveSubscription={subStatus.has_active_subscription} 
+            onUpgradeClick={() => setShowPricingModal(true)} 
+          />
         </aside>
       </div>
 
@@ -1288,13 +1319,23 @@ function App() {
               )}
 
               {subStatus.has_active_subscription ? (
-                <button 
-                  className="btn-hero-cta" 
-                  style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: '0 4px 20px rgba(6, 182, 212, 0.4)' }}
-                  onClick={handleSaveAutoSchedule}
-                >
-                  💾 Save Schedule & Activate Automation →
-                </button>
+                autoSchedule.schedule_enabled ? (
+                  <button 
+                    className="btn-hero-cta" 
+                    style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)' }}
+                    onClick={() => setShowStopScheduleWarningModal(true)}
+                  >
+                    🛑 Stop Auto-Publishing Engine →
+                  </button>
+                ) : (
+                  <button 
+                    className="btn-hero-cta" 
+                    style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: '0 4px 20px rgba(6, 182, 212, 0.4)' }}
+                    onClick={() => handleSaveAutoSchedule(true)}
+                  >
+                    ⚡ Start Auto-Publishing Engine →
+                  </button>
+                )
               ) : (
                 <button 
                   className="btn-hero-cta" 
@@ -1312,6 +1353,38 @@ function App() {
             <div style={{ textAlign: 'center' }}>
               <button className="button secondary" style={{ width: 'auto', padding: '8px 24px' }} onClick={() => setShowAutoUploadModal(false)}>
                 Close Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stop Auto-Publishing Confirmation Warning Modal */}
+      {showStopScheduleWarningModal && (
+        <div className="pricing-modal-overlay" style={{ zIndex: 4000 }} onClick={() => setShowStopScheduleWarningModal(false)}>
+          <div className="pricing-modal-card" style={{ maxWidth: '460px', padding: '32px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: '3rem', marginBottom: '12px' }}>⚠️</div>
+            <h3 style={{ color: '#ef4444', fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>
+              Stop Auto-Publishing Warning
+            </h3>
+            <p style={{ color: '#cbd5e1', fontSize: '0.92rem', lineHeight: '1.5', marginBottom: '24px' }}>
+              If you stop auto-publishing now, your automated daily video generation and YouTube channel publishing will be <strong>completely STOPPED</strong>.<br/><br/>
+              When you re-enable it in the future, you will need to re-configure your daily upload schedule. Are you sure you want to stop?
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                className="button secondary" 
+                style={{ flex: 1, padding: '12px' }}
+                onClick={() => setShowStopScheduleWarningModal(false)}
+              >
+                Cancel / Keep Active
+              </button>
+              <button 
+                className="button" 
+                style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: '#fff', border: 'none', fontWeight: 'bold' }}
+                onClick={() => handleSaveAutoSchedule(false)}
+              >
+                🛑 Yes, Stop Everything Now
               </button>
             </div>
           </div>
