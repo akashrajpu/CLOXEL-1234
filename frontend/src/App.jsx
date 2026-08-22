@@ -564,6 +564,10 @@ function App() {
     executeCheckout(planType);
   };
 
+  if (!userId) {
+    return <Auth onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="app-container">
       <header className="app-header">
