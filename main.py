@@ -845,6 +845,37 @@ async def get_auto_schedule(internal_id: str):
         "next_scheduled_run": next_run
     }
 
+@app.get("/admin/active-schedules")
+async def get_active_schedules_admin():
+    """Admin inspection endpoint listing all accounts with active auto-upload enabled"""
+    if users_collection is None:
+        return {"total_active_accounts": 0, "active_schedules": []}
+
+    active_users = list(users_collection.find({"auto_schedule.schedule_enabled": True}))
+    results = []
+
+    for user in active_users:
+        sched = user.get("auto_schedule", {})
+        sub = user.get("subscription", {})
+        yt = user.get("youtube_credentials", {})
+        results.append({
+            "internal_id": user.get("internal_id"),
+            "email": user.get("email"),
+            "name": user.get("name"),
+            "plan_type": sub.get("plan_type"),
+            "youtube_connected": bool(yt),
+            "short_upload_time": sched.get("short_time"),
+            "long_upload_time": sched.get("long_time"),
+            "schedule_started_at": sched.get("schedule_started_at"),
+            "last_short_run": sched.get("last_short_run"),
+            "last_long_run": sched.get("last_long_run")
+        })
+
+    return {
+        "total_active_accounts": len(results),
+        "active_schedules": results
+    }
+
 PLAN_RANKS = {"short": 1, "long": 2, "combo": 3}
 PLAN_NAMES = {
     "short": "Short Starter (₹50/mo)",
