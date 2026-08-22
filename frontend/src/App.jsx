@@ -73,7 +73,20 @@ function App() {
   const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
   const [showAutoUploadModal, setShowAutoUploadModal] = useState(false);
   const [showStopScheduleWarningModal, setShowStopScheduleWarningModal] = useState(false);
+  const [customAlert, setCustomAlert] = useState(null);
   const [playingHistoryVideo, setPlayingHistoryVideo] = useState(null);
+
+  const triggerAlert = (title, message, icon = '⚠️', type = 'info', onConfirm = null, confirmText = 'OK', cancelText = 'Cancel') => {
+    setCustomAlert({
+      title,
+      message,
+      icon,
+      type,
+      onConfirm,
+      confirmText,
+      cancelText
+    });
+  };
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
   const [subStatus, setSubStatus] = useState({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
@@ -178,9 +191,17 @@ function App() {
   const handleSaveAutoSchedule = async (explicitEnabledState = null) => {
     if (!userId) return;
     if (!subStatus.has_active_subscription) {
-      alert("🔒 Active Paid Membership Required!\n\nAuto-Schedule & YouTube Auto-Upload are exclusive to active paid members. Please upgrade your plan to activate auto-scheduling!");
-      setShowAutoUploadModal(false);
-      setShowPricingModal(true);
+      triggerAlert(
+        "Active Membership Required",
+        "Auto-Schedule & YouTube Auto-Upload are exclusive to active paid members. Please upgrade your plan to activate auto-scheduling!",
+        "🔒",
+        "danger",
+        () => {
+          setShowAutoUploadModal(false);
+          setShowPricingModal(true);
+        },
+        "Upgrade Membership Plan →"
+      );
       return;
     }
 
@@ -217,19 +238,29 @@ function App() {
       });
       if (res.ok) {
         if (finalEnabledState) {
-          alert("⚡ Auto-Publishing Engine Started & Activated!\n\nServer will automatically track your topics, voice, font, and duration settings for your active plan and publish to YouTube on schedule.");
+          triggerAlert(
+            "Auto-Publishing Activated",
+            "Server will automatically track your topics, voice, font, and duration settings for your active plan and publish to YouTube on schedule.",
+            "⚡",
+            "success"
+          );
         } else {
-          alert("🛑 Auto-Publishing Engine Completely Stopped!\n\nAutomated video generation and YouTube publishing have been suspended until you re-enable it.");
+          triggerAlert(
+            "Auto-Publishing Stopped",
+            "Automated video generation and YouTube publishing have been completely suspended until you re-enable it.",
+            "🛑",
+            "danger"
+          );
         }
         fetchAutoSchedule();
         setShowAutoUploadModal(false);
         setShowStopScheduleWarningModal(false);
       } else {
         const errData = await res.json();
-        alert(errData.detail || "Failed to save schedule settings.");
+        triggerAlert("Error", errData.detail || "Failed to save schedule settings.", "⚠️", "danger");
       }
     } catch (err) {
-      alert("Error saving auto schedule.");
+      triggerAlert("Error", "Error saving auto schedule.", "⚠️", "danger");
     }
   };
 
@@ -417,29 +448,7 @@ function App() {
   const PLAN_RANKS = { short: 1, long: 2, combo: 3 };
   const PLAN_NAMES = { short: 'Short Starter (₹50)', long: 'Long Master (₹100)', combo: 'Pro Combo (₹119)' };
 
-  const handleBuyPlan = async (planType) => {
-    if (subStatus.has_active_subscription) {
-      const currRank = PLAN_RANKS[subStatus.plan_type] || 0;
-      const newRank = PLAN_RANKS[planType] || 0;
-
-      if (newRank < currRank) {
-        alert(
-          `⚠️ Plan Downgrade Restricted!\n\nYou currently have an active high-tier plan (${PLAN_NAMES[subStatus.plan_type] || subStatus.plan_type.toUpperCase()}).\n\nYou cannot downgrade to ${PLAN_NAMES[planType]} until your current high-tier plan expires on ${subStatus.expires_at ? new Date(subStatus.expires_at).toLocaleDateString() : 'expiry'}.`
-        );
-        return;
-      } else if (newRank > currRank) {
-        const confirmUpgrade = window.confirm(
-          `🚀 UPGRADE CONFIRMATION:\n\nUpgrading to ${PLAN_NAMES[planType]} will replace your current ${PLAN_NAMES[subStatus.plan_type]} plan and start a fresh 30-day high-tier subscription immediately!\n\nDo you want to proceed with upgrading for ₹${planType === 'combo' ? 119 : 100}?`
-        );
-        if (!confirmUpgrade) return;
-      } else {
-        const confirmExtend = window.confirm(
-          `🔄 SAME PLAN STACKING:\n\nYou already have an active ${PLAN_NAMES[planType]} plan.\n\nPurchasing this plan again will stack and extend your active membership duration by an additional +30 days!\n\nDo you want to proceed to payment?`
-        );
-        if (!confirmExtend) return;
-      }
-    }
-
+  const executeCheckout = async (planType) => {
     try {
       setIsPaymentProcessing(true);
       const response = await fetch(`${API_BASE}/create-razorpay-order`, {
@@ -451,7 +460,7 @@ function App() {
       setIsPaymentProcessing(false);
       
       if (!response.ok) {
-        alert(orderData.detail || "Failed to create order");
+        triggerAlert("Order Creation Failed", orderData.detail || "Failed to create order.", "❌", "danger");
         return;
       }
 
@@ -483,39 +492,73 @@ function App() {
               })
             });
             
+            const verifyData = await verifyResp.json();
             if (verifyResp.ok) {
               setShowPricingModal(false);
               setShowPaymentSuccessModal(true);
               fetchSubscriptionStatus();
+              fetchAutoSchedule();
             } else {
-              const errData = await verifyResp.json();
-              alert(errData.detail || "Payment Verification Failed.");
+              triggerAlert("Payment Verification Failed", verifyData.detail || "Payment Verification Failed.", "❌", "danger");
             }
           },
           modal: {
-            ondismiss: function() {
-              alert("⚠️ Payment cancelled. Membership was NOT activated.");
+            ondismiss: function () {
+              triggerAlert("Payment Cancelled", "Transaction was cancelled.", "ℹ️", "info");
             }
-          },
-          theme: { color: "#8b5cf6" }
+          }
         };
 
         const rzp = new window.Razorpay(options);
-        rzp.on('payment.failed', function (res) {
-          alert(`❌ Payment Failed: ${res.error.description || 'Transaction declined'}`);
-        });
         rzp.open();
       } else {
-        alert("⚠️ Live Razorpay API Keys are not yet configured in Render environment variables (RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET).\n\nPlease add your Razorpay keys to Render to allow live user payments!");
+        triggerAlert("Razorpay Notice", "Live Razorpay API Keys are not configured in Render. Please add RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET to Render.", "⚠️", "info");
       }
     } catch (err) {
-      alert("Payment processing error. Please try again.");
+      setIsPaymentProcessing(false);
+      triggerAlert("Payment Error", "Payment processing error. Please try again.", "❌", "danger");
     }
   };
 
-  if (!userId) {
-    return <Auth onLoginSuccess={handleLoginSuccess} />;
-  }
+  const handleBuyPlan = async (planType) => {
+    if (subStatus.has_active_subscription) {
+      const currRank = PLAN_RANKS[subStatus.plan_type] || 0;
+      const newRank = PLAN_RANKS[planType] || 0;
+
+      if (newRank < currRank) {
+        triggerAlert(
+          "Plan Downgrade Restricted",
+          `You currently have an active high-tier plan (${PLAN_NAMES[subStatus.plan_type] || subStatus.plan_type.toUpperCase()}).\n\nYou cannot downgrade to ${PLAN_NAMES[planType]} until your current high-tier plan expires on ${subStatus.expires_at ? new Date(subStatus.expires_at).toLocaleDateString() : 'expiry'}.`,
+          "⚠️",
+          "danger"
+        );
+        return;
+      } else if (newRank > currRank) {
+        triggerAlert(
+          "Upgrade Membership Notice",
+          `Upgrading to ${PLAN_NAMES[planType]} will replace your current ${PLAN_NAMES[subStatus.plan_type]} plan and start a fresh 30-day high-tier subscription immediately!`,
+          "🚀",
+          "info",
+          () => executeCheckout(planType),
+          `Upgrade Now (₹${planType === 'combo' ? 119 : 100})`,
+          "Cancel"
+        );
+        return;
+      } else {
+        triggerAlert(
+          "Same Plan Duration Stacking",
+          `You already have an active ${PLAN_NAMES[planType]} plan.\n\nPurchasing this plan again will stack and extend your active membership duration by an additional +30 days!`,
+          "🔄",
+          "info",
+          () => executeCheckout(planType),
+          "Proceed to Stack (+30 Days)",
+          "Cancel"
+        );
+        return;
+      }
+    }
+    executeCheckout(planType);
+  };
 
   return (
     <div className="app-container">
@@ -1362,7 +1405,21 @@ function App() {
       {/* Stop Auto-Publishing Confirmation Warning Modal */}
       {showStopScheduleWarningModal && (
         <div className="pricing-modal-overlay" style={{ zIndex: 4000 }} onClick={() => setShowStopScheduleWarningModal(false)}>
-          <div className="pricing-modal-card" style={{ maxWidth: '460px', padding: '32px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+          <div 
+            style={{ 
+              maxWidth: '460px', 
+              width: '90%',
+              padding: '32px 28px', 
+              textAlign: 'center',
+              background: 'rgba(255, 255, 255, 0.04)', 
+              borderRadius: '24px', 
+              border: '1px solid rgba(239, 68, 68, 0.45)', 
+              boxShadow: '0 20px 50px rgba(239, 68, 68, 0.25)', 
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)'
+            }} 
+            onClick={e => e.stopPropagation()}
+          >
             <div style={{ fontSize: '3rem', marginBottom: '12px' }}>⚠️</div>
             <h3 style={{ color: '#ef4444', fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>
               Stop Auto-Publishing Warning
@@ -1386,6 +1443,94 @@ function App() {
               >
                 🛑 Yes, Stop Everything Now
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Glassmorphism Transparent Warning & Alert Modal */}
+      {customAlert && (
+        <div 
+          className="pricing-modal-overlay" 
+          style={{ zIndex: 5000, background: 'rgba(10, 7, 24, 0.45)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}
+          onClick={() => setCustomAlert(null)}
+        >
+          <div 
+            style={{ 
+              maxWidth: '460px', 
+              width: '90%',
+              padding: '36px 28px', 
+              textAlign: 'center', 
+              background: 'rgba(255, 255, 255, 0.04)', 
+              borderRadius: '24px', 
+              border: customAlert.type === 'danger' ? '1px solid rgba(239, 68, 68, 0.45)' : (customAlert.type === 'success' ? '1px solid rgba(34, 197, 94, 0.45)' : '1px solid rgba(168, 85, 247, 0.45)'), 
+              boxShadow: customAlert.type === 'danger' ? '0 20px 50px rgba(239, 68, 68, 0.25)' : '0 20px 50px rgba(168, 85, 247, 0.25)', 
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)'
+            }} 
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '3.2rem', marginBottom: '14px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}>
+              {customAlert.icon || '⚠️'}
+            </div>
+            
+            <h3 style={{ color: customAlert.type === 'danger' ? '#ef4444' : (customAlert.type === 'success' ? '#22c55e' : '#ffffff'), fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>
+              {customAlert.title}
+            </h3>
+            
+            <div style={{ color: '#e2e8f0', fontSize: '0.92rem', lineHeight: '1.55', marginBottom: '28px', whiteSpace: 'pre-line' }}>
+              {customAlert.message}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              {customAlert.onConfirm ? (
+                <>
+                  <button 
+                    className="button secondary" 
+                    style={{ flex: 1, padding: '12px', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.08)', color: '#cbd5e1', border: '1px solid rgba(255, 255, 255, 0.15)' }}
+                    onClick={() => setCustomAlert(null)}
+                  >
+                    {customAlert.cancelText || 'Cancel'}
+                  </button>
+                  <button 
+                    className="button" 
+                    style={{ 
+                      flex: 1, 
+                      padding: '12px', 
+                      borderRadius: '12px', 
+                      background: customAlert.type === 'danger' ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 'linear-gradient(135deg, #a855f7 0%, #06b6d4 100%)', 
+                      color: '#ffffff', 
+                      border: 'none', 
+                      fontWeight: 'bold',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+                    }}
+                    onClick={() => {
+                      const cb = customAlert.onConfirm;
+                      setCustomAlert(null);
+                      if (cb) cb();
+                    }}
+                  >
+                    {customAlert.confirmText || 'Confirm'}
+                  </button>
+                </>
+              ) : (
+                <button 
+                  className="button" 
+                  style={{ 
+                    width: '100%', 
+                    padding: '13px', 
+                    borderRadius: '12px', 
+                    background: customAlert.type === 'danger' ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : (customAlert.type === 'success' ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : 'linear-gradient(135deg, #a855f7 0%, #06b6d4 100%)'), 
+                    color: '#ffffff', 
+                    border: 'none', 
+                    fontWeight: 'bold',
+                    fontSize: '0.95rem'
+                  }}
+                  onClick={() => setCustomAlert(null)}
+                >
+                  {customAlert.confirmText || 'Got It →'}
+                </button>
+              )}
             </div>
           </div>
         </div>
