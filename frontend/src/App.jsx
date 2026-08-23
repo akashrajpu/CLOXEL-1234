@@ -200,6 +200,15 @@ function App() {
       cancelText
     });
   };
+
+  const openPricingModal = (plan = 'long') => {
+    if (plan) setSelectedPlan(plan);
+    setIsSidebarOpen(false);
+    setShowAutoUploadModal(false);
+    setShowStopScheduleWarningModal(false);
+    setCustomAlert(null);
+    setShowPricingModal(true);
+  };
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [enableCheckbox, setEnableCheckbox] = useState(false);
   const [subStatus, setSubStatus] = useState({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
@@ -730,7 +739,7 @@ function App() {
               <span>Auto-Upload: 🟢 ACTIVE</span>
             </div>
           )}
-          <button className="btn-upgrade-pill" onClick={() => setShowPricingModal(true)}>
+          <button className="btn-upgrade-pill" onClick={() => openPricingModal()}>
             💎 Upgrade Plan
           </button>
           <button className="profile-pill-btn" onClick={() => setIsSidebarOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1075,7 +1084,7 @@ function App() {
               <YouTubeIntegration 
                 userId={userId} 
                 hasActiveSubscription={subStatus.has_active_subscription} 
-                onUpgradeClick={() => setShowPricingModal(true)} 
+                onUpgradeClick={() => openPricingModal()} 
                 onStatusChange={(statusData) => setYtStatus(statusData)}
                 triggerAlert={triggerAlert}
                 compact={true}
@@ -1101,7 +1110,7 @@ function App() {
               <button 
                 className="btn-upgrade-sidebar" 
                 style={{ padding: '8px 10px', fontSize: '0.8rem', whiteSpace: 'nowrap' }} 
-                onClick={() => { setIsSidebarOpen(false); setShowPricingModal(true); }}
+                onClick={() => openPricingModal()}
               >
                 💎 Upgrade
               </button>
@@ -1152,7 +1161,7 @@ function App() {
 
       {/* Pricing & Membership Modal with Dynamic Highlighting */}
       {showPricingModal && (
-        <div className="pricing-modal-overlay" onClick={() => setShowPricingModal(false)}>
+        <div className="pricing-modal-overlay" style={{ zIndex: 5000 }} onClick={() => setShowPricingModal(false)}>
           <div className="pricing-modal-card" onClick={e => e.stopPropagation()}>
             <button className="modal-close-btn" onClick={() => setShowPricingModal(false)}>×</button>
             

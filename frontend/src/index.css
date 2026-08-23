@@ -1117,9 +1117,10 @@ input:focus, select:focus, textarea:focus {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(11, 7, 26, 0.85);
-  backdrop-filter: blur(10px);
-  z-index: 1000;
+  background: rgba(11, 7, 26, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 5000;
   display: flex;
   justify-content: center;
   align-items: center;
