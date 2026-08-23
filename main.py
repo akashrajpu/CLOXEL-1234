@@ -1496,14 +1496,25 @@ async def get_youtube_status(internal_id: str):
         
     linked_at = user.get("youtube_linked_at")
     if not linked_at:
-        return {"linked": True, "can_unlink": True}
+        return {"linked": True, "can_unlink": True, "hours_left": 0}
         
+    if isinstance(linked_at, str):
+        try:
+            linked_at = datetime.fromisoformat(linked_at.replace("Z", "+00:00"))
+            if linked_at.tzinfo is not None:
+                linked_at = linked_at.astimezone(timezone.utc).replace(tzinfo=None)
+        except Exception:
+            linked_at = None
+
+    if not linked_at or not isinstance(linked_at, datetime):
+        return {"linked": True, "can_unlink": True, "hours_left": 0}
+
     time_passed = datetime.utcnow() - linked_at
-    can_unlink = time_passed > timedelta(hours=24)
+    can_unlink = time_passed >= timedelta(hours=24)
     
     hours_left = 0
     if not can_unlink:
-        hours_left = 24 - (time_passed.total_seconds() / 3600)
+        hours_left = max(0, 24 - (time_passed.total_seconds() / 3600))
         
     return {
         "linked": True,
@@ -1522,9 +1533,19 @@ async def unlink_youtube(req: UnlinkRequest):
         
     linked_at = user.get("youtube_linked_at")
     if linked_at:
-        time_passed = datetime.utcnow() - linked_at
-        if time_passed < timedelta(hours=24):
-            raise HTTPException(status_code=403, detail="Cannot unlink before 24 hours have passed.")
+        if isinstance(linked_at, str):
+            try:
+                linked_at = datetime.fromisoformat(linked_at.replace("Z", "+00:00"))
+                if linked_at.tzinfo is not None:
+                    linked_at = linked_at.astimezone(timezone.utc).replace(tzinfo=None)
+            except Exception:
+                linked_at = None
+
+        if isinstance(linked_at, datetime):
+            time_passed = datetime.utcnow() - linked_at
+            if time_passed < timedelta(hours=24):
+                hours_left = max(0, round(24 - (time_passed.total_seconds() / 3600), 1))
+                raise HTTPException(status_code=403, detail=f"Cannot unlink before 24 hours have passed. ({hours_left} hours left)")
             
     users_collection.update_one(
         {"internal_id": req.internal_id},
