@@ -1357,8 +1357,8 @@ function App() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.85rem', color: '#cbd5e1' }}>
                 <div><strong>Current Plan:</strong> <span style={{ color: '#c084fc', textTransform: 'uppercase', fontWeight: 'bold' }}>{subStatus.has_active_subscription ? `${subStatus.plan_type} (${autoSchedule.purchase_count || 1}x Stacked)` : 'Free Demo'}</span></div>
                 <div><strong>Daily Video Limit:</strong> <span style={{ color: '#22c55e', fontWeight: 'bold' }}>{subStatus.daily_limit_text || (subStatus.plan_type === 'combo' ? '2 Videos Daily (1 Short + 1 Long)' : '1 Video Daily')}</span></div>
-                <div><strong>Today Short Videos:</strong> <span style={{ color: '#38bdf8' }}>{subStatus.today_short_count || 0} / {subStatus.plan_type === 'combo' || subStatus.plan_type === 'short' ? '1' : '0'} Generated</span></div>
-                <div><strong>Today Long Videos:</strong> <span style={{ color: '#38bdf8' }}>{subStatus.today_long_count || 0} / {subStatus.plan_type === 'combo' || subStatus.plan_type === 'long' ? '1' : '0'} Generated</span></div>
+                <div><strong>Today Auto Short Reels:</strong> <span style={{ color: '#38bdf8' }}>{subStatus.today_auto_short_count ?? 0} / {subStatus.plan_type === 'combo' || subStatus.plan_type === 'short' ? '1' : '0'} Auto-Uploaded</span></div>
+                <div><strong>Today Auto Long Videos:</strong> <span style={{ color: '#38bdf8' }}>{subStatus.today_auto_long_count ?? 0} / {subStatus.plan_type === 'combo' || subStatus.plan_type === 'long' ? '1' : '0'} Auto-Uploaded</span></div>
                 <div><strong>Auto-Publish Target:</strong> <span style={{ color: '#ffffff' }}>YouTube Automation Engine</span></div>
                 <div><strong>Total History Count:</strong> <span style={{ color: '#c084fc' }}>{history.length} Videos Saved</span></div>
               </div>

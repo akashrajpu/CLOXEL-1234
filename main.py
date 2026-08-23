@@ -94,27 +94,48 @@ def ping_server():
 scheduler = BackgroundScheduler()
 scheduler.add_job(ping_server, 'interval', minutes=10)
 
+def parse_time_to_minutes(time_str: str) -> Optional[int]:
+    """Parses 12h or 24h time string (e.g. '10:00 AM', '06:00 PM', '18:00', '10:00') to minutes past midnight"""
+    if not time_str:
+        return None
+    time_str = str(time_str).strip().upper()
+    try:
+        if "AM" in time_str or "PM" in time_str:
+            is_pm = "PM" in time_str
+            clean_str = time_str.replace("AM", "").replace("PM", "").strip()
+            parts = clean_str.split(":")
+            h = int(parts[0])
+            m = int(parts[1]) if len(parts) > 1 else 0
+            if is_pm and h < 12:
+                h += 12
+            elif not is_pm and h == 12:
+                h = 0
+            return h * 60 + m
+        else:
+            parts = time_str.split(":")
+            h = int(parts[0])
+            m = int(parts[1]) if len(parts) > 1 else 0
+            return h * 60 + m
+    except Exception:
+        return None
+
 def check_and_run_auto_schedules():
     """
     Automated Daily Profile Audit & 1-Hour Pre-Rendering Background Worker:
-    Scans all active paid member profiles continuously.
-    Pre-renders videos 1 hour before scheduled time with Smart Fallback Retry Engine.
-    Also executes daily sweeps at 00:00 (Midnight), 06:00 (Morning) & 12:00 (Noon).
+    Scans all active paid member profiles continuously in IST (UTC+5:30).
+    Pre-renders videos 1 hour before scheduled upload time with Smart Fallback Retry Engine.
+    Increments auto_daily_usage tracking only for automated background executions!
     """
     if users_collection is None:
         return
 
-    now = datetime.utcnow()
-    current_time_str = now.strftime("%H:%M")
-    
-    # 1-Hour Pre-Rendering calculation: time 1 hour ahead
-    one_hour_ahead = now + timedelta(hours=1)
-    pre_render_time_str = one_hour_ahead.strftime("%H:%M")
-    today_str = now.strftime("%Y-%m-%d")
+    # Render server runs in UTC. Convert to IST (Indian Standard Time, UTC + 5:30)
+    now_utc = datetime.utcnow()
+    now_ist = now_utc + timedelta(hours=5, minutes=30)
+    today_str = now_ist.strftime("%Y-%m-%d")
 
-    # Regular Profile Audit Sweep Logs at 00:00, 06:00, 12:00
-    if current_time_str in ["00:00", "06:00", "12:00"]:
-        print(f"🔍 [DAILY PROFILE AUDIT SWEEP] Scanning all active subscriber profiles at {current_time_str} UTC...")
+    current_ist_minutes = now_ist.hour * 60 + now_ist.minute
+    pre_render_ist_minutes = (current_ist_minutes + 60) % 1440
 
     try:
         active_users = list(users_collection.find({
@@ -138,14 +159,19 @@ def check_and_run_auto_schedules():
                 except Exception:
                     continue
 
-            if sub_expires <= now:
+            if sub_expires <= now_utc:
                 continue
 
             # 1. Short Reel Pre-render Engine
             if plan_type in ["short", "combo"]:
-                short_time = schedule.get("short_time", "10:00")
-                if (current_time_str == short_time or pre_render_time_str == short_time) and schedule.get("last_short_run") != today_str:
-                    print(f"🚀 [AUTO-WORKER 1-HR PRE-RENDER] Pre-rendering Short Reel for user {internal_id}...")
+                short_time_str = schedule.get("short_time", "10:00")
+                short_target_minutes = parse_time_to_minutes(short_time_str) or 600
+
+                diff_current = min(abs(current_ist_minutes - short_target_minutes), 1440 - abs(current_ist_minutes - short_target_minutes))
+                diff_prerender = min(abs(pre_render_ist_minutes - short_target_minutes), 1440 - abs(pre_render_ist_minutes - short_target_minutes))
+
+                if (diff_current <= 15 or diff_prerender <= 15) and schedule.get("last_short_run") != today_str:
+                    print(f"🚀 [AUTO-WORKER 1-HR PRE-RENDER] Pre-rendering Short Reel for user {internal_id} (Scheduled IST Time: {short_time_str})...")
                     users_collection.update_one(
                         {"internal_id": internal_id},
                         {"$set": {"auto_schedule.last_short_run": today_str}}
@@ -158,7 +184,7 @@ def check_and_run_auto_schedules():
                     color = schedule.get("short_color") or "yellow"
                     duration = int(schedule.get("short_duration") or 30)
 
-                    render_video_with_smart_fallback(
+                    res = render_video_with_smart_fallback(
                         user_id=internal_id,
                         topic=topic,
                         category=category,
@@ -169,11 +195,27 @@ def check_and_run_auto_schedules():
                         requested_duration=duration
                     )
 
+                    if res.get("status") == "completed":
+                        # Increment auto_daily_usage tracking (Automated Engine Only!)
+                        auto_usage = user.get("auto_daily_usage", {})
+                        if auto_usage.get("date") != today_str:
+                            auto_usage = {"date": today_str, "auto_short_count": 0, "auto_long_count": 0}
+                        auto_usage["auto_short_count"] = auto_usage.get("auto_short_count", 0) + 1
+                        users_collection.update_one(
+                            {"internal_id": internal_id},
+                            {"$set": {"auto_daily_usage": auto_usage}}
+                        )
+
             # 2. Long Video Pre-render Engine
             if plan_type in ["long", "combo"]:
-                long_time = schedule.get("long_time", "18:00")
-                if (current_time_str == long_time or pre_render_time_str == long_time) and schedule.get("last_long_run") != today_str:
-                    print(f"🚀 [AUTO-WORKER 1-HR PRE-RENDER] Pre-rendering Long Video for user {internal_id}...")
+                long_time_str = schedule.get("long_time", "18:00")
+                long_target_minutes = parse_time_to_minutes(long_time_str) or 1080
+
+                diff_current_l = min(abs(current_ist_minutes - long_target_minutes), 1440 - abs(current_ist_minutes - long_target_minutes))
+                diff_prerender_l = min(abs(pre_render_ist_minutes - long_target_minutes), 1440 - abs(pre_render_ist_minutes - long_target_minutes))
+
+                if (diff_current_l <= 15 or diff_prerender_l <= 15) and schedule.get("last_long_run") != today_str:
+                    print(f"🚀 [AUTO-WORKER 1-HR PRE-RENDER] Pre-rendering Long Video for user {internal_id} (Scheduled IST Time: {long_time_str})...")
                     users_collection.update_one(
                         {"internal_id": internal_id},
                         {"$set": {"auto_schedule.last_long_run": today_str}}
@@ -186,7 +228,7 @@ def check_and_run_auto_schedules():
                     color = schedule.get("long_color") or "yellow"
                     duration = int(schedule.get("long_duration") or 60)
 
-                    render_video_with_smart_fallback(
+                    res = render_video_with_smart_fallback(
                         user_id=internal_id,
                         topic=topic,
                         category=category,
@@ -196,6 +238,17 @@ def check_and_run_auto_schedules():
                         video_type="long",
                         requested_duration=duration
                     )
+
+                    if res.get("status") == "completed":
+                        # Increment auto_daily_usage tracking (Automated Engine Only!)
+                        auto_usage = user.get("auto_daily_usage", {})
+                        if auto_usage.get("date") != today_str:
+                            auto_usage = {"date": today_str, "auto_short_count": 0, "auto_long_count": 0}
+                        auto_usage["auto_long_count"] = auto_usage.get("auto_long_count", 0) + 1
+                        users_collection.update_one(
+                            {"internal_id": internal_id},
+                            {"$set": {"auto_daily_usage": auto_usage}}
+                        )
 
     except Exception as e:
         print(f"❌ Error in check_and_run_auto_schedules: {e}")
@@ -593,10 +646,14 @@ async def get_user_subscription(internal_id: str):
         if sub_expires > datetime.utcnow():
             is_active = True
 
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    today_ist_str = (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d")
     daily_usage = user.get("daily_usage", {})
-    if daily_usage.get("date") != today_str:
-        daily_usage = {"date": today_str, "short_count": 0, "long_count": 0}
+    if daily_usage.get("date") != today_ist_str:
+        daily_usage = {"date": today_ist_str, "short_count": 0, "long_count": 0}
+
+    auto_daily_usage = user.get("auto_daily_usage", {})
+    if auto_daily_usage.get("date") != today_ist_str:
+        auto_daily_usage = {"date": today_ist_str, "auto_short_count": 0, "auto_long_count": 0}
 
     limit_text = "2 Free Demo Videos Total"
     if is_active:
@@ -619,6 +676,8 @@ async def get_user_subscription(internal_id: str):
         "expires_at": sub_expires.isoformat() if is_active and sub_expires else None,
         "today_short_count": daily_usage.get("short_count", 0),
         "today_long_count": daily_usage.get("long_count", 0),
+        "today_auto_short_count": auto_daily_usage.get("auto_short_count", 0),
+        "today_auto_long_count": auto_daily_usage.get("auto_long_count", 0),
         "daily_limit_text": limit_text
     }
 
