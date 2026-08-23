@@ -119,12 +119,103 @@ def parse_time_to_minutes(time_str: str) -> Optional[int]:
     except Exception:
         return None
 
+def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, description: str = "", is_short: bool = False) -> Optional[str]:
+    """
+    Automated YouTube Video Publisher:
+    Uses user's stored OAuth credentials from MongoDB to publish video directly to YouTube!
+    """
+    if users_collection is None:
+        print("❌ MongoDB not configured for YouTube auto-upload")
+        return None
+
+    if not video_file or not os.path.exists(video_file):
+        print(f"⚠️ Video file does not exist on disk for YouTube upload: {video_file}")
+        return None
+
+    user = users_collection.find_one({"internal_id": user_id})
+    if not user or "youtube_credentials" not in user:
+        print(f"⚠️ User {user_id} has no linked YouTube credentials!")
+        return None
+
+    creds_data = user.get("youtube_credentials", {})
+    if not creds_data or "token" not in creds_data:
+        print(f"⚠️ Invalid YouTube credentials for user {user_id}")
+        return None
+
+    try:
+        from google.oauth2.credentials import Credentials
+        from googleapiclient.discovery import build
+        from googleapiclient.http import MediaFileUpload
+
+        credentials = Credentials(
+            token=creds_data.get("token"),
+            refresh_token=creds_data.get("refresh_token"),
+            token_uri=creds_data.get("token_uri", "https://oauth2.googleapis.com/token"),
+            client_id=creds_data.get("client_id", os.getenv("YOUTUBE_CLIENT_ID")),
+            client_secret=creds_data.get("client_secret", os.getenv("YOUTUBE_CLIENT_SECRET")),
+            scopes=creds_data.get("scopes", ["https://www.googleapis.com/auth/youtube.upload"])
+        )
+
+        youtube = build("youtube", "v3", credentials=credentials)
+
+        # Build Title & Hashtags for YouTube Shorts / Videos
+        clean_title = (title or "Cloxel AI Video").strip()[:95]
+        if is_short and "#shorts" not in clean_title.lower():
+            clean_title += " #shorts"
+
+        full_desc = (description or clean_title) + "\n\nGenerated & Auto-Published via Cloxel AI Engine."
+        if is_short:
+            full_desc += "\n#Shorts #Viral #AI"
+
+        body = {
+            "snippet": {
+                "title": clean_title,
+                "description": full_desc,
+                "tags": ["AI", "Viral", "Shorts", "Cloxel"],
+                "categoryId": "22"
+            },
+            "status": {
+                "privacyStatus": "public",
+                "selfDeclaredMadeForKids": False
+            }
+        }
+
+        media = MediaFileUpload(video_file, chunksize=-1, resumable=True, mimetype="video/mp4")
+        request = youtube.videos().insert(
+            part="snippet,status",
+            body=body,
+            media_body=media
+        )
+
+        response = None
+        while response is None:
+            status, response = request.next_chunk()
+            if status:
+                print(f"🚀 YouTube Upload Progress: {int(status.progress() * 100)}%")
+
+        youtube_id = response.get("id")
+        youtube_url = f"https://www.youtube.com/watch?v={youtube_id}"
+        print(f"🎉 SUCCESS! Video auto-published to YouTube for user {user_id}: {youtube_url}")
+
+        # Save YouTube URL to DB
+        videos_collection.update_one(
+            {"internal_id": user_id, "topic": title},
+            {"$set": {"youtube_url": youtube_url, "youtube_id": youtube_id, "uploaded_to_yt_at": datetime.utcnow()}}
+        )
+
+        return youtube_url
+
+    except Exception as e:
+        print(f"❌ YouTube Auto-Upload Error for user {user_id}: {e}")
+        return None
+
 def check_and_run_auto_schedules():
     """
     Automated Daily Profile Audit & 1-Hour Pre-Rendering Background Worker:
     Scans all active paid member profiles continuously in IST (UTC+5:30).
     Pre-renders videos 1 hour before scheduled upload time with Smart Fallback Retry Engine.
     Increments auto_daily_usage tracking only for automated background executions!
+    Automatically publishes pre-rendered video directly to YouTube.
     """
     if users_collection is None:
         return
@@ -162,7 +253,7 @@ def check_and_run_auto_schedules():
             if sub_expires <= now_utc:
                 continue
 
-            # 1. Short Reel Pre-render Engine
+            # 1. Short Reel Pre-render & Auto-Upload Engine
             if plan_type in ["short", "combo"]:
                 short_time_str = schedule.get("short_time", "10:00")
                 short_target_minutes = parse_time_to_minutes(short_time_str) or 600
@@ -171,7 +262,7 @@ def check_and_run_auto_schedules():
                 diff_prerender = min(abs(pre_render_ist_minutes - short_target_minutes), 1440 - abs(pre_render_ist_minutes - short_target_minutes))
 
                 if (diff_current <= 15 or diff_prerender <= 15) and schedule.get("last_short_run") != today_str:
-                    print(f"🚀 [AUTO-WORKER 1-HR PRE-RENDER] Pre-rendering Short Reel for user {internal_id} (Scheduled IST Time: {short_time_str})...")
+                    print(f"🚀 [AUTO-WORKER 1-HR PRE-RENDER & UPLOAD] Pre-rendering Short Reel for user {internal_id} (Scheduled IST Time: {short_time_str})...")
                     users_collection.update_one(
                         {"internal_id": internal_id},
                         {"$set": {"auto_schedule.last_short_run": today_str}}
@@ -196,6 +287,16 @@ def check_and_run_auto_schedules():
                     )
 
                     if res.get("status") == "completed":
+                        video_file = res.get("file")
+                        script_text = res.get("script", "")
+                        upload_video_to_youtube_core(
+                            user_id=internal_id,
+                            video_file=video_file,
+                            title=topic,
+                            description=script_text,
+                            is_short=True
+                        )
+
                         # Increment auto_daily_usage tracking (Automated Engine Only!)
                         auto_usage = user.get("auto_daily_usage", {})
                         if auto_usage.get("date") != today_str:
@@ -206,7 +307,7 @@ def check_and_run_auto_schedules():
                             {"$set": {"auto_daily_usage": auto_usage}}
                         )
 
-            # 2. Long Video Pre-render Engine
+            # 2. Long Video Pre-render & Auto-Upload Engine
             if plan_type in ["long", "combo"]:
                 long_time_str = schedule.get("long_time", "18:00")
                 long_target_minutes = parse_time_to_minutes(long_time_str) or 1080
@@ -215,7 +316,7 @@ def check_and_run_auto_schedules():
                 diff_prerender_l = min(abs(pre_render_ist_minutes - long_target_minutes), 1440 - abs(pre_render_ist_minutes - long_target_minutes))
 
                 if (diff_current_l <= 15 or diff_prerender_l <= 15) and schedule.get("last_long_run") != today_str:
-                    print(f"🚀 [AUTO-WORKER 1-HR PRE-RENDER] Pre-rendering Long Video for user {internal_id} (Scheduled IST Time: {long_time_str})...")
+                    print(f"🚀 [AUTO-WORKER 1-HR PRE-RENDER & UPLOAD] Pre-rendering Long Video for user {internal_id} (Scheduled IST Time: {long_time_str})...")
                     users_collection.update_one(
                         {"internal_id": internal_id},
                         {"$set": {"auto_schedule.last_long_run": today_str}}
@@ -240,6 +341,16 @@ def check_and_run_auto_schedules():
                     )
 
                     if res.get("status") == "completed":
+                        video_file = res.get("file")
+                        script_text = res.get("script", "")
+                        upload_video_to_youtube_core(
+                            user_id=internal_id,
+                            video_file=video_file,
+                            title=topic,
+                            description=script_text,
+                            is_short=False
+                        )
+
                         # Increment auto_daily_usage tracking (Automated Engine Only!)
                         auto_usage = user.get("auto_daily_usage", {})
                         if auto_usage.get("date") != today_str:
