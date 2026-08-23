@@ -1364,28 +1364,36 @@ class AIScriptRequest(BaseModel):
     tone: Optional[str] = "viral"        # 'viral', 'informative', 'mysterious', 'funny'
 
 def generate_ai_script_core(topic: str, duration: int, video_type: str = "short", language: str = "hinglish", tone: str = "viral", category: str = "Random"):
-    ai_server_url = os.getenv("AI_SERVER_URL", "https://ai-script-generator-service.onrender.com").rstrip("/")
+    # Multi-service AI Script Server Priority List (Railway -> Render -> Custom)
+    raw_env_url = os.getenv("AI_SERVER_URL", "").rstrip("/")
+    candidate_urls = [
+        "https://ai-script-generator-service-production.up.railway.app",
+        raw_env_url if raw_env_url else "https://ai-script-generator-service.onrender.com",
+        "https://ai-script-generator-service.onrender.com"
+    ]
+    seen = set()
+    ai_server_urls = [u for u in candidate_urls if u and not (u in seen or seen.add(u))]
+
     scene_count = max(1, duration // 10)
     word_count = int(duration * 2.5)
 
     cat_niche = f" in the '{category}' category" if category and str(category).lower() != "random" else ""
 
-    # 1. Primary Attempt: Call External Dedicated Render AI Script Service
-    try:
-        payload = {
-            "topic": topic,
-            "category": category,
-            "duration_seconds": duration,
-            "video_type": video_type,
-            "language": language,
-            "tone": tone
-        }
-        
-        # Try both /generate-script and /api/generate-ai-script on the external AI service
+    # 1. Primary Attempt: Call External Dedicated AI Script Services (Railway -> Render)
+    payload = {
+        "topic": topic,
+        "category": category,
+        "duration_seconds": duration,
+        "video_type": video_type,
+        "language": language,
+        "tone": tone
+    }
+    
+    for base_url in ai_server_urls:
         for endpoint in ["/generate-script", "/api/generate-ai-script", "/generate"]:
-            target_url = f"{ai_server_url}{endpoint}"
+            target_url = f"{base_url}{endpoint}"
             try:
-                resp = requests.post(target_url, json=payload, timeout=15)
+                resp = requests.post(target_url, json=payload, timeout=12)
                 if resp.status_code == 200:
                     data = resp.json()
                     full_script = data.get("full_script") or data.get("script") or ""
@@ -1400,10 +1408,11 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                             chunks = full_script.split(".")
                             scenes = [{"text": c.strip(), "keyword": kw} for c in chunks if len(c.strip()) > 5][:scene_count]
                             
-                        print(f"✅ External Render AI Script Service Success ({target_url})!")
+                        print(f"✅ External AI Script Service Success ({target_url})!")
                         return {
                             "status": "success",
-                            "source": "external_render_ai_service",
+                            "source": "external_ai_service",
+                            "server_url": target_url,
                             "topic": topic,
                             "duration_seconds": duration,
                             "video_type": video_type,
@@ -1415,9 +1424,6 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                         }
             except Exception as e_inner:
                 continue
-
-    except Exception as err_ext:
-        print(f"⚠️ External Render AI Service Connection Warning: {err_ext}")
 
     # 2. Secondary Attempt: Fallback to Gemini AI Direct Key
     gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
