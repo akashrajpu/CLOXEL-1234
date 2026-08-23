@@ -263,31 +263,40 @@ def full_process(req: VideoRequest, job_id: str):
         user_id = req.user_id if req.user_id else "anonymous"
         print(f"🎬 Processing video for User: {user_id} (Category: {req.category})")
         
-        # Scenes ki taiyari
+        # Scenes ki taiyari: Robust Script & Scenes Engine for Long & Short Videos
         scenes_data = []
-        if req.video_type == "long" and req.full_script:
+
+        # 1. If explicit scenes array is provided with text, use explicit scenes directly
+        if req.scenes and len(req.scenes) > 0 and any(s.text and s.text.strip() for s in req.scenes):
+            scenes_data = [{"text": s.text.strip(), "keyword": s.keyword.strip() if s.keyword else "technology"} for s in req.scenes if s.text and s.text.strip()]
+
+        # 2. If full_script is provided (for Long or Short videos), split full_script into complete sentences
+        if not scenes_data and req.full_script and req.full_script.strip():
             import re
-            # Script ko full stop, comma, ya new lines se todna
-            raw_chunks = re.split(r'[.|,:\n]', req.full_script)
+            # Split strictly by sentence enders (. ! ? or newlines), NOT by commas or colons!
+            raw_sentences = re.split(r'(?<=[.!?])\s+|\n+', req.full_script.strip())
             stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi", "hain", "kya", "toh", "liye", "bhi", "yeh", "kuch", "hoti", "hain", "mil", "sakti"}
             
-            for chunk in raw_chunks:
-                chunk = chunk.strip()
-                if len(chunk) < 5: continue
+            for sentence in raw_sentences:
+                sentence = sentence.strip()
+                if len(sentence) < 4: continue
                 
-                # Basic Keyword Extraction: Pick the longest word that isn't a stop word
-                words = [w.lower() for w in chunk.split() if w.isalpha() and w.lower() not in stop_words]
-                keyword = "technology" # Fallback keyword
+                # Keyword Extraction: Pick the longest non-stop word
+                words = [w.lower() for w in sentence.split() if w.isalpha() and w.lower() not in stop_words]
+                keyword = "technology"
                 if words:
                     words.sort(key=len, reverse=True)
                     keyword = words[0]
                     
-                scenes_data.append({"text": chunk, "keyword": keyword})
+                scenes_data.append({"text": sentence, "keyword": keyword})
                 
             if not scenes_data:
-                scenes_data = [{"text": req.full_script, "keyword": "technology"}]
-        else:
-            scenes_data = [{"text": s.text, "keyword": s.keyword} for s in req.scenes]
+                scenes_data = [{"text": req.full_script.strip(), "keyword": "technology"}]
+
+        # 3. Fail-safe: If still empty, use topic
+        if not scenes_data:
+            fallback_text = req.topic if req.topic else "AI Video Generation"
+            scenes_data = [{"text": fallback_text, "keyword": "technology"}]
         
         taiyaar_scenes = []
         for i, sc in enumerate(scenes_data):
