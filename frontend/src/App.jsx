@@ -201,17 +201,22 @@ function App() {
     });
   };
 
+  const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
+  const [subStatus, setSubStatus] = useState({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
+
   const openPricingModal = (plan = 'long') => {
-    if (plan) setSelectedPlan(plan);
+    if (plan && typeof setSelectedPlan === 'function') {
+      setSelectedPlan(plan);
+    }
     setIsSidebarOpen(false);
     setShowAutoUploadModal(false);
     setShowStopScheduleWarningModal(false);
     setCustomAlert(null);
     setShowPricingModal(true);
   };
+
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [enableCheckbox, setEnableCheckbox] = useState(false);
-  const [subStatus, setSubStatus] = useState({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
   const [autoSchedule, setAutoSchedule] = useState({
     schedule_enabled: false,
     short_auto_topic: true,
