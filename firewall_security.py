@@ -87,7 +87,15 @@ class ThreatSignatures:
         re.compile(r"eyJhbGciOiJub25lIn", re.IGNORECASE), # Base64 encoded {"alg":"none"
     ]
 
-    # 9. Malicious User-Agents & Security Scanners
+    # 9. Zero-Day Exploits (Log4j, Shellshock, XXE Entity, CRLF Header Injection)
+    ZERO_DAY_PATTERNS = [
+        re.compile(r"(\$\{jndi:(ldap|rmi|dns|nis|nds|corba|iiop):)", re.IGNORECASE), # Log4j JNDI Exploit
+        re.compile(r"(\(\)\s*\{\s*:;\s*\};)", re.IGNORECASE),                         # Shellshock Exploit
+        re.compile(r"(<!ENTITY|<!DOCTYPE\s+[^>]*SYSTEM)", re.IGNORECASE),             # XXE Injection
+        re.compile(r"(%0d%0a|\\r\\n)\s*(Set-Cookie|Location|Content-Length):", re.IGNORECASE), # CRLF Injection
+    ]
+
+    # 10. Malicious User-Agents & Security Scanners
     MALICIOUS_BOTS = [
         "sqlmap", "nikto", "nmap", "acunetix", "havij", "dirbuster", "gobuster", 
         "masscan", "w3af", "netsparker", "zgrab", "zmap", "fimap", "commix", 
@@ -116,6 +124,7 @@ class SecurityFirewall:
             "traversal_blocked": 0,
             "ssrf_blocked": 0,
             "jwt_attack_blocked": 0,
+            "zero_day_blocked": 0,
             "honeypot_trap_blocked": 0,
             "scanner_blocked": 0,
             "protocol_smuggling_blocked": 0,
@@ -166,7 +175,7 @@ class SecurityFirewall:
         
         logger.warning(f"🚨 [FORTRESS THREAT DETECTED] Type: {threat_type.upper()} | IP: {ip} | Score: {self.threat_scores[ip]}")
         
-        if self.threat_scores[ip] >= 4:
+        if self.threat_scores[ip] >= 3:
             self.ban_ip(ip)
 
     def check_rate_limit(self, ip: str, path: str) -> bool:
@@ -174,11 +183,11 @@ class SecurityFirewall:
         req_count = len(self.request_history[ip])
 
         if any(auth_path in path for auth_path in ["/login", "/register", "/create-razorpay-order", "/verify-razorpay-payment"]):
-            max_limit = 10
+            max_limit = 8
         elif any(render_path in path for render_path in ["/generate-custom-video", "/generate-script", "/api/generate-ai-script"]):
-            max_limit = 15
+            max_limit = 12
         else:
-            max_limit = 120
+            max_limit = 90
 
         if req_count >= max_limit:
             self.record_threat(ip, "rate_limit_blocked", weight=1)
@@ -205,7 +214,12 @@ class SecurityFirewall:
             if pattern.search(text):
                 return True, "jwt_attack_blocked"
 
-        # 4. SSRF Target IP Check
+        # 4. Zero-Day Exploits (Log4j, Shellshock, XXE, CRLF) Check
+        for pattern in ThreatSignatures.ZERO_DAY_PATTERNS:
+            if pattern.search(text):
+                return True, "zero_day_blocked"
+
+        # 5. SSRF Target IP Check
         for pattern in ThreatSignatures.SSRF_PATTERNS:
             if pattern.search(text):
                 return True, "ssrf_blocked"
