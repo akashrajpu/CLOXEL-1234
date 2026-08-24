@@ -122,48 +122,88 @@ def parse_time_to_minutes(time_str: str) -> Optional[int]:
 def build_youtube_metadata(topic: str, full_script: str = "", video_type: str = "short", custom_title: str = "", custom_desc: str = ""):
     """
     Generates video-specific dynamic YouTube Title & SEO Description.
-    Guarantees mandatory hashtags: #cloxelai.onrender.com #cloxel.onrender.com and website link.
+    Long videos get structured documentary/narrative titles & descriptions.
+    Short reels get punchy viral short-form titles & descriptions.
+    Guarantees mandatory hashtags: #cloxelai.onrender.com and #cloxel.onrender.com in description.
     """
-    topic_clean = (topic or "Cloxel AI Video").strip().title()
+    topic_clean = (topic or "Cloxel AI Video").strip()
+    topic_title = topic_clean.title()
     
-    if custom_title and len(custom_title.strip()) > 3:
+    # 1. DYNAMIC TITLE GENERATION (Short vs Long)
+    if custom_title and len(custom_title.strip()) > 5 and custom_title.strip().lower() != topic_clean.lower():
         clean_title = custom_title.strip()
     else:
         if video_type == "long":
-            clean_title = f"{topic_clean} | Complete AI Documentary & Deep Dive"
+            long_title_templates = [
+                f"The Shocking Truth About {topic_title} | Full AI Documentary & Deep Dive",
+                f"Everything You Need To Know About {topic_title} | Complete Guide",
+                f"Uncovering The Secrets Of {topic_title} | In-Depth Narrative",
+                f"Why {topic_title} Changes Everything | Complete AI Analysis",
+                f"{topic_title}: The Hidden Reality Exposed | Full Documentary"
+            ]
+            idx = sum(ord(c) for c in topic_clean) % len(long_title_templates)
+            clean_title = long_title_templates[idx]
         else:
-            clean_title = f"{topic_clean} - Mind-Blowing AI Facts! 😱 #shorts"
+            short_title_templates = [
+                f"Mind-Blowing Facts About {topic_title}! 😱 #shorts",
+                f"Did You Know THIS About {topic_title}? 🚀 #shorts",
+                f"The Secrets Of {topic_title} Exposed! ⚡ #shorts",
+                f"Why {topic_title} Will Blow Your Mind! 🔥 #shorts",
+                f"Crazy Truth About {topic_title}! 🤯 #shorts"
+            ]
+            idx = sum(ord(c) for c in topic_clean) % len(short_title_templates)
+            clean_title = short_title_templates[idx]
 
-    # Truncate title to 95 chars max for YouTube limit
-    clean_title = clean_title[:95]
+    # Ensure max 95 chars for YouTube Title limit
+    if len(clean_title) > 95:
+        clean_title = clean_title[:91] + "..."
     if video_type == "short" and "#shorts" not in clean_title.lower():
-        clean_title += " #shorts"
+        clean_title = clean_title[:85] + " #shorts"
 
-    # Build rich SEO Description
+    # 2. DYNAMIC DESCRIPTION GENERATION (Short vs Long)
     body_text = (custom_desc or full_script or "").strip()
     if not body_text:
-        body_text = f"Explore everything about {topic_clean} in this AI-generated video!"
+        body_text = f"Explore everything about {topic_title} in this AI-generated video!"
         
-    script_summary = body_text[:400].strip()
-
-    mandatory_tags = "#cloxelai.onrender.com #cloxel.onrender.com #AI #Viral"
+    sentences = [s.strip() for s in body_text.replace("\n", " ").replace("!", ".").replace("?", ".").split(".") if len(s.strip()) > 8]
+    summary_text = ". ".join(sentences[:3]) + "." if sentences else body_text[:300]
+    
+    mandatory_tags = "#cloxelai.onrender.com #cloxel.onrender.com"
     website_link = "🌐 Created & Auto-Published via Cloxel AI Engine: https://cloxel.onrender.com"
 
-    if video_type == "short":
+    if video_type == "long":
+        highlights = ""
+        if len(sentences) >= 3:
+            pts = sentences[1:5]
+            highlights = "\n".join([f"  • {p.strip()}" for p in pts])
+
         seo_desc = (
-            f"🎬 {topic_clean} (Short Reel)\n\n"
-            f"{script_summary}\n\n"
+            f"🎬 {topic_title} - Full Video Narrative & Documentary\n\n"
+            f"📌 About this video:\n{summary_text}\n\n"
+        )
+        if highlights:
+            seo_desc += f"💡 Key Highlights:\n{highlights}\n\n"
+
+        seo_desc += (
+            f"🔔 Subscribe for daily automated AI videos, deep dives & documentaries!\n\n"
             f"{website_link}\n\n"
-            f"#Shorts #Reels #Viral {mandatory_tags}"
+            f"🏷️ Tags & Links:\n"
+            f"{mandatory_tags} #YouTubeLongs #Trending #Documentary #AI #{topic_title.replace(' ', '')}"
         )
     else:
         seo_desc = (
-            f"🎬 {topic_clean} - Full Video Narrative\n\n"
-            f"📌 About this video:\n{body_text[:1200]}\n\n"
-            f"🔔 Subscribe for daily automated AI videos & deep dives!\n"
+            f"🎬 {topic_title} (Short Reel)\n\n"
+            f"{summary_text}\n\n"
+            f"👉 Follow Cloxel AI for daily viral reels & short videos!\n\n"
             f"{website_link}\n\n"
-            f"{mandatory_tags} #YouTubeLongs #Trending #Documentary"
+            f"{mandatory_tags} #Shorts #Reels #Viral #Trending #AI #{topic_title.replace(' ', '')}"
         )
+
+    # Hard Guarantee: Ensure mandatory hashtags exist in description
+    if "#cloxelai.onrender.com" not in seo_desc:
+        seo_desc += " #cloxelai.onrender.com"
+    if "#cloxel.onrender.com" not in seo_desc:
+        seo_desc += " #cloxel.onrender.com"
 
     return clean_title, seo_desc
 
@@ -551,20 +591,38 @@ def full_process(req: VideoRequest, job_id: str):
             except Exception as e:
                 print(f"Cloudinary upload failed: {e}")
                 
-            jobs[job_id] = {"status": "completed", "file": output_file, "dir": job_dir, "cloudinary_url": cloudinary_url}
+            full_script_content = req.full_script or " ".join([sc["text"] for sc in taiyaar_scenes])
+            gen_title, gen_desc = build_youtube_metadata(
+                topic=req.topic,
+                full_script=full_script_content,
+                video_type=req.video_type
+            )
+            
+            jobs[job_id] = {
+                "status": "completed", 
+                "file": output_file, 
+                "dir": job_dir, 
+                "cloudinary_url": cloudinary_url,
+                "title": gen_title,
+                "description": gen_desc,
+                "video_type": req.video_type,
+                "topic": req.topic
+            }
             
             # Save to Video History in MongoDB
             if videos_collection is not None and req.user_id != "anonymous":
                 try:
-                    video_title = req.topic if req.topic else (req.full_script[:30] if req.full_script else (taiyaar_scenes[0]["text"][:30] if taiyaar_scenes else "Generated Video"))
                     videos_collection.insert_one({
                         "internal_id": req.user_id,
                         "job_id": job_id,
-                        "topic": video_title,
+                        "topic": req.topic or gen_title,
+                        "title": gen_title,
+                        "description": gen_desc,
+                        "video_type": req.video_type,
                         "cloudinary_url": cloudinary_url,
                         "created_at": datetime.utcnow()
                     })
-                    print(f"✅ Video history saved to MongoDB for user {req.user_id}: {video_title}")
+                    print(f"✅ Video history saved to MongoDB for user {req.user_id}: {gen_title}")
                 except Exception as e:
                     print(f"❌ Failed to save video history to DB: {e}")
         else:
@@ -1657,6 +1715,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                             scenes = [{"text": c.strip(), "keyword": kw} for c in chunks if len(c.strip()) > 5][:scene_count]
                             
                         print(f"✅ External AI Script Service Success ({target_url})!")
+                        title_gen, desc_gen = build_youtube_metadata(topic=topic, full_script=full_script, video_type=video_type)
                         return {
                             "status": "success",
                             "source": "external_ai_service",
@@ -1668,7 +1727,9 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                             "tone": tone,
                             "estimated_word_count": word_count,
                             "full_script": full_script,
-                            "scenes": scenes
+                            "scenes": scenes,
+                            "title": title_gen,
+                            "description": desc_gen
                         }
             except Exception as e_inner:
                 continue
@@ -1701,6 +1762,8 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                     if raw_text.startswith("json"):
                         raw_text = raw_text[4:].strip()
                 parsed = json.loads(raw_text)
+                script_text = parsed.get("full_script", "")
+                title_gen, desc_gen = build_youtube_metadata(topic=topic, full_script=script_text, video_type=video_type)
                 return {
                     "status": "success",
                     "source": "gemini_ai",
@@ -1710,8 +1773,10 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                     "language": language,
                     "tone": tone,
                     "estimated_word_count": word_count,
-                    "full_script": parsed.get("full_script", ""),
-                    "scenes": parsed.get("scenes", [])
+                    "full_script": script_text,
+                    "scenes": parsed.get("scenes", []),
+                    "title": title_gen,
+                    "description": desc_gen
                 }
         except Exception as err:
             print(f"⚠️ Gemini API Warning (Falling back to dynamic engine): {err}")
@@ -1754,6 +1819,8 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         scenes.append({"text": text, "keyword": main_kw})
         full_text_list.append(text)
 
+    script_text = " ".join(full_text_list)
+    title_gen, desc_gen = build_youtube_metadata(topic=topic, full_script=script_text, video_type=video_type)
     return {
         "status": "success",
         "source": "dynamic_ai_engine",
@@ -1763,8 +1830,10 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         "language": language,
         "tone": tone,
         "estimated_word_count": word_count,
-        "full_script": " ".join(full_text_list),
-        "scenes": scenes
+        "full_script": script_text,
+        "scenes": scenes,
+        "title": title_gen,
+        "description": desc_gen
     }
 
 @app.post("/api/generate-ai-script")
