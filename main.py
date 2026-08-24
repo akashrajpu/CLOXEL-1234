@@ -119,6 +119,54 @@ def parse_time_to_minutes(time_str: str) -> Optional[int]:
     except Exception:
         return None
 
+def build_youtube_metadata(topic: str, full_script: str = "", video_type: str = "short", custom_title: str = "", custom_desc: str = ""):
+    """
+    Generates video-specific dynamic YouTube Title & SEO Description.
+    Guarantees mandatory hashtags: #cloxelai.onrender.com #cloxel.onrender.com and website link.
+    """
+    topic_clean = (topic or "Cloxel AI Video").strip().title()
+    
+    if custom_title and len(custom_title.strip()) > 3:
+        clean_title = custom_title.strip()
+    else:
+        if video_type == "long":
+            clean_title = f"{topic_clean} | Complete AI Documentary & Deep Dive"
+        else:
+            clean_title = f"{topic_clean} - Mind-Blowing AI Facts! 😱 #shorts"
+
+    # Truncate title to 95 chars max for YouTube limit
+    clean_title = clean_title[:95]
+    if video_type == "short" and "#shorts" not in clean_title.lower():
+        clean_title += " #shorts"
+
+    # Build rich SEO Description
+    body_text = (custom_desc or full_script or "").strip()
+    if not body_text:
+        body_text = f"Explore everything about {topic_clean} in this AI-generated video!"
+        
+    script_summary = body_text[:400].strip()
+
+    mandatory_tags = "#cloxelai.onrender.com #cloxel.onrender.com #AI #Viral"
+    website_link = "🌐 Created & Auto-Published via Cloxel AI Engine: https://cloxel.onrender.com"
+
+    if video_type == "short":
+        seo_desc = (
+            f"🎬 {topic_clean} (Short Reel)\n\n"
+            f"{script_summary}\n\n"
+            f"{website_link}\n\n"
+            f"#Shorts #Reels #Viral {mandatory_tags}"
+        )
+    else:
+        seo_desc = (
+            f"🎬 {topic_clean} - Full Video Narrative\n\n"
+            f"📌 About this video:\n{body_text[:1200]}\n\n"
+            f"🔔 Subscribe for daily automated AI videos & deep dives!\n"
+            f"{website_link}\n\n"
+            f"{mandatory_tags} #YouTubeLongs #Trending #Documentary"
+        )
+
+    return clean_title, seo_desc
+
 def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, description: str = "", is_short: bool = False) -> Optional[str]:
     """
     Automated YouTube Video Publisher:
@@ -158,20 +206,20 @@ def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, desc
 
         youtube = build("youtube", "v3", credentials=credentials)
 
-        # Build Title & Hashtags for YouTube Shorts / Videos
-        clean_title = (title or "Cloxel AI Video").strip()[:95]
-        if is_short and "#shorts" not in clean_title.lower():
-            clean_title += " #shorts"
-
-        full_desc = (description or clean_title) + "\n\nGenerated & Auto-Published via Cloxel AI Engine."
-        if is_short:
-            full_desc += "\n#Shorts #Viral #AI"
+        video_kind = "short" if is_short else "long"
+        clean_title, full_desc = build_youtube_metadata(
+            topic=title,
+            full_script=description,
+            video_type=video_kind,
+            custom_title=title if (title and len(title) > 15) else "",
+            custom_desc=description
+        )
 
         body = {
             "snippet": {
                 "title": clean_title,
                 "description": full_desc,
-                "tags": ["AI", "Viral", "Shorts", "Cloxel"],
+                "tags": ["AI", "Viral", "Shorts", "Cloxel", "cloxelai.onrender.com", "cloxel.onrender.com"],
                 "categoryId": "22"
             },
             "status": {
@@ -489,7 +537,7 @@ def full_process(req: VideoRequest, job_id: str):
                 })
 
         if taiyaar_scenes:
-            output_file = f"output_{job_id}.mp4"
+            output_file = f"acoumation_video_{job_id}.mp4"
             # Editor ko user ki choice bhejna (font, color, bg_music)
             target_size = (1280, 720) if req.video_type == "long" else (720, 1280)
             adjusted_font_size = int(req.font_size * 0.7) if req.video_type == "long" else req.font_size
