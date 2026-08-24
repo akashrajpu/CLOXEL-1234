@@ -22,6 +22,7 @@ from googleapiclient.discovery import build
 import google_auth_oauthlib.flow
 from apscheduler.schedulers.background import BackgroundScheduler
 import requests
+from firewall_security import FirewallMiddleware, waf
 
 # Fix OAuth behind proxy (Render)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -459,6 +460,9 @@ scheduler.start()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 app = FastAPI()
+
+# 0. Ultimate Web Application Firewall (WAF) & Threat Shield Middleware
+app.add_middleware(FirewallMiddleware)
 
 # 1. CORS Setup - Iske bina frontend connect nahi hoga!
 app.add_middleware(
@@ -1159,6 +1163,17 @@ async def get_active_schedules_admin():
     return {
         "total_active_accounts": len(results),
         "active_schedules": results
+    }
+
+@app.get("/admin/security-status")
+def get_security_status():
+    """Admin inspection endpoint displaying active WAF security metrics and threat logs"""
+    return {
+        "waf_status": "ACTIVE_ENFORCED",
+        "shield_version": "Cloxel Ultimate WAF v2.0",
+        "attack_statistics": waf.attack_stats,
+        "active_banned_ips": list(waf.banned_ips.keys()),
+        "total_banned_ips": len(waf.banned_ips)
     }
 
 PLAN_RANKS = {"short": 1, "long": 2, "combo": 3}
