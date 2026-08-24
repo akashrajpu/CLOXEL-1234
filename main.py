@@ -1631,12 +1631,16 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
             prompt = (
-                f"You are a viral AI video script writer. Write a highly engaging {tone} video script about '{topic}' "
-                f"in {language} language. Target duration: {duration} seconds (~{word_count} words).\n"
+                f"You are a master viral video scriptwriter. Write a COMPLETE, fully-resolved video script about '{topic}' "
+                f"in {language} language. Video type: {video_type.upper()} ({duration} seconds, approx {word_count} spoken words).\n"
+                f"CRITICAL REQUIREMENT: The script MUST be 100% complete with a clear Hook, Full Core Information, and a Satisfying Conclusion. "
+                f"Do NOT leave the explanation half-done or cut off mid-sentence.\n"
                 f"Format requirement: Return ONLY a valid JSON object with:\n"
-                f"1. 'full_script': Complete narrative text spoken in video.\n"
-                f"2. 'scenes': An array of exactly {scene_count} scene objects, each containing 'text' (1-2 sentences) and 'keyword' (1-2 search terms for background visual clips).\n"
-                f"Do not include markdown triple backticks or any conversational text outside JSON."
+                f"1. 'full_script': The complete spoken voiceover text covering the full story from hook to conclusion.\n"
+                f"2. 'scenes': An array of exactly {scene_count} complete sentence scene objects, each containing:\n"
+                f"   - 'text': 1-2 complete, well-formed sentences with full stops.\n"
+                f"   - 'keyword': 1-2 relevant visual search terms for background clips.\n"
+                f"Do not include markdown triple backticks or text outside JSON."
             )
 
             req_data = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode('utf-8')
@@ -1664,24 +1668,41 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         except Exception as err:
             print(f"⚠️ Gemini API Warning (Falling back to dynamic engine): {err}")
 
-    # Dynamic Smart Script Generator (Zero-Failure Fallback)
-    stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo"}
+    # Dynamic Smart Script Generator (Zero-Failure Structured Fallback)
+    stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi"}
     keywords = [w.lower() for w in topic.split() if w.isalpha() and w.lower() not in stop_words]
     main_kw = keywords[0] if keywords else topic
 
-    templates = [
-        f"Dosto! Kya aapko pata hai {topic} ke baare mein ye hairatangez baatein?",
-        f"{topic} ki duniya mein ek aisa raaz hai jisse 90% log bilkul anjaan hain.",
-        f"Aaj hum jaanenge {topic} se jude sabse amazing aur secretive facts jo aapka hosh uda denge.",
-        f"Aakhir kyun {topic} aaj kal poore internet par itna viral ho raha hai? Aaiye samajhte hain.",
-        f"Scientists aur experts bhi {topic} ke is sach ko dekhkar hairan reh gaye hain.",
-        f"Agar aap bhi {topic} me interest rakhte hain toh is video ko aakhir tak zaroor dekhein aur follow karein!"
+    intro_templates = [
+        f"Dosto! Kya aapko pata hai {topic} ke baare mein ye hairatangez sach?",
+        f"{topic} ki duniya mein ek aisa raaz hai jo aapka hosh uda dega.",
+        f"Aaj hum {topic} se jude sabse bada aur shocking sach jaanenge."
+    ]
+
+    body_templates = [
+        f"Iske peeche ki asli wajah ye hai ki {topic} hamari daily life par deep impact daalta hai.",
+        f"Experts aur scientists ke mutabiq {topic} aane wale time mein poori tarah badalne wala hai.",
+        f"Research mein pata chala hai ki {topic} ki wajah se kayi bade changes dekhe gaye hain.",
+        f"Har roz hazaron log {topic} ke is naye aspect ko samajhne ki koshish kar rahe hain."
+    ]
+
+    outro_templates = [
+        f"Toh ye tha {topic} ka poora sach! Aise hi viral aur informative content ke liye hume zaroor follow karein.",
+        f"Yahi wajah hai ki {topic} itna special hai. Video acchi lagi ho toh like aur share zaroor karein!",
+        f"Umeed hai aapko {topic} ki ye information pasand aayi hogi. Channel ko subscribe karna na bhulein!"
     ]
 
     scenes = []
     full_text_list = []
+    
     for i in range(scene_count):
-        text = templates[i % len(templates)]
+        if i == 0:
+            text = intro_templates[0 % len(intro_templates)]
+        elif i == scene_count - 1 and scene_count > 1:
+            text = outro_templates[0 % len(outro_templates)]
+        else:
+            text = body_templates[(i - 1) % len(body_templates)]
+            
         scenes.append({"text": text, "keyword": main_kw})
         full_text_list.append(text)
 
