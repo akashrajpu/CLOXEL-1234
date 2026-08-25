@@ -816,23 +816,23 @@ function App() {
               </div>
             </div>
             <div className="form-group">
-              <label>Target Duration (Seconds)</label>
+              <label>Target Duration</label>
               <CustomSelect 
                 value={duration} 
                 onChange={(val) => setDuration(Number(val))}
                 options={videoType === 'short' ? [
-                  { value: 10, label: '10 Seconds (1 Scene)' },
-                  { value: 20, label: '20 Seconds (2 Scenes)' },
-                  { value: 30, label: '30 Seconds (3 Scenes)' },
-                  { value: 45, label: '45 Seconds (4 Scenes)' },
-                  { value: 55, label: '55 Seconds (5 Scenes)' }
+                  { value: 10, label: '⏱️ 10 Seconds' },
+                  { value: 20, label: '⏱️ 20 Seconds' },
+                  { value: 30, label: '⏱️ 30 Seconds' },
+                  { value: 45, label: '⏱️ 45 Seconds' },
+                  { value: 55, label: '⏱️ 55 Seconds' }
                 ] : [
-                  { value: 20, label: '20 Seconds (2 Scenes)' },
-                  { value: 30, label: '30 Seconds (3 Scenes)' },
-                  { value: 60, label: '60 Seconds (6 Scenes)' },
-                  { value: 120, label: '2 Minutes (12 Scenes)' },
-                  { value: 180, label: '3 Minutes (18 Scenes)' },
-                  { value: 300, label: '5 Minutes (30 Scenes)' }
+                  { value: 20, label: '⏱️ 20 Seconds' },
+                  { value: 30, label: '⏱️ 30 Seconds' },
+                  { value: 60, label: '⏱️ 1 Minute' },
+                  { value: 120, label: '⏱️ 2 Minutes' },
+                  { value: 180, label: '⏱️ 3 Minutes' },
+                  { value: 300, label: '⏱️ 5 Minutes' }
                 ]}
               />
             </div>
