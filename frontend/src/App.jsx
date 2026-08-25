@@ -46,6 +46,7 @@ function CustomSelect({ value, onChange, options }) {
   const selectedLabel = selectedOption 
     ? (typeof selectedOption === 'object' ? selectedOption.label : selectedOption) 
     : value;
+  const selectedFontFamily = selectedOption && typeof selectedOption === 'object' ? selectedOption.fontFamily : undefined;
 
   return (
     <div className="custom-select-container" style={{ position: 'relative', width: '100%' }}>
@@ -69,7 +70,7 @@ function CustomSelect({ value, onChange, options }) {
           transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
         }}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: selectedFontFamily || 'inherit' }}>
           {selectedLabel}
         </span>
         <span style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s ease', color: '#c084fc', fontSize: '0.8rem', fontWeight: 'bold' }}>
@@ -102,6 +103,7 @@ function CustomSelect({ value, onChange, options }) {
             {options.map((opt, idx) => {
               const optValue = typeof opt === 'object' ? opt.value : opt;
               const optLabel = typeof opt === 'object' ? opt.label : opt;
+              const optFontFamily = typeof opt === 'object' ? opt.fontFamily : undefined;
               const isSelected = optValue === value;
 
               return (
@@ -116,8 +118,9 @@ function CustomSelect({ value, onChange, options }) {
                     borderRadius: '10px',
                     margin: '2px 0',
                     cursor: 'pointer',
-                    fontSize: '0.9rem',
+                    fontSize: '1.05rem',
                     fontWeight: isSelected ? '700' : '500',
+                    fontFamily: optFontFamily || 'inherit',
                     color: isSelected ? '#ffffff' : '#cbd5e1',
                     background: isSelected ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.4) 0%, rgba(6, 182, 212, 0.3) 100%)' : 'transparent',
                     border: isSelected ? '1px solid rgba(192, 132, 252, 0.4)' : '1px solid transparent',
@@ -139,7 +142,7 @@ function CustomSelect({ value, onChange, options }) {
                     }
                   }}
                 >
-                  <span>{optLabel}</span>
+                  <span style={{ fontFamily: optFontFamily || 'inherit' }}>{optLabel}</span>
                   {isSelected && <span style={{ color: '#c084fc', fontWeight: 'bold' }}>✓</span>}
                 </div>
               );
@@ -774,14 +777,20 @@ function App() {
                   }}
                   style={{ 
                     flex: 1, 
+                    padding: '12px 16px',
                     background: videoType === 'short' ? 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)' : 'rgba(255, 255, 255, 0.05)',
-                    border: videoType === 'short' ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
+                    border: videoType === 'short' ? '1px solid #c084fc' : '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#ffffff',
                     fontWeight: '800',
                     borderRadius: '14px',
-                    boxShadow: videoType === 'short' ? '0 4px 18px rgba(168, 85, 247, 0.45)' : 'none'
+                    boxShadow: videoType === 'short' ? '0 4px 18px rgba(168, 85, 247, 0.45)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    fontSize: '0.95rem'
                   }}
-                >📱 Short (9:16)</button>
+                >📱 Short</button>
                 <button 
                   className={`button ${videoType === 'long' ? 'primary' : 'secondary'}`}
                   onClick={() => {
@@ -790,14 +799,20 @@ function App() {
                   }}
                   style={{ 
                     flex: 1, 
+                    padding: '12px 16px',
                     background: videoType === 'long' ? 'linear-gradient(135deg, #06b6d4 0%, #0284c7 100%)' : 'rgba(255, 255, 255, 0.05)',
-                    border: videoType === 'long' ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
+                    border: videoType === 'long' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#ffffff',
                     fontWeight: '800',
                     borderRadius: '14px',
-                    boxShadow: videoType === 'long' ? '0 4px 18px rgba(6, 182, 212, 0.45)' : 'none'
+                    boxShadow: videoType === 'long' ? '0 4px 18px rgba(6, 182, 212, 0.45)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    fontSize: '0.95rem'
                   }}
-                >🖥️ Long (16:9)</button>
+                >🖥️ Long</button>
               </div>
             </div>
             <div className="form-group">
@@ -927,20 +942,27 @@ function App() {
               value={voiceId} 
               onChange={(val) => setVoiceId(val)}
               options={[
-                { value: 'hi-IN-MadhurNeural', label: 'Madhur (Male, Hindi)' },
-                { value: 'hi-IN-SwaraNeural', label: 'Swara (Female, Hindi)' },
-                { value: 'en-US-GuyNeural', label: 'Guy (Male, English)' },
-                { value: 'en-US-JennyNeural', label: 'Jenny (Female, English)' }
+                { value: 'hi-IN-MadhurNeural', label: '♂️ Male (Hindi)' },
+                { value: 'hi-IN-SwaraNeural', label: '♀️ Female (Hindi)' },
+                { value: 'en-US-GuyNeural', label: '♂️ Male (English)' },
+                { value: 'en-US-JennyNeural', label: '♀️ Female (English)' }
               ]}
             />
           </div>
 
           <div className="form-group">
-            <label>Font Family (30+ Custom Fonts)</label>
+            <label>Font Family (Visual Preview)</label>
             <CustomSelect 
               value={fontName} 
               onChange={(val) => setFontName(val)}
-              options={fontList.map(f => ({ value: f, label: f.replace(/\.[^/.]+$/, "") }))}
+              options={fontList.map(f => {
+                const fontClean = f.replace(/\.[^/.]+$/, "");
+                return {
+                  value: f,
+                  label: fontClean,
+                  fontFamily: `'${fontClean}', Montserrat, Poppins, Arial, sans-serif`
+                };
+              })}
             />
           </div>
           
@@ -966,17 +988,78 @@ function App() {
           </div>
 
           <div className="form-group">
-            <label>Highlight Color</label>
-            <CustomSelect 
-              value={fontColor} 
-              onChange={(val) => setFontColor(val)}
-              options={[
-                { value: 'yellow', label: '🟨 Yellow' },
-                { value: '#00FF00', label: '🟩 Neon Green' },
-                { value: '#FF00FF', label: '🟪 Magenta' },
-                { value: 'cyan', label: '🟦 Cyan' }
-              ]}
-            />
+            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Subtitle Highlight Color</span>
+              <span style={{ 
+                fontSize: '0.75rem', 
+                padding: '2px 10px', 
+                borderRadius: '8px', 
+                background: fontColor, 
+                color: ['#FFFFFF', 'yellow', 'cyan', '#00FF00', '#FFD700', '#34D399'].includes(fontColor) ? '#000000' : '#FFFFFF',
+                fontWeight: '800',
+                boxShadow: `0 0 12px ${fontColor}`
+              }}>
+                PREVIEW
+              </span>
+            </label>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(6, 1fr)', 
+              gap: '8px', 
+              background: 'rgba(15, 23, 42, 0.6)', 
+              padding: '12px', 
+              borderRadius: '16px', 
+              border: '1px solid rgba(168, 85, 247, 0.35)',
+              marginTop: '6px'
+            }}>
+              {[
+                { value: 'yellow', hex: '#FFFF00', name: 'Yellow' },
+                { value: '#00FF00', hex: '#00FF00', name: 'Neon Green' },
+                { value: '#FF00FF', hex: '#FF00FF', name: 'Magenta' },
+                { value: 'cyan', hex: '#00FFFF', name: 'Cyan' },
+                { value: '#FF3333', hex: '#FF3333', name: 'Flame Red' },
+                { value: '#FF9900', hex: '#FF9900', name: 'Electric Orange' },
+                { value: '#A855F7', hex: '#A855F7', name: 'Violet' },
+                { value: '#00BFFF', hex: '#00BFFF', name: 'Sky Blue' },
+                { value: '#FFFFFF', hex: '#FFFFFF', name: 'White' },
+                { value: '#FFD700', hex: '#FFD700', name: 'Gold' },
+                { value: '#34D399', hex: '#34D399', name: 'Mint' },
+                { value: '#EC4899', hex: '#EC4899', name: 'Hot Pink' }
+              ].map((item) => {
+                const isSelected = fontColor === item.value;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => setFontColor(item.value)}
+                    title={item.name}
+                    style={{
+                      height: '34px',
+                      borderRadius: '10px',
+                      background: item.hex,
+                      border: isSelected ? '3px solid #ffffff' : '1px solid rgba(255, 255, 255, 0.15)',
+                      boxShadow: isSelected ? `0 0 16px ${item.hex}, inset 0 0 4px rgba(0,0,0,0.5)` : '0 2px 6px rgba(0,0,0,0.4)',
+                      cursor: 'pointer',
+                      transform: isSelected ? 'scale(1.12)' : 'scale(1)',
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    {isSelected && (
+                      <span style={{ 
+                        color: ['#FFFFFF', 'yellow', 'cyan', '#00FF00', '#FFD700', '#34D399'].includes(item.value) ? '#000000' : '#FFFFFF', 
+                        fontWeight: '900', 
+                        fontSize: '0.85rem' 
+                      }}>
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <button 
