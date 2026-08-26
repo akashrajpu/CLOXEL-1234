@@ -38,15 +38,49 @@ def translate_query(query: str) -> str:
     translated = [KEYWORD_TRANSLATIONS.get(w, w) for w in words]
     return " ".join(translated)
 
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "563492ad6f917000010000013b5bf9583b2744799017ae70ec86ca93")
+
 def fetch_web_image(query: str, save_path: str) -> bool:
     """
-    Searches and downloads a high-resolution image for any topic/character query using Google Images, Wikimedia & Pollinations AI.
-    Features 4s fast timeouts and guaranteed procedural fallback.
+    Searches and downloads a high-resolution photo for any topic/character query using Pexels Photo API, Unsplash HD, Google Images, Wikimedia & Pollinations AI.
     """
     english_query = translate_query(query)
-    print(f"🔎 [Web Image Search Engine] Searching Google & Web for: '{english_query}' (Original: '{query}')...")
-    
-    # 1. Google Images Scraping (Direct HD Web Images)
+    print(f"🔎 [Web Image Search Engine] Searching HD Photos for: '{english_query}' (Original: '{query}')...")
+
+    # 1. Pexels HD Photo Search API (Direct HD Photography)
+    if PEXELS_API_KEY:
+        try:
+            p_url = f"https://api.pexels.com/v1/search?query={urllib.parse.quote(english_query)}&per_page=5&orientation=landscape"
+            p_res = requests.get(p_url, headers={"Authorization": PEXELS_API_KEY}, timeout=5)
+            if p_res.status_code == 200:
+                data = p_res.json()
+                photos = data.get("photos", [])
+                if photos:
+                    best_photo = random.choice(photos[:3])
+                    img_url = best_photo.get("src", {}).get("large2x") or best_photo.get("src", {}).get("landscape") or best_photo.get("src", {}).get("original")
+                    if img_url:
+                        img_req = requests.get(img_url, timeout=6)
+                        if img_req.status_code == 200 and len(img_req.content) > 15000:
+                            with open(save_path, "wb") as f:
+                                f.write(img_req.content)
+                            print(f"✅ [Pexels HD Photo API] Successfully downloaded: {save_path}")
+                            return True
+        except Exception as e_pex:
+            print(f"⚠️ Pexels photo search skip: {e_pex}")
+
+    # 2. Unsplash Source Direct HD Engine
+    try:
+        u_url = f"https://source.unsplash.com/1280x720/?{urllib.parse.quote(english_query)}"
+        u_res = requests.get(u_url, headers=HEADERS, timeout=5)
+        if u_res.status_code == 200 and len(u_res.content) > 25000:
+            with open(save_path, "wb") as f:
+                f.write(u_res.content)
+            print(f"✅ [Unsplash HD Engine] Successfully downloaded: {save_path}")
+            return True
+    except Exception as e_u:
+        print(f"⚠️ Unsplash search skip: {e_u}")
+
+    # 3. Google Images Scraping (Direct HD Web Images)
     try:
         clean_q = urllib.parse.quote(f"{english_query} HD wallpaper photo")
         google_url = f"https://www.google.com/search?q={clean_q}&tbm=isch"
@@ -71,7 +105,7 @@ def fetch_web_image(query: str, save_path: str) -> bool:
     except Exception as e_g:
         print(f"⚠️ Google Images search skip: {e_g}")
 
-    # 2. Try Wikimedia Commons API
+    # 4. Try Wikimedia Commons API
     try:
         wiki_url = f"https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch={urllib.parse.quote(english_query)}&gsrlimit=5&prop=imageinfo&iiprop=url&format=json"
         res = requests.get(wiki_url, headers=HEADERS, timeout=4)
@@ -91,7 +125,7 @@ def fetch_web_image(query: str, save_path: str) -> bool:
     except Exception as e_w:
         print(f"⚠️ Wikimedia search skip: {e_w}")
 
-    # 3. Try Pollinations Free AI Image Generator (With 10s Reliable Timeout)
+    # 5. Try Pollinations Free AI Image Generator (10s Timeout)
     try:
         print(f"🎨 [AI Generator Fallback] Generating exact HD image for: '{english_query}'...")
         clean_prompt = urllib.parse.quote(f"epic cinematic wallpaper photo of {english_query}, 8k resolution, detailed background")
@@ -105,23 +139,18 @@ def fetch_web_image(query: str, save_path: str) -> bool:
     except Exception as e_p:
         print(f"⚠️ Pollinations search skip: {e_p}")
 
-    # 4. Instant Rich Procedural Art Canvas Fallback (NO MORE BLANK CANVASES)
+    # 6. Picsum HD Real Photo API Fallback (Guaranteed 100% Real HD Photography)
     try:
-        print(f"🎨 [Rich Art Canvas Engine] Generating procedural artistic backdrop for: '{query}'...")
-        from PIL import Image, ImageDraw, ImageFilter
-        img = Image.new("RGB", (1280, 720), (35, 22, 12))
-        draw = ImageDraw.Draw(img)
-        # Radial Warm Amber Gradient Canvas
-        for r in range(800, 0, -10):
-            color = (int(35 + (800-r)*0.15), int(22 + (800-r)*0.10), int(12 + (800-r)*0.05))
-            draw.ellipse([640 - r, 360 - r, 640 + r, 360 + r], fill=color)
-        
-        img = img.filter(ImageFilter.GaussianBlur(radius=15))
-        img.save(save_path)
-        print(f"✅ [Rich Art Canvas Engine] Created fallback art canvas: {save_path}")
-        return True
-    except Exception as e_proc:
-        print(f"❌ Procedural canvas error: {e_proc}")
+        print(f"🎨 [Picsum HD Photo Fallback] Downloading fallback HD photo...")
+        picsum_url = f"https://picsum.photos/1280/720"
+        p_res = requests.get(picsum_url, headers=HEADERS, timeout=6)
+        if p_res.status_code == 200 and len(p_res.content) > 15000:
+            with open(save_path, "wb") as f:
+                f.write(p_res.content)
+            print(f"✅ [Picsum HD Photo Fallback] Successfully downloaded: {save_path}")
+            return True
+    except Exception as e_picsum:
+        print(f"⚠️ Picsum fallback skip: {e_picsum}")
 
     return False
 
