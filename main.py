@@ -457,8 +457,33 @@ def check_and_run_auto_schedules():
 scheduler.add_job(check_and_run_auto_schedules, 'interval', minutes=1)
 scheduler.start()
 
-# 3. Password Hashing
+# 3. Robust Crash-Proof Password Hashing & Verification Engine
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt as _raw_bcrypt
+
+def safe_verify_password(plain_password: str, hashed_password: str) -> bool:
+    if not plain_password or not hashed_password:
+        return False
+    try:
+        if _raw_bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8')):
+            return True
+    except Exception:
+        pass
+
+    try:
+        if pwd_context.verify(plain_password, hashed_password):
+            return True
+    except Exception:
+        pass
+
+    return plain_password == hashed_password
+
+def safe_hash_password(password: str) -> str:
+    try:
+        salt = _raw_bcrypt.gensalt()
+        return _raw_bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+    except Exception:
+        return pwd_context.hash(password)
 
 app = FastAPI()
 
@@ -1372,7 +1397,7 @@ async def register_user(req: UserRegister):
         else:
             raise HTTPException(status_code=400, detail="⚠️ Account Creation Failed: This Phone Number is already registered! Please use a different Phone Number or Login.")
         
-    hashed_password = pwd_context.hash(req.password)
+    hashed_password = safe_hash_password(req.password)
     internal_id = str(uuid.uuid4())
     
     new_user = {
@@ -1417,11 +1442,7 @@ async def login_user(req: UserLogin):
     if not stored_hash:
         raise HTTPException(status_code=400, detail="⚠️ Account password configuration issue. Please Register a new account.")
 
-    is_valid = False
-    try:
-        is_valid = pwd_context.verify(req.password, stored_hash)
-    except Exception:
-        is_valid = (req.password == stored_hash)
+    is_valid = safe_verify_password(req.password, stored_hash)
 
     if not is_valid:
         raise HTTPException(status_code=400, detail="⚠️ Incorrect Password: Please check your password and try again.")
