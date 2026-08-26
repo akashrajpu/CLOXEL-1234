@@ -635,8 +635,9 @@ def full_process(req: VideoRequest, job_id: str):
                     bg_img_path = os.path.join(job_dir, f"bg_photo_{i}.jpg")
                     fg_img_path = os.path.join(job_dir, f"fg_photo_{i}.jpg")
                     
-                    bg_query = f"{sc['keyword']} background scene"
-                    fg_query = f"{sc['keyword']} warrior hero character"
+                    sc_kw = sc['keyword'] if sc['keyword'] else req.topic
+                    bg_query = f"{sc_kw} landscape wallpaper"
+                    fg_query = f"{sc_kw} hero character portrait"
                     
                     print(f"📥 [Ultra Engine] Fetching Dual Photos for Scene {i+1}: BG='{bg_query}', FG='{fg_query}'...")
                     fetch_web_image(bg_query, bg_img_path)

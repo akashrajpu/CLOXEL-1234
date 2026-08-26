@@ -91,12 +91,12 @@ def fetch_web_image(query: str, save_path: str) -> bool:
     except Exception as e_w:
         print(f"⚠️ Wikimedia search skip: {e_w}")
 
-    # 3. Try Pollinations Free AI Image Generator (With 4s Fast Timeout)
+    # 3. Try Pollinations Free AI Image Generator (With 10s Reliable Timeout)
     try:
         print(f"🎨 [AI Generator Fallback] Generating exact HD image for: '{english_query}'...")
-        prompt_str = urllib.parse.quote(f"high quality realistic photo of {english_query}, 8k resolution, cinematic lighting, wallpaper")
-        poll_url = f"https://image.pollinations.ai/prompt/{prompt_str}?width=1280&height=720&nologo=true"
-        img_data = requests.get(poll_url, headers=HEADERS, timeout=4).content
+        clean_prompt = urllib.parse.quote(f"epic cinematic wallpaper photo of {english_query}, 8k resolution, detailed background")
+        poll_url = f"https://image.pollinations.ai/prompt/{clean_prompt}?width=1280&height=720&nologo=true"
+        img_data = requests.get(poll_url, headers=HEADERS, timeout=10).content
         if len(img_data) > 12000:
             with open(save_path, "wb") as f:
                 f.write(img_data)
@@ -105,15 +105,20 @@ def fetch_web_image(query: str, save_path: str) -> bool:
     except Exception as e_p:
         print(f"⚠️ Pollinations search skip: {e_p}")
 
-    # 4. Instant Procedural HD Canvas Fallback (Guaranteed 100% Success)
+    # 4. Instant Rich Procedural Art Canvas Fallback (NO MORE BLANK CANVASES)
     try:
-        print(f"🎨 [Procedural HD Canvas] Generating instant HD canvas for: '{query}'...")
-        from PIL import Image, ImageDraw
-        img = Image.new("RGB", (1280, 720), (25, 18, 38))
+        print(f"🎨 [Rich Art Canvas Engine] Generating procedural artistic backdrop for: '{query}'...")
+        from PIL import Image, ImageDraw, ImageFilter
+        img = Image.new("RGB", (1280, 720), (35, 22, 12))
         draw = ImageDraw.Draw(img)
-        draw.rectangle([0, 0, 1280, 720], fill=(20, 15, 32))
+        # Radial Warm Amber Gradient Canvas
+        for r in range(800, 0, -10):
+            color = (int(35 + (800-r)*0.15), int(22 + (800-r)*0.10), int(12 + (800-r)*0.05))
+            draw.ellipse([640 - r, 360 - r, 640 + r, 360 + r], fill=color)
+        
+        img = img.filter(ImageFilter.GaussianBlur(radius=15))
         img.save(save_path)
-        print(f"✅ [Procedural HD Canvas] Created fallback canvas: {save_path}")
+        print(f"✅ [Rich Art Canvas Engine] Created fallback art canvas: {save_path}")
         return True
     except Exception as e_proc:
         print(f"❌ Procedural canvas error: {e_proc}")
