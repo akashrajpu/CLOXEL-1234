@@ -359,11 +359,12 @@ def create_ultra_photo_motion_clip(
     duration: float = 5.0,
     size: tuple = (1920, 1080),
     filter_style: str = "warm_epic",
+    cutout_pos: str = "left",
     fps: int = 20
 ) -> VideoClip:
-    """Creates an Ultra Photo Motion Video Clip from a single photo with 3D Parallax & Cinematic Filter."""
+    """Creates an Ultra Photo Motion Video Clip from a single photo with 3D Parallax & Background Motion Filter."""
     w, h = size
-    print(f"🎨 [Ultra Engine] Generating 3D Photo Motion Clip from: {photo_path} (Filter: {filter_style})...")
+    print(f"🎨 [Ultra Engine] Generating 3D Photo Motion Clip from: {photo_path} (Filter: {filter_style}, Side: {cutout_pos.upper()})...")
     
     if not photo_path or not os.path.exists(photo_path):
         bg_pil = create_parchment_background(size, color_theme="warm")
@@ -418,7 +419,7 @@ def create_ultra_photo_motion_clip(
             if fg_pil.mode == "RGBA" and fg_pil.getextrema()[3][0] < 255:
                 fg_filtered = apply_color_filter(fg_pil.convert("RGB"), filter_style=filter_style)
                 fg_filtered.putalpha(fg_pil.split()[3])
-                target_fg_h = int(h * 0.80)
+                target_fg_h = int(h * 0.82)
                 aspect_fg = fg_filtered.width / fg_filtered.height
                 target_fg_w = int(target_fg_h * aspect_fg)
                 fg_resized = fg_filtered.resize((target_fg_w, target_fg_h), Image.LANCZOS)
@@ -428,22 +429,38 @@ def create_ultra_photo_motion_clip(
 
     def get_frame(t):
         progress = t / duration if duration > 0 else 0
-        bg_scale = 1.0 + (0.08 * progress)
+        
+        # 1. Dynamic Motion & Camera Pan on Background Photo ONLY
+        bg_scale = 1.0 + (0.10 * progress)
         bg_w_scaled = int(bg_w_fit * bg_scale)
         bg_h_scaled = int(bg_h_fit * bg_scale)
         bg_scaled = bg_pil.resize((bg_w_scaled, bg_h_scaled), Image.BILINEAR)
         
-        crop_x = (bg_w_scaled - w) // 2
-        crop_y = (bg_h_scaled - h) // 2
+        crop_x = int((bg_w_scaled - w) * (0.5 + 0.15 * math.sin(progress * math.pi)))
+        crop_y = int((bg_h_scaled - h) * (0.5 + 0.15 * math.cos(progress * math.pi)))
+        crop_x = max(0, min(bg_w_scaled - w, crop_x))
+        crop_y = max(0, min(bg_h_scaled - h, crop_y))
+        
         frame_canvas = bg_scaled.crop((crop_x, crop_y, crop_x + w, crop_y + h)).convert("RGBA")
         
+        # Dynamic Animated Lighting Pulse on Background Only
+        light_pulse = 1.0 + (0.08 * math.sin(progress * math.pi * 2))
+        frame_canvas = ImageEnhance.Brightness(frame_canvas.convert("RGB")).enhance(light_pulse).convert("RGBA")
+        
+        # 2. Character Cutout (Strictly Side Left or Right, NEVER Center)
         if has_cutout and fg_resized:
             fg_scale = 1.0 + (0.04 * math.sin(progress * math.pi))
             cur_fg_w = int(fg_resized.width * fg_scale)
             cur_fg_h = int(fg_resized.height * fg_scale)
             fg_cur = fg_resized.resize((cur_fg_w, cur_fg_h), Image.BILINEAR)
-            fg_x = (w - cur_fg_w) // 2
-            fg_y = int((h - cur_fg_h) * 0.85) + int(8 * math.sin(progress * math.pi * 2))
+            
+            # Position character on Side Left or Right
+            if cutout_pos == "right":
+                fg_x = w - cur_fg_w - int(w * 0.05)
+            else: # left
+                fg_x = int(w * 0.05)
+                
+            fg_y = int(h - cur_fg_h) + int(6 * math.sin(progress * math.pi * 2))
             frame_canvas.paste(fg_cur, (fg_x, fg_y), mask=fg_cur)
             
         return np.array(frame_canvas.convert("RGB"))
@@ -485,8 +502,9 @@ def merge_and_export(
                 video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
                 filters = ["warm_epic", "vintage_parchment", "dramatic_cinematic"]
                 filter_choice = filters[i % len(filters)]
-                print(f"✨ Scene {i+1}: Generating Ultra Animated Photo Motion Clip (Filter: {filter_choice})...")
-                v_clip = create_ultra_photo_motion_clip(video_path, clip_duration, size=target_size, filter_style=filter_choice)
+                side_pos = "left" if i % 2 == 0 else "right"
+                print(f"✨ Scene {i+1}: Generating Ultra Animated Photo Motion Clip (Filter: {filter_choice}, Side: {side_pos.upper()})...")
+                v_clip = create_ultra_photo_motion_clip(video_path, clip_duration, size=target_size, filter_style=filter_choice, cutout_pos=side_pos)
         else:
             video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
             is_image = str(video_path).lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
