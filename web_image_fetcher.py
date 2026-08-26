@@ -40,17 +40,24 @@ def translate_query(query: str) -> str:
 
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "563492ad6f917000010000013b5bf9583b2744799017ae70ec86ca93")
 
+def clean_search_term(text: str) -> str:
+    """Cleans search terms for Pexels and Unsplash API lookups."""
+    stops = {"landscape", "wallpaper", "portrait", "background", "scene", "photo", "hd", "character"}
+    words = [w for w in text.split() if w.lower() not in stops]
+    return " ".join(words) if words else text
+
 def fetch_web_image(query: str, save_path: str) -> bool:
     """
     Searches and downloads a high-resolution photo for any topic/character query using Pexels Photo API, Unsplash HD, Google Images, Wikimedia & Pollinations AI.
     """
     english_query = translate_query(query)
-    print(f"🔎 [Web Image Search Engine] Searching HD Photos for: '{english_query}' (Original: '{query}')...")
+    clean_q_term = clean_search_term(english_query)
+    print(f"🔎 [Web Image Search Engine] Searching HD Photos for: '{clean_q_term}' (Original Query: '{query}')...")
 
     # 1. Pexels HD Photo Search API (Direct HD Photography)
     if PEXELS_API_KEY:
         try:
-            p_url = f"https://api.pexels.com/v1/search?query={urllib.parse.quote(english_query)}&per_page=5&orientation=landscape"
+            p_url = f"https://api.pexels.com/v1/search?query={urllib.parse.quote(clean_q_term)}&per_page=5&orientation=landscape"
             p_res = requests.get(p_url, headers={"Authorization": PEXELS_API_KEY}, timeout=5)
             if p_res.status_code == 200:
                 data = p_res.json()
@@ -70,7 +77,7 @@ def fetch_web_image(query: str, save_path: str) -> bool:
 
     # 2. Unsplash Source Direct HD Engine
     try:
-        u_url = f"https://source.unsplash.com/1280x720/?{urllib.parse.quote(english_query)}"
+        u_url = f"https://source.unsplash.com/1280x720/?{urllib.parse.quote(clean_q_term)}"
         u_res = requests.get(u_url, headers=HEADERS, timeout=5)
         if u_res.status_code == 200 and len(u_res.content) > 25000:
             with open(save_path, "wb") as f:
