@@ -495,13 +495,43 @@ async def unblock_firewall():
 # 0. Ultimate Web Application Firewall (WAF) & Threat Shield Middleware
 app.add_middleware(FirewallMiddleware)
 
-# 1. CORS Setup - Iske bina frontend connect nahi hoga!
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], 
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Import AI Background Remover module
+try:
+    from bg_remover import remove_background
+except Exception as _bg_err:
+    print(f"⚠️ bg_remover import warning: {_bg_err}")
+    remove_background = None
+
+@app.post("/api/remove-bg")
+async def api_remove_bg(request: Request):
+    """API endpoint for background removal using REMOVE_BG_API_KEY environment variable."""
+    if not remove_background:
+        raise HTTPException(status_code=500, detail="Background remover engine not initialized")
+    try:
+        form = await request.form()
+        file_obj = form.get("file")
+        if not file_obj:
+            raise HTTPException(status_code=400, detail="No image file provided in upload")
+
+        contents = await file_obj.read()
+        bg_color = form.get("bg_color")
+
+        processed_img = remove_background(
+            input_image=contents,
+            bg_color=bg_color if bg_color else None
+        )
+
+        buf = io.BytesIO()
+        output_format = "PNG" if processed_img.mode == "RGBA" else "JPEG"
+        processed_img.save(buf, format=output_format)
+        img_bytes = buf.getvalue()
+
+        media_type = "image/png" if output_format == "PNG" else "image/jpeg"
+        return Response(content=img_bytes, media_type=media_type)
+
+    except Exception as e:
+        print(f"❌ Server Error during /api/remove-bg: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 class Scene(BaseModel):
     text: str
