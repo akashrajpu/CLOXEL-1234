@@ -5,3 +5,13 @@ config.env
 .env
 frontend/node_modules/
 .DS_Store
+
+# Scratch and test files
+test_*.py
+debug_*.py
+pro_contour_cutout.py
+find_portrait_box.py
+crop_actual_portrait.py
+*.png
+*.jpg
+!frontend/dist/favicon.png
