@@ -11,7 +11,7 @@ import cloudinary.uploader
 from dotenv import load_dotenv
 
 warnings.filterwarnings("ignore")
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
