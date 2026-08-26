@@ -371,8 +371,32 @@ def create_ultra_photo_motion_clip(
             return np.array(bg_pil.convert("RGB"))
         return VideoClip(get_fallback_frame, duration=duration).set_fps(fps)
 
-    orig_pil = Image.open(photo_path).convert("RGBA")
+    is_video_file = str(photo_path).lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm'))
+    orig_pil = None
     
+    if is_video_file and os.path.exists(photo_path):
+        try:
+            v_temp = VideoFileClip(photo_path)
+            frame_t = min(1.0, v_temp.duration / 2.0)
+            raw_frame = v_temp.get_frame(frame_t)
+            orig_pil = Image.fromarray(raw_frame).convert("RGBA")
+            v_temp.close()
+        except Exception as e_v:
+            print(f"⚠️ Video frame extraction fallback: {e_v}")
+            orig_pil = None
+    else:
+        try:
+            orig_pil = Image.open(photo_path).convert("RGBA")
+        except Exception as e_img:
+            print(f"⚠️ Image open warning: {e_img}")
+            orig_pil = None
+
+    if orig_pil is None:
+        bg_pil = create_parchment_background(size, color_theme="warm")
+        def get_fallback_frame(t):
+            return np.array(bg_pil.convert("RGB"))
+        return VideoClip(get_fallback_frame, duration=duration).set_fps(fps)
+
     if remove_background:
         try:
             fg_pil = remove_background(orig_pil)
