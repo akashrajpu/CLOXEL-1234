@@ -175,7 +175,7 @@ function App() {
 
   // Ultra Photo Motion Engine Settings
   const [generationMode, setGenerationMode] = useState('ultra'); // 'ultra' or 'standard'
-  const [aspectRatio, setAspectRatio] = useState('9:16'); // '9:16', '16:9', '1:1'
+  const [aspectRatio, setAspectRatio] = useState('16:9'); // '16:9' default (1920x1080)
   const [filterStyle, setFilterStyle] = useState('warm_epic'); // 'warm_epic', 'vintage_parchment', 'dramatic_cinematic', 'none'
 
   const [scenes, setScenes] = useState([
@@ -1017,9 +1017,9 @@ function App() {
               value={aspectRatio} 
               onChange={(val) => setAspectRatio(val)}
               options={[
-                { value: '9:16', label: '📱 9:16 Shorts / Reels / TikTok (1080×1920)' },
-                { value: '16:9', label: '📺 16:9 Landscape YouTube (1920×1080)' },
-                { value: '1:1', label: '🔳 1:1 Instagram Square (1080×1080)' }
+                { value: '16:9', label: '📺 16:9 Landscape HD (1920×1080)' },
+                { value: '9:16', label: '📱 9:16 Vertical HD (1080×1920)' },
+                { value: '1:1', label: '🔳 1:1 Square HD (1080×1080)' }
               ]}
             />
           </div>
