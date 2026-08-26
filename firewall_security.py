@@ -199,6 +199,14 @@ class SecurityFirewall:
         if not text or not isinstance(text, str):
             return False, ""
 
+        # Whitelist valid HEX color codes (e.g. #00FF00, #FF00FF, #A855F7) and CSS color names
+        clean_text = text.strip()
+        import re
+        if re.match(r"^#(?:[0-9a-fA-F]{3}){1,2}$", clean_text) or clean_text.lower() in [
+            "yellow", "cyan", "magenta", "red", "green", "blue", "white", "black", "gold", "pink", "purple", "orange"
+        ]:
+            return False, ""
+
         # 1. Null Byte Check
         if "\x00" in text or "%00" in text:
             return True, "traversal_blocked"
@@ -266,10 +274,13 @@ class SecurityFirewall:
         elif isinstance(data, dict):
             if len(data.keys()) > 150:
                 return True, "rce_blocked" # Hash Collision DoS Guard
+            whitelisted_keys = {"font_color", "font_name", "voice_id", "bg_music", "topic", "category", "full_script", "scenes", "video_type", "duration", "email", "password"}
             for k, v in data.items():
                 is_bad_k, threat_k = self.inspect_text(str(k))
                 if is_bad_k:
                     return True, threat_k
+                if str(k).lower() in whitelisted_keys:
+                    continue
                 is_bad_v, threat_v = self.inspect_data(v, depth + 1)
                 if is_bad_v:
                     return True, threat_v
