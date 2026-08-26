@@ -94,6 +94,7 @@ def ping_server():
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(ping_server, 'interval', minutes=10)
+scheduler.add_job(waf.reset_all_bans, 'interval', hours=6)
 
 def parse_time_to_minutes(time_str: str) -> Optional[int]:
     """Parses 12h or 24h time string (e.g. '10:00 AM', '06:00 PM', '18:00', '10:00') to minutes past midnight"""
@@ -460,6 +461,11 @@ scheduler.start()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 app = FastAPI()
+
+@app.get("/api/admin/unblock-firewall")
+async def unblock_firewall():
+    waf.reset_all_bans()
+    return {"message": "🔓 Firewall IP bans & rate limits reset successfully!"}
 
 # 0. Ultimate Web Application Firewall (WAF) & Threat Shield Middleware
 app.add_middleware(FirewallMiddleware)

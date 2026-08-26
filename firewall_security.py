@@ -153,20 +153,18 @@ class SecurityFirewall:
                 self.threat_scores[ip] = 0
         return False
 
-    def ban_ip(self, ip: str):
-        """Dynamic Escalation IP Ban: 1h -> 24h -> 7 Days Permanent."""
-        self.offense_counts[ip] += 1
-        offenses = self.offense_counts[ip]
-        
-        if offenses == 1:
-            duration = 3600        # 1 Hour
-        elif offenses == 2:
-            duration = 86400       # 24 Hours
-        else:
-            duration = 604800      # 7 Days
-            
+    def reset_all_bans(self):
+        """Resets and unblocks all banned IPs instantly."""
+        self.banned_ips.clear()
+        self.threat_scores.clear()
+        self.request_history.clear()
+        self.offense_counts.clear()
+        logger.info("🔓 [FIREWALL RESET] All IP bans and rate limits reset successfully!")
+
+    def ban_ip(self, ip: str, duration: int = 60):
+        """Short-Lived Auto-Expiring IP Ban (Default: 60 seconds)."""
         self.banned_ips[ip] = time.time() + duration
-        logger.critical(f"⛔ [FORTRESS BAN] IP {ip} BANNED for {duration}s (Offense Level #{offenses}).")
+        logger.warning(f"⛔ [FORTRESS TEMPORARY BAN] IP {ip} temporarily paused for {duration}s.")
 
     def record_threat(self, ip: str, threat_type: str, weight: int = 2):
         self.threat_scores[ip] += weight
@@ -175,22 +173,23 @@ class SecurityFirewall:
         
         logger.warning(f"🚨 [FORTRESS THREAT DETECTED] Type: {threat_type.upper()} | IP: {ip} | Score: {self.threat_scores[ip]}")
         
-        if self.threat_scores[ip] >= 3:
-            self.ban_ip(ip)
+        # Only ban on hard malicious exploit signatures (SQLi, RCE, XSS, Scanners)
+        if self.threat_scores[ip] >= 6:
+            self.ban_ip(ip, duration=120)
 
     def check_rate_limit(self, ip: str, path: str) -> bool:
         self.clean_old_history(ip, 60.0)
         req_count = len(self.request_history[ip])
 
         if any(auth_path in path for auth_path in ["/login", "/register", "/create-razorpay-order", "/verify-razorpay-payment"]):
-            max_limit = 8
+            max_limit = 60
         elif any(render_path in path for render_path in ["/generate-custom-video", "/generate-script", "/api/generate-ai-script"]):
-            max_limit = 12
+            max_limit = 60
         else:
-            max_limit = 90
+            max_limit = 300
 
         if req_count >= max_limit:
-            self.record_threat(ip, "rate_limit_blocked", weight=1)
+            self.attack_stats["rate_limit_blocked"] = self.attack_stats.get("rate_limit_blocked", 0) + 1
             return False
 
         self.request_history[ip].append(time.time())
