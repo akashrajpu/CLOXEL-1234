@@ -23,6 +23,11 @@ import google_auth_oauthlib.flow
 from apscheduler.schedulers.background import BackgroundScheduler
 import requests
 from firewall_security import FirewallMiddleware, waf
+try:
+    from web_image_fetcher import fetch_web_image
+except Exception as _w_err:
+    print(f"⚠️ web_image_fetcher top import warning: {_w_err}")
+    fetch_web_image = None
 
 # Fix OAuth behind proxy (Render)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -625,9 +630,8 @@ def full_process(req: VideoRequest, job_id: str):
             is_ultra = (req.video_type == "ultra")
             orientation = "landscape" if (req.video_type in ["long", "ultra"]) else "portrait"
             
-            if is_ultra:
+            if is_ultra and fetch_web_image:
                 try:
-                    from web_image_fetcher import fetch_web_image
                     img_path = os.path.join(job_dir, f"photo_{i}.jpg")
                     success = fetch_web_image(sc["keyword"], img_path)
                     if success and os.path.exists(img_path):
