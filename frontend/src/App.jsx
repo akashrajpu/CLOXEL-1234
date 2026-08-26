@@ -776,7 +776,7 @@ function App() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
               <label>Video Type</label>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button 
                   className={`button ${videoType === 'short' ? 'primary' : 'secondary'}`}
                   onClick={() => {
@@ -785,7 +785,7 @@ function App() {
                   }}
                   style={{ 
                     flex: 1, 
-                    padding: '12px 16px',
+                    padding: '12px 10px',
                     background: videoType === 'short' ? 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)' : 'rgba(255, 255, 255, 0.05)',
                     border: videoType === 'short' ? '1px solid #c084fc' : '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#ffffff',
@@ -795,8 +795,8 @@ function App() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
-                    fontSize: '0.95rem'
+                    gap: '6px',
+                    fontSize: '0.9rem'
                   }}
                 >📱 Short</button>
                 <button 
@@ -807,7 +807,7 @@ function App() {
                   }}
                   style={{ 
                     flex: 1, 
-                    padding: '12px 16px',
+                    padding: '12px 10px',
                     background: videoType === 'long' ? 'linear-gradient(135deg, #06b6d4 0%, #0284c7 100%)' : 'rgba(255, 255, 255, 0.05)',
                     border: videoType === 'long' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#ffffff',
@@ -817,10 +817,32 @@ function App() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
-                    fontSize: '0.95rem'
+                    gap: '6px',
+                    fontSize: '0.9rem'
                   }}
                 >🖥️ Long</button>
+                <button 
+                  className={`button ${videoType === 'ultra' ? 'primary' : 'secondary'}`}
+                  onClick={() => {
+                    setVideoType('ultra');
+                    if (duration < 20) setDuration(60);
+                  }}
+                  style={{ 
+                    flex: 1, 
+                    padding: '12px 10px',
+                    background: videoType === 'ultra' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'rgba(255, 255, 255, 0.05)',
+                    border: videoType === 'ultra' ? '1px solid #fbbf24' : '1px solid rgba(255, 255, 255, 0.12)',
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    borderRadius: '14px',
+                    boxShadow: videoType === 'ultra' ? '0 4px 18px rgba(245, 158, 11, 0.45)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    fontSize: '0.9rem'
+                  }}
+                >⚡ Ultra</button>
               </div>
             </div>
             <div className="form-group">
@@ -901,14 +923,14 @@ function App() {
             </button>
           </div>
 
-          {videoType === 'long' ? (
+          {(videoType === 'long' || videoType === 'ultra') ? (
             <div className="form-group">
-              <label>Full Video Script (AI generated or custom)</label>
+              <label>{videoType === 'ultra' ? '⚡ Ultra Mode Script (Multi-Character / Cinematic Script)' : 'Full Video Script (AI generated or custom)'}</label>
               <textarea 
                 rows={8}
                 value={fullScript}
                 onChange={e => setFullScript(e.target.value)}
-                placeholder="Paste or write your full video script here. Our smart AI will automatically split it into matching scenes and generate appropriate background visuals."
+                placeholder={videoType === 'ultra' ? 'Paste or write your Ultra Cinematic Multi-Character script here...' : 'Paste or write your full video script here. Our smart AI will automatically split it into matching scenes and generate appropriate background visuals.'}
               />
             </div>
           ) : (
