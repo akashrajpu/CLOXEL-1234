@@ -7,7 +7,7 @@ python-dotenv
 gunicorn
 numpy
 cloudinary
-moviepy
+moviepy==1.0.3
 apscheduler
 edge-tts
 pydantic
