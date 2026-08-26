@@ -173,6 +173,11 @@ function App() {
   const [category, setCategory] = useState('🎲 Random / All Categories');
   const [customCategory, setCustomCategory] = useState('');
 
+  // Ultra Photo Motion Engine Settings
+  const [generationMode, setGenerationMode] = useState('ultra'); // 'ultra' or 'standard'
+  const [aspectRatio, setAspectRatio] = useState('9:16'); // '9:16', '16:9', '1:1'
+  const [filterStyle, setFilterStyle] = useState('warm_epic'); // 'warm_epic', 'vintage_parchment', 'dramatic_cinematic', 'none'
+
   const [scenes, setScenes] = useState([
     { text: '', keyword: '' },
     { text: '', keyword: '' }
@@ -548,7 +553,10 @@ function App() {
           video_type: videoType,
           full_script: fullScript,
           bg_music: bgMusic,
-          user_id: userId
+          user_id: userId,
+          mode: generationMode,
+          aspect_ratio: aspectRatio,
+          filter_style: filterStyle
         })
       });
       const data = await response.json();
@@ -935,6 +943,78 @@ function App() {
 
         <aside className="panel">
           <h2>⚙️ Video Settings</h2>
+
+          <div className="form-group" style={{ marginBottom: '1.2rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', color: '#c084fc' }}>
+              <span>✨ Engine Generation Mode</span>
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '6px' }}>
+              <button
+                type="button"
+                onClick={() => setGenerationMode('ultra')}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  border: generationMode === 'ultra' ? '2px solid #c084fc' : '1px solid rgba(255,255,255,0.1)',
+                  background: generationMode === 'ultra' ? 'rgba(192, 132, 252, 0.25)' : 'rgba(15, 23, 42, 0.6)',
+                  color: generationMode === 'ultra' ? '#ffffff' : '#94a3b8',
+                  fontSize: '0.82rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  boxShadow: generationMode === 'ultra' ? '0 0 15px rgba(192, 132, 252, 0.4)' : 'none',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                ✨ Ultra Photo Motion
+              </button>
+              <button
+                type="button"
+                onClick={() => setGenerationMode('standard')}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  border: generationMode === 'standard' ? '2px solid #c084fc' : '1px solid rgba(255,255,255,0.1)',
+                  background: generationMode === 'standard' ? 'rgba(192, 132, 252, 0.25)' : 'rgba(15, 23, 42, 0.6)',
+                  color: generationMode === 'standard' ? '#ffffff' : '#94a3b8',
+                  fontSize: '0.82rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                🎬 Standard Stock Video
+              </button>
+            </div>
+          </div>
+
+          <div className="form-group" style={{ marginBottom: '1.2rem' }}>
+            <label style={{ fontWeight: '700', color: '#e2e8f0' }}>📐 Aspect Ratio</label>
+            <CustomSelect 
+              value={aspectRatio} 
+              onChange={(val) => setAspectRatio(val)}
+              options={[
+                { value: '9:16', label: '📱 9:16 Shorts / Reels / TikTok (1080×1920)' },
+                { value: '16:9', label: '📺 16:9 Landscape YouTube (1920×1080)' },
+                { value: '1:1', label: '🔳 1:1 Instagram Square (1080×1080)' }
+              ]}
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: '1.2rem' }}>
+            <label style={{ fontWeight: '700', color: '#e2e8f0' }}>🎨 Cinematic Filter & Style</label>
+            <CustomSelect 
+              value={filterStyle} 
+              onChange={(val) => setFilterStyle(val)}
+              options={[
+                { value: 'warm_epic', label: '🟡 Warm Epic (Maharana Pratap / Historic / Warrior)' },
+                { value: 'vintage_parchment', label: '📜 Vintage Parchment (Sepia Canvas)' },
+                { value: 'dramatic_cinematic', label: '🎬 Dramatic Cinematic (Teal-Orange Movie Grade)' },
+                { value: 'none', label: '⚪ Standard / Original Colors' }
+              ]}
+            />
+          </div>
           
           <div className="form-group">
             <label>AI Voice</label>
