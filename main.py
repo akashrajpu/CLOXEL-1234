@@ -622,15 +622,30 @@ def full_process(req: VideoRequest, job_id: str):
             
             # Custom settings apply karna
             make_audio(sc["text"], a_path, req.voice_id)
-            orientation = "landscape" if req.video_type == "long" else "portrait"
-            v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random")
+            is_ultra = (req.video_type == "ultra")
+            orientation = "landscape" if (req.video_type in ["long", "ultra"]) else "portrait"
+            
+            if is_ultra:
+                try:
+                    from web_image_fetcher import fetch_web_image
+                    img_path = os.path.join(job_dir, f"photo_{i}.jpg")
+                    success = fetch_web_image(sc["keyword"], img_path)
+                    if success and os.path.exists(img_path):
+                        v_paths = [img_path]
+                    else:
+                        v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random")
+                except Exception as e_img:
+                    print(f"⚠️ Ultra image fetch fallback: {e_img}")
+                    v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random")
+            else:
+                v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random")
             
             if os.path.exists(a_path):
                 if not v_paths:
                     # Internal fail-safe visual canvas fallback if no API key/media available
                     fallback_img_path = os.path.join(job_dir, f"fallback_canvas_{i}.jpg")
                     from PIL import Image
-                    target_w, target_h = (1280, 720) if req.video_type == "long" else (720, 1280)
+                    target_w, target_h = (1280, 720) if (req.video_type in ["long", "ultra"]) else (720, 1280)
                     blank_img = Image.new('RGB', (target_w, target_h), color=(15, 10, 35))
                     blank_img.save(fallback_img_path)
                     v_paths = [fallback_img_path]
@@ -643,10 +658,10 @@ def full_process(req: VideoRequest, job_id: str):
 
         if taiyaar_scenes:
             output_file = f"acoumation_video_{job_id}.mp4"
-            # Editor ko user ki choice bhejna (font, color, bg_music)
-            target_size = (1280, 720) if req.video_type == "long" else (720, 1280)
-            adjusted_font_size = int(req.font_size * 0.7) if req.video_type == "long" else req.font_size
-            merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music) 
+            # Editor ko user ki choice bhejna (font, color, bg_music, mode)
+            target_size = (1280, 720) if (req.video_type in ["long", "ultra"]) else (720, 1280)
+            adjusted_font_size = int(req.font_size * 0.7) if (req.video_type in ["long", "ultra"]) else req.font_size
+            merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music, mode=req.video_type) 
             
             # Upload to Cloudinary
             cloudinary_url = None

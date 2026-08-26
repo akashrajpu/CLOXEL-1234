@@ -317,6 +317,106 @@ def create_multi_character_ultra_clip(
     return VideoClip(get_frame, duration=duration).set_fps(fps)
 
 
+def apply_color_filter(pil_img: Image.Image, filter_style: str = "warm_epic") -> Image.Image:
+    """Applies cinematic color grading filters to an image."""
+    img = pil_img.copy().convert("RGB")
+    if filter_style == "warm_epic":
+        enhancer = ImageEnhance.Color(img)
+        img = enhancer.enhance(1.25)
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(1.15)
+        overlay = Image.new("RGB", img.size, (255, 200, 140))
+        img = Image.blend(img, overlay, alpha=0.12)
+    elif filter_style == "vintage_parchment":
+        gray = img.convert("L")
+        sepia = ImageOps.colorize(gray, "#2e1c0c", "#ffebd6")
+        img = Image.blend(img, sepia, alpha=0.75)
+    elif filter_style == "dramatic_cinematic":
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(1.3)
+        enhancer = ImageEnhance.Color(img)
+        img = enhancer.enhance(1.1)
+    return img
+
+def create_parchment_background(size: tuple, color_theme: str = "warm") -> Image.Image:
+    """Generates a procedural vintage parchment/canvas texture background."""
+    w, h = size
+    bg = Image.new("RGB", (w, h), (235, 215, 185) if color_theme == "warm" else (220, 200, 170))
+    vignette = Image.new("L", (w, h), 255)
+    draw = ImageDraw.Draw(vignette)
+    cx, cy = w / 2, h / 2
+    max_r = math.sqrt(cx**2 + cy**2)
+    for r in range(int(max_r), 0, -10):
+        alpha = int(255 * (r / max_r)**1.8)
+        draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=min(255, alpha + 60))
+    vignette_blur = vignette.filter(ImageFilter.GaussianBlur(radius=30))
+    dark_overlay = Image.new("RGB", (w, h), (40, 25, 15))
+    bg = Image.composite(bg, dark_overlay, vignette_blur)
+    return bg
+
+def create_ultra_photo_motion_clip(
+    photo_path: str,
+    duration: float = 5.0,
+    size: tuple = (1920, 1080),
+    filter_style: str = "warm_epic",
+    fps: int = 20
+) -> VideoClip:
+    """Creates an Ultra Photo Motion Video Clip from a single photo with 3D Parallax & Cinematic Filter."""
+    w, h = size
+    print(f"🎨 [Ultra Engine] Generating 3D Photo Motion Clip from: {photo_path} (Filter: {filter_style})...")
+    
+    if not photo_path or not os.path.exists(photo_path):
+        bg_pil = create_parchment_background(size, color_theme="warm")
+        def get_fallback_frame(t):
+            return np.array(bg_pil.convert("RGB"))
+        return VideoClip(get_fallback_frame, duration=duration).set_fps(fps)
+
+    orig_pil = Image.open(photo_path).convert("RGBA")
+    
+    if remove_background:
+        try:
+            fg_pil = remove_background(orig_pil)
+        except Exception:
+            fg_pil = orig_pil
+    else:
+        fg_pil = orig_pil
+    
+    bg_pil = create_parchment_background(size, color_theme="warm")
+    fg_filtered = apply_color_filter(fg_pil.convert("RGB"), filter_style=filter_style)
+    if fg_pil.mode == "RGBA":
+        fg_filtered.putalpha(fg_pil.split()[3])
+    else:
+        fg_filtered = fg_filtered.convert("RGBA")
+    
+    target_fg_h = int(h * 0.78)
+    aspect = fg_filtered.width / fg_filtered.height
+    target_fg_w = int(target_fg_h * aspect)
+    fg_resized = fg_filtered.resize((target_fg_w, target_fg_h), Image.LANCZOS)
+    
+    def get_frame(t):
+        progress = t / duration if duration > 0 else 0
+        bg_scale = 1.0 + (0.08 * progress)
+        bg_w_scaled = int(w * bg_scale)
+        bg_h_scaled = int(h * bg_scale)
+        bg_scaled = bg_pil.resize((bg_w_scaled, bg_h_scaled), Image.BILINEAR)
+        
+        crop_x = (bg_w_scaled - w) // 2
+        crop_y = (bg_h_scaled - h) // 2
+        frame_canvas = bg_scaled.crop((crop_x, crop_y, crop_x + w, crop_y + h)).convert("RGBA")
+        
+        fg_scale = 1.0 + (0.05 * math.sin(progress * math.pi))
+        cur_fg_w = int(target_fg_w * fg_scale)
+        cur_fg_h = int(target_fg_h * fg_scale)
+        fg_cur = fg_resized.resize((cur_fg_w, cur_fg_h), Image.BILINEAR)
+        
+        fg_x = (w - cur_fg_w) // 2
+        fg_y = int((h - cur_fg_h) * 0.85) + int(10 * math.sin(progress * math.pi * 2))
+        
+        frame_canvas.paste(fg_cur, (fg_x, fg_y), mask=fg_cur)
+        return np.array(frame_canvas.convert("RGB"))
+
+    return VideoClip(get_frame, duration=duration).set_fps(fps)
+
 # =============================================================================
 # Main Export Function: merge_and_export
 # =============================================================================
@@ -344,10 +444,16 @@ def merge_and_export(
         a_clip = AudioFileClip(audio_path)
         clip_duration = a_clip.duration
         
-        if mode == "ultra" and "characters" in scene:
-            # Multi-Character Dialogue Ultra Clip
-            print(f"🎭 Scene {i+1}: Generating Multi-Character Dialogue Ultra Clip...")
-            v_clip = create_multi_character_ultra_clip(scene, clip_duration, size=target_size)
+        if mode == "ultra":
+            if "characters" in scene:
+                print(f"🎭 Scene {i+1}: Generating Multi-Character Dialogue Ultra Clip...")
+                v_clip = create_multi_character_ultra_clip(scene, clip_duration, size=target_size)
+            else:
+                video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
+                filters = ["warm_epic", "vintage_parchment", "dramatic_cinematic"]
+                filter_choice = filters[i % len(filters)]
+                print(f"✨ Scene {i+1}: Generating Ultra Animated Photo Motion Clip (Filter: {filter_choice})...")
+                v_clip = create_ultra_photo_motion_clip(video_path, clip_duration, size=target_size, filter_style=filter_choice)
         else:
             video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
             is_image = str(video_path).lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
