@@ -15,7 +15,7 @@ from video_fetcher import fetch_videos
 from ai_script import generate_daily_script
 from datetime import datetime, timedelta
 
-app = FastAPI()
+app = FastAPI(title="Cloxel AI Video Generation Engine")
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -23,11 +23,14 @@ class VideoRequest(BaseModel):
     script: str
     topic: str
     duration: int
-    font_name: str
-    text_color: str
-    voice_id: str
+    font_name: str = "BebasNeue-Regular.ttf"
+    text_color: str = "white"
+    voice_id: str = "hi-IN-MadhurNeural"
     username: str = "guest"
     clip_count: int = 0
+    mode: str = "standard"          # "standard" or "ultra" (Ultra Photo Motion Mode)
+    filter_style: str = "warm_epic" # "warm_epic", "vintage_parchment", "dramatic_cinematic"
+    aspect_ratio: str = "9:16"      # "9:16", "16:9", "1:1"
 
 class ScheduleRequest(BaseModel):
     username: str
@@ -37,7 +40,10 @@ class ScheduleRequest(BaseModel):
     clip_count: int = 0 # 0 means auto
     font_name: str = "BebasNeue-Regular.ttf"
     text_color: str = "white"
-    voice_id: str = "JBFqnCBcs6BaNtIGwgZhw"
+    voice_id: str = "hi-IN-MadhurNeural"
+    mode: str = "standard"
+    filter_style: str = "warm_epic"
+    aspect_ratio: str = "9:16"
 
 jobs = {}
 TOPICS_FILE = "topics.json"
@@ -94,9 +100,12 @@ def generate_single_video_job(topic_data):
         duration=duration,
         font_name=topic_data.get("font_name", "BebasNeue-Regular.ttf"),
         text_color=topic_data.get("text_color", "white"),
-        voice_id=topic_data.get("voice_id", "JBFqnCBcs6BaNtIGwgZhw"),
+        voice_id=topic_data.get("voice_id", "hi-IN-MadhurNeural"),
         username=username,
-        clip_count=clip_count_override
+        clip_count=clip_count_override,
+        mode=topic_data.get("mode", "standard"),
+        filter_style=topic_data.get("filter_style", "warm_epic"),
+        aspect_ratio=topic_data.get("aspect_ratio", "9:16")
     )
     
     # 3. Trigger video task immediately
@@ -118,7 +127,15 @@ def process_video_task(job_id, data: VideoRequest):
         # 1. Poora Audio ek saath generate karein
         make_audio(data.script, a_path, voice_id=data.voice_id)
         
-        # 2. Dynamic Clip Count Logic (Aapka bataya hua logic)
+        # 2. Aspect Ratio target size calculation
+        if data.aspect_ratio == "16:9":
+            target_size = (1920, 1080)
+        elif data.aspect_ratio == "1:1":
+            target_size = (1080, 1080)
+        else:
+            target_size = (1080, 1920) # 9:16 default Shorts/Reels
+
+        # 3. Dynamic Clip Count Logic
         if data.clip_count > 0:
             clip_count = data.clip_count
         else:
@@ -129,29 +146,32 @@ def process_video_task(job_id, data: VideoRequest):
             elif d <= 50: clip_count = 7
             else: clip_count = 10 
 
-        # 3. Pexels se Multiple Clips laayein
-        jobs[job_id]["status"] = f"Fetching {clip_count} clips for {d}s video..."
+        # 4. Fetch Clips or Photos
+        jobs[job_id]["status"] = f"Fetching {clip_count} media assets for {d}s video..."
         video_clips = fetch_videos(data.topic, job_id, count=clip_count)
 
         if not video_clips:
-            raise Exception("Videos download nahi ho payin")
+            raise Exception("Media assets download nahi ho payin")
 
-        # 4. Scene list taiyaar karein (Ab audio path yahan se hat gaya hai)
-        jobs[job_id]["status"] = "Master Sync Rendering..."
+        # 5. Build Scene List
+        jobs[job_id]["status"] = f"Rendering {data.mode.upper()} Video ({data.aspect_ratio})..."
         scene_list = []
         for v_path in video_clips:
             scene_list.append({
                 "video": v_path,
+                "audio": a_path,
                 "text": data.script
             })
         
-        # 5. Merge and Export (Audio path alag se pass ho raha hai)
+        # 6. Merge and Export using video_editor engine
         merge_and_export(
-            scene_list, 
-            out_path, 
-            audio_path=a_path, # FIX: Master audio track
-            font_path=f"./fonts/{data.font_name}", 
-            color=data.text_color
+            scene_list=scene_list, 
+            output_name=out_path, 
+            font_path=f"./fonts/{data.font_name}" if os.path.exists(f"./fonts/{data.font_name}") else "./fonts/Arial.ttf", 
+            color=data.text_color,
+            target_size=target_size,
+            mode=data.mode,
+            filter_style=data.filter_style
         ) 
 
         jobs[job_id] = {"status": "completed", "file": out_path}
@@ -175,12 +195,11 @@ async def schedule_topic(req: ScheduleRequest):
     
     topics.append(req.dict())
     save_topics(topics)
-    refresh_scheduler() # Reload jobs with new target time
+    refresh_scheduler()
     return {"status": "Topic scheduled successfully for daily videos", "topic": req.topic, "runs_at_approx": f"20 mins before {req.target_time}"}
 
 @app.get("/user_videos/{username}")
 async def get_user_videos(username: str):
-    # Retrieve all jobs belonging to this username
     user_jobs = []
     for j_id, j_data in jobs.items():
         if j_data.get("username") == username:
@@ -200,5 +219,4 @@ async def download(job_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    # Local Network (Phone) ke liye
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -78,7 +78,12 @@ def create_dynamic_animated_text(
     fps = 10
     total_frames = max(int(duration * fps), 1)
     
-    full_text = full_text.upper().strip()
+    has_devanagari = any('\u0900' <= char <= '\u097F' for char in full_text)
+    if not has_devanagari:
+        full_text = full_text.upper().strip()
+    else:
+        full_text = full_text.strip()
+        
     words = full_text.split()
     
     target_width = int(size[0] * 0.86)
@@ -90,16 +95,41 @@ def create_dynamic_animated_text(
     chosen_pos = random.choice(POSITIONS) if text_position == "random" else text_position
 
     def load_font(fs):
+        devanagari_font_candidates = [
+            "./fonts/NotoSansDevanagari-Bold.ttf",
+            "./fonts/NotoSansDevanagari-Regular.ttf",
+            "/System/Library/Fonts/Supplemental/ITFDevanagari.ttc",
+            "/System/Library/Fonts/Supplemental/DevanagariMT.ttc",
+            "/System/Library/Fonts/Supplemental/Devanagari Sangam MN.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf"
+        ]
+        
+        if has_devanagari:
+            for df_path in devanagari_font_candidates:
+                if os.path.exists(df_path):
+                    try:
+                        return ImageFont.truetype(df_path, fs)
+                    except Exception:
+                        pass
+                        
         try:
             return ImageFont.truetype(font_path, fs)
         except Exception:
-            try:
-                return ImageFont.truetype("arial.ttf", fs)
-            except Exception:
+            pass
+
+        fallback_candidates = devanagari_font_candidates + [
+            "arial.ttf",
+            "/Library/Fonts/Arial.ttf",
+            "/System/Library/Fonts/Supplemental/Arial.ttf"
+        ]
+        for font_candidate in fallback_candidates:
+            if os.path.exists(font_candidate):
                 try:
-                    return ImageFont.truetype("/Library/Fonts/Arial.ttf", fs)
+                    return ImageFont.truetype(font_candidate, fs)
                 except Exception:
-                    return ImageFont.load_default()
+                    pass
+                    
+        return ImageFont.load_default()
 
     cache = {'t': -1, 'img': None}
 

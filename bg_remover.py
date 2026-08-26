@@ -20,12 +20,14 @@ from PIL import Image, ImageColor, ImageFilter
 import numpy as np
 from collections import deque
 
-# Load dotenv if available
+# Load dotenv if available locally
 try:
     from dotenv import load_dotenv
-    load_dotenv()
-    load_dotenv("config.env")
-except ImportError:
+    if os.path.exists("config.env"):
+        load_dotenv("config.env")
+    elif os.path.exists(".env"):
+        load_dotenv(".env")
+except Exception:
     pass
 
 try:
