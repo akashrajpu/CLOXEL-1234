@@ -6,3 +6,8 @@ python-multipart
 python-dotenv
 gunicorn
 numpy
+cloudinary
+moviepy
+apscheduler
+edge-tts
+pydantic
