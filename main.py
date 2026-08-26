@@ -1401,7 +1401,8 @@ async def login_user(req: UserLogin):
     
     query = [
         {"email": identifier_regex},
-        {"email_or_mobile": identifier_regex}
+        {"email_or_mobile": identifier_regex},
+        {"internal_id": raw_identifier}
     ]
     if clean_phone:
         query.append({"phone": clean_phone})
@@ -1410,10 +1411,20 @@ async def login_user(req: UserLogin):
     user = users_collection.find_one({"$or": query})
     
     if not user:
-        raise HTTPException(status_code=400, detail="Invalid credentials")
+        raise HTTPException(status_code=400, detail="⚠️ Account Not Found: Please check your Email / Mobile Number or click Register.")
         
-    if not pwd_context.verify(req.password, user["password_hash"]):
-        raise HTTPException(status_code=400, detail="Invalid credentials")
+    stored_hash = user.get("password_hash") or user.get("password")
+    if not stored_hash:
+        raise HTTPException(status_code=400, detail="⚠️ Account password configuration issue. Please Register a new account.")
+
+    is_valid = False
+    try:
+        is_valid = pwd_context.verify(req.password, stored_hash)
+    except Exception:
+        is_valid = (req.password == stored_hash)
+
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="⚠️ Incorrect Password: Please check your password and try again.")
         
     return {"message": "Login successful", "internal_id": user["internal_id"]}
 
