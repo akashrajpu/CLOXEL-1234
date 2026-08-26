@@ -397,46 +397,55 @@ def create_ultra_photo_motion_clip(
             return np.array(bg_pil.convert("RGB"))
         return VideoClip(get_fallback_frame, duration=duration).set_fps(fps)
 
+    # 1. Background Layer: Full original topic photo (NO BG REMOVAL, 100% Intact Topic Backdrop Photo)
+    bg_pil = apply_color_filter(orig_pil.convert("RGB"), filter_style=filter_style)
+    aspect_bg = bg_pil.width / bg_pil.height
+    canvas_aspect = w / h
+    if aspect_bg > canvas_aspect:
+        bg_h_fit = h
+        bg_w_fit = int(h * aspect_bg)
+    else:
+        bg_w_fit = w
+        bg_h_fit = int(w / aspect_bg)
+    bg_pil = bg_pil.resize((bg_w_fit, bg_h_fit), Image.LANCZOS)
+
+    # 2. Foreground Layer: Selective Character Cutout (Layered on top of Topic Photo)
+    has_cutout = False
+    fg_resized = None
     if remove_background:
         try:
             fg_pil = remove_background(orig_pil)
+            if fg_pil.mode == "RGBA" and fg_pil.getextrema()[3][0] < 255:
+                fg_filtered = apply_color_filter(fg_pil.convert("RGB"), filter_style=filter_style)
+                fg_filtered.putalpha(fg_pil.split()[3])
+                target_fg_h = int(h * 0.80)
+                aspect_fg = fg_filtered.width / fg_filtered.height
+                target_fg_w = int(target_fg_h * aspect_fg)
+                fg_resized = fg_filtered.resize((target_fg_w, target_fg_h), Image.LANCZOS)
+                has_cutout = True
         except Exception:
-            fg_pil = orig_pil
-    else:
-        fg_pil = orig_pil
-    
-    bg_pil = create_parchment_background(size, color_theme="warm")
-    fg_filtered = apply_color_filter(fg_pil.convert("RGB"), filter_style=filter_style)
-    if fg_pil.mode == "RGBA":
-        fg_filtered.putalpha(fg_pil.split()[3])
-    else:
-        fg_filtered = fg_filtered.convert("RGBA")
-    
-    target_fg_h = int(h * 0.78)
-    aspect = fg_filtered.width / fg_filtered.height
-    target_fg_w = int(target_fg_h * aspect)
-    fg_resized = fg_filtered.resize((target_fg_w, target_fg_h), Image.LANCZOS)
-    
+            has_cutout = False
+
     def get_frame(t):
         progress = t / duration if duration > 0 else 0
         bg_scale = 1.0 + (0.08 * progress)
-        bg_w_scaled = int(w * bg_scale)
-        bg_h_scaled = int(h * bg_scale)
+        bg_w_scaled = int(bg_w_fit * bg_scale)
+        bg_h_scaled = int(bg_h_fit * bg_scale)
         bg_scaled = bg_pil.resize((bg_w_scaled, bg_h_scaled), Image.BILINEAR)
         
         crop_x = (bg_w_scaled - w) // 2
         crop_y = (bg_h_scaled - h) // 2
         frame_canvas = bg_scaled.crop((crop_x, crop_y, crop_x + w, crop_y + h)).convert("RGBA")
         
-        fg_scale = 1.0 + (0.05 * math.sin(progress * math.pi))
-        cur_fg_w = int(target_fg_w * fg_scale)
-        cur_fg_h = int(target_fg_h * fg_scale)
-        fg_cur = fg_resized.resize((cur_fg_w, cur_fg_h), Image.BILINEAR)
-        
-        fg_x = (w - cur_fg_w) // 2
-        fg_y = int((h - cur_fg_h) * 0.85) + int(10 * math.sin(progress * math.pi * 2))
-        
-        frame_canvas.paste(fg_cur, (fg_x, fg_y), mask=fg_cur)
+        if has_cutout and fg_resized:
+            fg_scale = 1.0 + (0.04 * math.sin(progress * math.pi))
+            cur_fg_w = int(fg_resized.width * fg_scale)
+            cur_fg_h = int(fg_resized.height * fg_scale)
+            fg_cur = fg_resized.resize((cur_fg_w, cur_fg_h), Image.BILINEAR)
+            fg_x = (w - cur_fg_w) // 2
+            fg_y = int((h - cur_fg_h) * 0.85) + int(8 * math.sin(progress * math.pi * 2))
+            frame_canvas.paste(fg_cur, (fg_x, fg_y), mask=fg_cur)
+            
         return np.array(frame_canvas.convert("RGB"))
 
     return VideoClip(get_frame, duration=duration).set_fps(fps)
