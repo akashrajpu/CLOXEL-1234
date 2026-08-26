@@ -356,15 +356,16 @@ def create_parchment_background(size: tuple, color_theme: str = "warm") -> Image
 
 def create_ultra_photo_motion_clip(
     photo_path: str,
+    fg_photo_path: str = None,
     duration: float = 5.0,
     size: tuple = (1920, 1080),
     filter_style: str = "warm_epic",
     cutout_pos: str = "left",
     fps: int = 20
 ) -> VideoClip:
-    """Creates an Ultra Photo Motion Video Clip from a single photo with 3D Parallax & Background Motion Filter."""
+    """Creates an Ultra Photo Motion Video Clip with a separate background photo and a different character cutout photo."""
     w, h = size
-    print(f"🎨 [Ultra Engine] Generating 3D Photo Motion Clip from: {photo_path} (Filter: {filter_style}, Side: {cutout_pos.upper()})...")
+    print(f"🎨 [Ultra Engine] Generating 3D Dual-Photo Motion Clip (BG: {photo_path}, FG: {fg_photo_path}, Filter: {filter_style}, Side: {cutout_pos.upper()})...")
     
     if not photo_path or not os.path.exists(photo_path):
         bg_pil = create_parchment_background(size, color_theme="warm")
@@ -372,9 +373,9 @@ def create_ultra_photo_motion_clip(
             return np.array(bg_pil.convert("RGB"))
         return VideoClip(get_fallback_frame, duration=duration).set_fps(fps)
 
+    # 1. Background Photo (Layer 1 - 0% BG Removal)
     is_video_file = str(photo_path).lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm'))
     orig_pil = None
-    
     if is_video_file and os.path.exists(photo_path):
         try:
             v_temp = VideoFileClip(photo_path)
@@ -383,13 +384,11 @@ def create_ultra_photo_motion_clip(
             orig_pil = Image.fromarray(raw_frame).convert("RGBA")
             v_temp.close()
         except Exception as e_v:
-            print(f"⚠️ Video frame extraction fallback: {e_v}")
             orig_pil = None
     else:
         try:
             orig_pil = Image.open(photo_path).convert("RGBA")
-        except Exception as e_img:
-            print(f"⚠️ Image open warning: {e_img}")
+        except Exception:
             orig_pil = None
 
     if orig_pil is None:
@@ -398,7 +397,6 @@ def create_ultra_photo_motion_clip(
             return np.array(bg_pil.convert("RGB"))
         return VideoClip(get_fallback_frame, duration=duration).set_fps(fps)
 
-    # 1. Background Layer: Full original topic photo (NO BG REMOVAL, 100% Intact Topic Backdrop Photo)
     bg_pil = apply_color_filter(orig_pil.convert("RGB"), filter_style=filter_style)
     aspect_bg = bg_pil.width / bg_pil.height
     canvas_aspect = w / h
@@ -410,12 +408,15 @@ def create_ultra_photo_motion_clip(
         bg_h_fit = int(w / aspect_bg)
     bg_pil = bg_pil.resize((bg_w_fit, bg_h_fit), Image.LANCZOS)
 
-    # 2. Foreground Layer: Selective Character Cutout (Layered on top of Topic Photo)
+    # 2. Foreground Character Cutout Photo (Layer 2 - DIFFERENT Image with BG Removal)
     has_cutout = False
     fg_resized = None
-    if remove_background:
+    cutout_src_path = fg_photo_path if (fg_photo_path and os.path.exists(fg_photo_path)) else photo_path
+    
+    if remove_background and cutout_src_path:
         try:
-            fg_pil = remove_background(orig_pil)
+            char_orig = Image.open(cutout_src_path).convert("RGBA")
+            fg_pil = remove_background(char_orig)
             if fg_pil.mode == "RGBA" and fg_pil.getextrema()[3][0] < 255:
                 fg_filtered = apply_color_filter(fg_pil.convert("RGB"), filter_style=filter_style)
                 fg_filtered.putalpha(fg_pil.split()[3])
@@ -424,7 +425,8 @@ def create_ultra_photo_motion_clip(
                 target_fg_w = int(target_fg_h * aspect_fg)
                 fg_resized = fg_filtered.resize((target_fg_w, target_fg_h), Image.LANCZOS)
                 has_cutout = True
-        except Exception:
+        except Exception as e_cut:
+            print(f"⚠️ Character cutout extraction skip: {e_cut}")
             has_cutout = False
 
     def get_frame(t):
@@ -499,12 +501,14 @@ def merge_and_export(
                 print(f"🎭 Scene {i+1}: Generating Multi-Character Dialogue Ultra Clip...")
                 v_clip = create_multi_character_ultra_clip(scene, clip_duration, size=target_size)
             else:
-                video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
+                video_paths = scene['video'] if isinstance(scene['video'], list) else [scene['video']]
+                bg_path = video_paths[0]
+                fg_path = video_paths[1] if len(video_paths) > 1 else None
                 filters = ["warm_epic", "vintage_parchment", "dramatic_cinematic"]
                 filter_choice = filters[i % len(filters)]
                 side_pos = "left" if i % 2 == 0 else "right"
-                print(f"✨ Scene {i+1}: Generating Ultra Animated Photo Motion Clip (Filter: {filter_choice}, Side: {side_pos.upper()})...")
-                v_clip = create_ultra_photo_motion_clip(video_path, clip_duration, size=target_size, filter_style=filter_choice, cutout_pos=side_pos)
+                print(f"✨ Scene {i+1}: Generating Ultra Dual-Photo Motion Clip (Filter: {filter_choice}, Side: {side_pos.upper()})...")
+                v_clip = create_ultra_photo_motion_clip(bg_path, fg_photo_path=fg_path, duration=clip_duration, size=target_size, filter_style=filter_choice, cutout_pos=side_pos)
         else:
             video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
             is_image = str(video_path).lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))

@@ -632,11 +632,23 @@ def full_process(req: VideoRequest, job_id: str):
             
             if is_ultra and fetch_web_image:
                 try:
-                    img_path = os.path.join(job_dir, f"photo_{i}.jpg")
-                    success = fetch_web_image(sc["keyword"], img_path)
-                    if success and os.path.exists(img_path):
-                        v_paths = [img_path]
-                    else:
+                    bg_img_path = os.path.join(job_dir, f"bg_photo_{i}.jpg")
+                    fg_img_path = os.path.join(job_dir, f"fg_photo_{i}.jpg")
+                    
+                    bg_query = f"{sc['keyword']} background scene"
+                    fg_query = f"{sc['keyword']} warrior hero character"
+                    
+                    print(f"📥 [Ultra Engine] Fetching Dual Photos for Scene {i+1}: BG='{bg_query}', FG='{fg_query}'...")
+                    fetch_web_image(bg_query, bg_img_path)
+                    fetch_web_image(fg_query, fg_img_path)
+                    
+                    v_paths = []
+                    if os.path.exists(bg_img_path):
+                        v_paths.append(bg_img_path)
+                    if os.path.exists(fg_img_path):
+                        v_paths.append(fg_img_path)
+                        
+                    if not v_paths:
                         v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random")
                 except Exception as e_img:
                     print(f"⚠️ Ultra image fetch fallback: {e_img}")
