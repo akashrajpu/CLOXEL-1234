@@ -91,9 +91,10 @@ def create_dynamic_animated_text(
     max_font_size = int(size[1] * 0.08) if size[0] > size[1] else int(size[0] * 0.09)
     user_font_size = min(font_size, max_font_size) if font_size > 50 else max_font_size
 
-    # Choose random color & position per scene if specified
+    # Choose random color & position per scene if specified (Picked ONCE per scene for 100% stability)
     highlight_color = random.choice(COLOR_PALETTES) if text_color == "random" else text_color
     chosen_pos = random.choice(POSITIONS) if text_position == "random" else text_position
+    ultra_side_mode = random.choice(["side_left", "side_right", "center"]) if is_ultra_mode else "center"
 
     def load_font(fs):
         devanagari_font_candidates = [
@@ -186,7 +187,7 @@ def create_dynamic_animated_text(
         line_spacing = int(active_font.size * 1.2)
         total_h = len(lines) * line_spacing
         
-        # Calculate Y-position based on chosen_pos
+        # Calculate Y-position based on chosen_pos (STABLE)
         if chosen_pos == "top":
             y_text = int(size[1] * 0.12)
         elif chosen_pos == "bottom":
@@ -194,22 +195,18 @@ def create_dynamic_animated_text(
         else: # center
             y_text = (size[1] - total_h) / 2
         
-        # Single Theme Color per Scene (Clean & Professional, NO rainbow mixing on same line)
+        # Single Theme Color per Scene (Clean & Professional)
         scene_theme_color = highlight_color if (highlight_color and highlight_color != "random") else "#FFD700"
         
-        # Fast Smooth Slide-in Entrance for Subtitles (0s to 0.2s completion)
-        entrance_t = min(1.0, (t % 1.5) * 5.0) # 0.2s smooth completion
-        slide_x_offset = int((1.0 - math.pow(entrance_t, 2)) * size[0] * 0.08)
+        # 100% Rock-Solid Fixed Alignment (ZERO SHAKING / ZERO VIBRATION)
+        # Fast smooth 0.2s slide entrance at start of scene clip only!
+        slide_progress = min(1.0, t * 5.0) # 0.2s completion
+        slide_x_offset = int((1.0 - math.pow(slide_progress, 2)) * size[0] * 0.08)
         
-        # Determine fixed position per scene chunk (Fixed left or right margin, NO shaking)
-        if is_ultra_mode:
-            rand_pos_mode = random.choice(["side_left", "side_right", "center"])
-            if rand_pos_mode == "side_left":
-                base_x_start = int(size[0] * 0.08) - slide_x_offset
-            elif rand_pos_mode == "side_right":
-                base_x_start = int(size[0] * 0.42) + slide_x_offset
-            else:
-                base_x_start = None
+        if is_ultra_mode and ultra_side_mode == "side_left":
+            base_x_start = int(size[0] * 0.08) - slide_x_offset
+        elif is_ultra_mode and ultra_side_mode == "side_right":
+            base_x_start = int(size[0] * 0.42) + slide_x_offset
         else:
             base_x_start = None
 
@@ -430,6 +427,27 @@ def apply_color_filter(pil_img: Image.Image, filter_style: str = "warm_epic") ->
         img = enhancer.enhance(1.10)
         overlay = Image.new("RGB", img.size, (255, 140, 0))
         img = Image.blend(img, overlay, alpha=0.16)
+    elif filter_style == "emerald_fantasy":
+        enhancer = ImageEnhance.Color(img)
+        img = enhancer.enhance(1.35)
+        gray = img.convert("L")
+        emerald = ImageOps.colorize(gray, "#042014", "#a7f3d0")
+        img = Image.blend(img, emerald, alpha=0.45)
+    elif filter_style == "crimson_warrior":
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(1.40)
+        gray = img.convert("L")
+        crimson = ImageOps.colorize(gray, "#2b0404", "#fca5a5")
+        img = Image.blend(img, crimson, alpha=0.50)
+    elif filter_style == "vintage_sepia_film":
+        gray = img.convert("L")
+        sepia = ImageOps.colorize(gray, "#3b220b", "#fde68a")
+        img = Image.blend(img, sepia, alpha=0.70)
+    elif filter_style == "ice_blue_cyber":
+        enhancer = ImageEnhance.Color(img)
+        img = enhancer.enhance(1.50)
+        overlay = Image.new("RGB", img.size, (56, 189, 248))
+        img = Image.blend(img, overlay, alpha=0.18)
 
     # 1. Old Paper Scratches & Vintage Parchment Texture Overlay
     paper_tex = create_parchment_background((w, h), color_theme="warm")
@@ -652,7 +670,8 @@ def merge_and_export(
                 filters = [
                     "warm_epic", "cyber_teal_orange", "vintage_parchment", 
                     "royal_gold", "dramatic_cinematic", "dark_gothic", 
-                    "neon_cyberpunk", "golden_sunburst"
+                    "neon_cyberpunk", "golden_sunburst", "emerald_fantasy", 
+                    "crimson_warrior", "vintage_sepia_film", "ice_blue_cyber"
                 ]
                 filter_choice = random.choice(filters)
                 side_pos = "left" if i % 2 == 0 else "right"
