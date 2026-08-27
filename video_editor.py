@@ -66,17 +66,18 @@ def create_dynamic_animated_text(
     full_text: str,
     size: tuple,
     duration: float,
-    font_path: str,
+    font_path: str = "./fonts/Arial.ttf",
     font_size: int = 220,
+    text_color: str = "random",
     text_position: str = "random",
-    text_color: str = "random"
-):
+    fps: int = 20,
+    is_ultra_mode: bool = False
+) -> VideoClip:
     """
-    Renders subtitles with dynamic random positions (Top / Center / Bottom) and 
-    colorful highlight animations (Yellow / Cyan / Pink / Green / Amber) across scenes.
+    Generates dynamic multi-color subtitles. Ultra Mode enables keyword sizing & side alignment.
     """
-    fps = 10
-    total_frames = max(int(duration * fps), 1)
+    total_frames = int(duration * fps)
+    if total_frames <= 0: total_frames = 1
     
     has_devanagari = any('\u0900' <= char <= '\u097F' for char in full_text)
     if not has_devanagari:
@@ -193,12 +194,15 @@ def create_dynamic_animated_text(
         else: # center
             y_text = (size[1] - total_h) / 2
         
-        # Randomize subtitle placement per scene chunk (Top Left / Top Right / Center / Bottom)
-        rand_pos_mode = random.choice(["side_left", "side_right", "center"])
-        if rand_pos_mode == "side_left":
-            x_align_offset = int(size[0] * 0.08)
-        elif rand_pos_mode == "side_right":
-            x_align_offset = int(size[0] * 0.45)
+        # Multi-color & side alignment ONLY for Ultra Mode!
+        if is_ultra_mode:
+            rand_pos_mode = random.choice(["side_left", "side_right", "center"])
+            if rand_pos_mode == "side_left":
+                x_align_offset = int(size[0] * 0.08)
+            elif rand_pos_mode == "side_right":
+                x_align_offset = int(size[0] * 0.45)
+            else:
+                x_align_offset = None
         else:
             x_align_offset = None
 
@@ -218,16 +222,18 @@ def create_dynamic_animated_text(
                 current_x = (size[0] - line_total_w) / 2
             
             for w in line_words:
-                is_bold_keyword = (len(w) > 4 or w[0].isupper())
-                w_font = load_font(int(user_font_size * 1.15)) if is_bold_keyword else active_font
-                
-                # Active word highlight color & multi-color typography
-                if local_word_count == target_local_idx:
-                    color = highlight_color
-                elif is_bold_keyword:
-                    color = color_palette[local_word_count % len(color_palette)]
+                if is_ultra_mode:
+                    is_bold_keyword = (len(w) > 4 or w[0].isupper())
+                    w_font = load_font(int(user_font_size * 1.15)) if is_bold_keyword else active_font
+                    if local_word_count == target_local_idx:
+                        color = highlight_color
+                    elif is_bold_keyword:
+                        color = color_palette[local_word_count % len(color_palette)]
+                    else:
+                        color = "#FFFFFF"
                 else:
-                    color = "#FFFFFF"
+                    w_font = active_font
+                    color = highlight_color if local_word_count <= target_local_idx else "white"
                 
                 # Drop shadow & bold text outline
                 draw.text((current_x + shadow_offset, y_text + shadow_offset), w, font=w_font, fill=(0, 0, 0, 240))
@@ -629,7 +635,8 @@ def merge_and_export(
             font_path=font_path,
             font_size=font_size,
             text_position="random",
-            text_color="random"
+            text_color="random",
+            is_ultra_mode=(mode == "ultra")
         )
         
         scene_combined = CompositeVideoClip([v_clip, txt_clip.set_position('center')])
