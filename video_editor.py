@@ -189,26 +189,51 @@ def create_dynamic_animated_text(
         if chosen_pos == "top":
             y_text = int(size[1] * 0.12)
         elif chosen_pos == "bottom":
-            y_text = size[1] - total_h - int(size[1] * 0.12)
+            y_text = size[1] - total_h - int(size[1] * 0.14)
         else: # center
             y_text = (size[1] - total_h) / 2
         
+        # Randomize subtitle placement per scene chunk (Top Left / Top Right / Center / Bottom)
+        rand_pos_mode = random.choice(["side_left", "side_right", "center"])
+        if rand_pos_mode == "side_left":
+            x_align_offset = int(size[0] * 0.08)
+        elif rand_pos_mode == "side_right":
+            x_align_offset = int(size[0] * 0.45)
+        else:
+            x_align_offset = None
+
         local_word_count = 0
-        shadow_offset = max(3, int(active_font.size * 0.04))
+        shadow_offset = max(3, int(active_font.size * 0.05))
+        color_palette = ["#FFD700", "#00FFFF", "#34D399", "#FF5722", "#E0E7FF"]
         
         for line_words in lines:
             space_bbox = draw.textbbox((0, 0), " ", font=active_font)
             space_w = space_bbox[2] - space_bbox[0]
             
             line_total_w = sum((draw.textbbox((0, 0), w, font=active_font)[2] - draw.textbbox((0, 0), w, font=active_font)[0]) for w in line_words) + space_w * (len(line_words) - 1)
-            current_x = (size[0] - line_total_w) / 2
+            
+            if x_align_offset is not None:
+                current_x = x_align_offset
+            else:
+                current_x = (size[0] - line_total_w) / 2
             
             for w in line_words:
-                color = highlight_color if local_word_count <= target_local_idx else "white"
-                draw.text((current_x + shadow_offset, y_text + shadow_offset), w, font=active_font, fill=(0, 0, 0, 240))
-                draw.text((current_x, y_text), w, font=active_font, fill=color)
+                is_bold_keyword = (len(w) > 4 or w[0].isupper())
+                w_font = load_font(int(user_font_size * 1.15)) if is_bold_keyword else active_font
                 
-                w_bbox = draw.textbbox((0, 0), w, font=active_font)
+                # Active word highlight color & multi-color typography
+                if local_word_count == target_local_idx:
+                    color = highlight_color
+                elif is_bold_keyword:
+                    color = color_palette[local_word_count % len(color_palette)]
+                else:
+                    color = "#FFFFFF"
+                
+                # Drop shadow & bold text outline
+                draw.text((current_x + shadow_offset, y_text + shadow_offset), w, font=w_font, fill=(0, 0, 0, 240))
+                draw.text((current_x, y_text), w, font=w_font, fill=color)
+                
+                w_bbox = draw.textbbox((0, 0), w, font=w_font)
                 w_w = w_bbox[2] - w_bbox[0]
                 current_x += w_w + space_w
                 local_word_count += 1
@@ -514,19 +539,19 @@ def create_ultra_photo_motion_clip(
         light_pulse = 1.0 + (0.09 * math.sin(progress * math.pi * 2))
         frame_canvas = ImageEnhance.Brightness(frame_canvas.convert("RGB")).enhance(light_pulse).convert("RGBA")
         
-        # Character Cutout with Parallax Motion & Side Left/Right Positioning
+        # Character Cutout strictly grounded to bottom border (Never floats up, 100% Bottom Grounded)
         if has_cutout and fg_resized:
-            fg_scale = 1.0 + (0.05 * math.sin(progress * math.pi))
+            fg_scale = 1.0 + (0.03 * math.sin(progress * math.pi))
             cur_fg_w = int(fg_resized.width * fg_scale)
             cur_fg_h = int(fg_resized.height * fg_scale)
             fg_cur = fg_resized.resize((cur_fg_w, cur_fg_h), Image.BILINEAR)
             
             if cutout_pos == "right":
-                fg_x = w - cur_fg_w - int(w * 0.05)
+                fg_x = w - cur_fg_w
             else: # left
-                fg_x = int(w * 0.05)
+                fg_x = 0
                 
-            fg_y = int(h - cur_fg_h) + int(8 * math.sin(progress * math.pi * 2))
+            fg_y = h - cur_fg_h # 100% Flush Bottom Alignment
             frame_canvas.paste(fg_cur, (fg_x, fg_y), mask=fg_cur)
             
         return np.array(frame_canvas.convert("RGB"))
