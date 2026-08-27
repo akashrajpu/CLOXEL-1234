@@ -635,18 +635,20 @@ def full_process(req: VideoRequest, job_id: str):
                     bg_img_path = os.path.join(job_dir, f"bg_photo_{i}.jpg")
                     fg_img_path = os.path.join(job_dir, f"fg_photo_{i}.jpg")
                     
-                    main_topic = req.topic if req.topic else "cinematic hero"
-                    sc_kw = sc.get('keyword', '').strip()
+                    main_topic = req.topic if req.topic else "hero warrior"
+                    scene_text = sc.get('text', '')
+                    scene_kw = sc.get('keyword', '').strip()
                     
-                    if sc_kw and len(sc_kw.split()) <= 3 and sc_kw.lower() not in ["jagmagate", "holographic", "bhavishya", "pehla", "teesra", "doosra"]:
-                        search_topic = f"{main_topic} {sc_kw}"
-                    else:
-                        search_topic = main_topic
+                    # Extract script-specific terms from scene text & keywords
+                    scene_specific = scene_kw if (scene_kw and len(scene_kw.split()) <= 4) else ""
+                    if not scene_specific and scene_text:
+                        words = [w for w in scene_text.split() if len(w) > 3][:3]
+                        scene_specific = " ".join(words)
                         
-                    bg_query = f"{search_topic} landscape background wallpaper"
-                    fg_query = f"{search_topic} hero warrior portrait"
+                    bg_query = f"{main_topic} {scene_specific} landscape wallpaper photo".strip()
+                    fg_query = f"{main_topic} {scene_specific} character hero portrait".strip()
                     
-                    print(f"📥 [Ultra Engine] Fetching Dual Photos for Scene {i+1}: BG='{bg_query}', FG='{fg_query}'...")
+                    print(f"📥 [Ultra Script Engine] Fetching Scene {i+1} Dual Assets: BG='{bg_query}', FG='{fg_query}'...")
                     fetch_web_image(bg_query, bg_img_path)
                     fetch_web_image(fg_query, fg_img_path)
                     
@@ -656,10 +658,15 @@ def full_process(req: VideoRequest, job_id: str):
                     if os.path.exists(fg_img_path):
                         v_paths.append(fg_img_path)
                         
-                    if not v_paths:
-                        v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random")
+                    if not v_paths or any(w in scene_specific.lower() for w in ["battle", "war", "action", "fight", "army"]):
+                        vid_list = fetch_videos(f"{main_topic} {scene_specific}", v_path, orientation=orientation, category=req.category or "Random")
+                        if vid_list and os.path.exists(vid_list[0]):
+                            if not v_paths:
+                                v_paths = vid_list
+                            else:
+                                v_paths.append(vid_list[0])
                 except Exception as e_img:
-                    print(f"⚠️ Ultra image fetch fallback: {e_img}")
+                    print(f"⚠️ Ultra script image fetch fallback: {e_img}")
                     v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random")
             else:
                 v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random")
