@@ -194,21 +194,27 @@ def create_dynamic_animated_text(
         else: # center
             y_text = (size[1] - total_h) / 2
         
-        # Multi-color & side alignment ONLY for Ultra Mode!
+        # Single Theme Color per Scene (Clean & Professional, NO rainbow mixing on same line)
+        scene_theme_color = highlight_color if (highlight_color and highlight_color != "random") else "#FFD700"
+        
+        # Fast Smooth Slide-in Entrance for Subtitles (0s to 0.2s completion)
+        entrance_t = min(1.0, (t % 1.5) * 5.0) # 0.2s smooth completion
+        slide_x_offset = int((1.0 - math.pow(entrance_t, 2)) * size[0] * 0.08)
+        
+        # Determine fixed position per scene chunk (Fixed left or right margin, NO shaking)
         if is_ultra_mode:
             rand_pos_mode = random.choice(["side_left", "side_right", "center"])
             if rand_pos_mode == "side_left":
-                x_align_offset = int(size[0] * 0.08)
+                base_x_start = int(size[0] * 0.08) - slide_x_offset
             elif rand_pos_mode == "side_right":
-                x_align_offset = int(size[0] * 0.45)
+                base_x_start = int(size[0] * 0.42) + slide_x_offset
             else:
-                x_align_offset = None
+                base_x_start = None
         else:
-            x_align_offset = None
+            base_x_start = None
 
         local_word_count = 0
         shadow_offset = max(3, int(active_font.size * 0.05))
-        color_palette = ["#FFD700", "#00FFFF", "#34D399", "#FF5722", "#E0E7FF"]
         
         for line_words in lines:
             space_bbox = draw.textbbox((0, 0), " ", font=active_font)
@@ -216,21 +222,24 @@ def create_dynamic_animated_text(
             
             line_total_w = sum((draw.textbbox((0, 0), w, font=active_font)[2] - draw.textbbox((0, 0), w, font=active_font)[0]) for w in line_words) + space_w * (len(line_words) - 1)
             
-            if x_align_offset is not None:
-                current_x = x_align_offset
+            if base_x_start is not None:
+                current_x = base_x_start
             else:
                 current_x = (size[0] - line_total_w) / 2
             
             for w in line_words:
                 if is_ultra_mode:
-                    is_bold_keyword = (len(w) > 4 or w[0].isupper())
-                    w_font = load_font(int(user_font_size * 1.15)) if is_bold_keyword else active_font
+                    # Photo #2 Style: Important keywords larger & bold, normal words regular
+                    is_bold_keyword = (len(w) > 4 or w[0].isupper() or local_word_count == target_local_idx)
+                    w_font = load_font(int(user_font_size * 1.25)) if is_bold_keyword else load_font(int(user_font_size * 0.90))
+                    
+                    # Single theme color per scene: Active spoken word gets highlight color, others get clean white
                     if local_word_count == target_local_idx:
-                        color = highlight_color
+                        color = scene_theme_color
                     elif is_bold_keyword:
-                        color = color_palette[local_word_count % len(color_palette)]
+                        color = "#FFFFFF" # Clean White for keywords (matching Photo #2)
                     else:
-                        color = "#FFFFFF"
+                        color = "#E0E0E0" # Light Silver for normal words
                 else:
                     w_font = active_font
                     color = highlight_color if local_word_count <= target_local_idx else "white"
@@ -635,17 +644,21 @@ def merge_and_export(
             else:
                 video_paths = scene['video'] if isinstance(scene['video'], list) else [scene['video']]
                 bg_path = video_paths[0]
-                fg_path = video_paths[1] if len(video_paths) > 1 else None
+                
+                # Character Cutout Frequency: Only 2 to 3 scenes in a video have character cutouts!
+                show_cutout = (i % 2 == 0) and (i < 6)
+                fg_path = video_paths[1] if (show_cutout and len(video_paths) > 1) else None
+                
                 filters = [
                     "warm_epic", "cyber_teal_orange", "vintage_parchment", 
                     "royal_gold", "dramatic_cinematic", "dark_gothic", 
                     "neon_cyberpunk", "golden_sunburst"
                 ]
-                filter_choice = filters[i % len(filters)]
+                filter_choice = random.choice(filters)
                 side_pos = "left" if i % 2 == 0 else "right"
                 motions = ["zoom_in", "zoom_out", "pan_right", "pan_left", "diagonal_fast", "spiral_zoom"]
-                motion_choice = motions[i % len(motions)]
-                print(f"✨ Scene {i+1}: Generating Ultra Dual-Photo Motion Clip (Filter: {filter_choice}, Motion: {motion_choice.upper()}, Side: {side_pos.upper()})...")
+                motion_choice = random.choice(motions)
+                print(f"✨ Scene {i+1}: Generating Ultra Motion Clip (Filter: {filter_choice}, Motion: {motion_choice.upper()}, Cutout: {show_cutout}, Side: {side_pos.upper()})...")
                 v_clip = create_ultra_photo_motion_clip(bg_path, fg_photo_path=fg_path, duration=clip_duration, size=target_size, filter_style=filter_choice, cutout_pos=side_pos, motion_type=motion_choice)
         else:
             video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
