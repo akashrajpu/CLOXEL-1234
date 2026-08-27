@@ -376,7 +376,7 @@ def generate_ink_brush_mask(size: tuple) -> Image.Image:
     return mask.filter(ImageFilter.GaussianBlur(radius=6))
 
 def apply_color_filter(pil_img: Image.Image, filter_style: str = "warm_epic") -> Image.Image:
-    """Applies cinematic color grading LUTs, Film Grain, Dust, Haze Smoke & Vintage Paper Textures."""
+    """Applies premium cinematic color grading LUTs, Film Grain, Dust, Haze Smoke & Vintage Paper Textures."""
     img = pil_img.copy().convert("RGB")
     w, h = img.size
 
@@ -396,6 +396,31 @@ def apply_color_filter(pil_img: Image.Image, filter_style: str = "warm_epic") ->
         img = enhancer.enhance(1.35)
         enhancer = ImageEnhance.Color(img)
         img = enhancer.enhance(1.15)
+    elif filter_style == "cyber_teal_orange":
+        gray = img.convert("L")
+        teal_orange = ImageOps.colorize(gray, "#0d2b3a", "#ff9e42")
+        img = Image.blend(img, teal_orange, alpha=0.60)
+    elif filter_style == "royal_gold":
+        enhancer = ImageEnhance.Color(img)
+        img = enhancer.enhance(1.40)
+        overlay = Image.new("RGB", img.size, (255, 215, 0))
+        img = Image.blend(img, overlay, alpha=0.18)
+    elif filter_style == "dark_gothic":
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(1.45)
+        gray = img.convert("L")
+        gothic = ImageOps.colorize(gray, "#110b18", "#d1c4e9")
+        img = Image.blend(img, gothic, alpha=0.55)
+    elif filter_style == "neon_cyberpunk":
+        enhancer = ImageEnhance.Color(img)
+        img = enhancer.enhance(1.60)
+        overlay = Image.new("RGB", img.size, (0, 255, 230))
+        img = Image.blend(img, overlay, alpha=0.12)
+    elif filter_style == "golden_sunburst":
+        enhancer = ImageEnhance.Brightness(img)
+        img = enhancer.enhance(1.10)
+        overlay = Image.new("RGB", img.size, (255, 140, 0))
+        img = Image.blend(img, overlay, alpha=0.16)
 
     # 1. Old Paper Scratches & Vintage Parchment Texture Overlay
     paper_tex = create_parchment_background((w, h), color_theme="warm")
@@ -512,23 +537,31 @@ def create_ultra_photo_motion_clip(
     def get_frame(t):
         progress = t / duration if duration > 0 else 0
         
-        # Dynamic Camera Motions per Scene: Zoom In / Zoom Out / Pan Right / Pan Left
+        # Dynamic Camera Motions per Scene: Zoom In / Zoom Out / Pan Right / Pan Left / Fast Diagonal Zoom
         if motion_type == "zoom_in":
-            bg_scale = 1.0 + (0.18 * progress)
+            bg_scale = 1.0 + (0.22 * progress)
             pan_x_factor = 0.5
             pan_y_factor = 0.5
         elif motion_type == "zoom_out":
-            bg_scale = 1.20 - (0.15 * progress)
+            bg_scale = 1.25 - (0.20 * progress)
             pan_x_factor = 0.5
             pan_y_factor = 0.5
         elif motion_type == "pan_right":
-            bg_scale = 1.15
+            bg_scale = 1.18
+            pan_x_factor = 0.25 + (0.50 * progress)
+            pan_y_factor = 0.5
+        elif motion_type == "pan_left":
+            bg_scale = 1.18
+            pan_x_factor = 0.75 - (0.50 * progress)
+            pan_y_factor = 0.5
+        elif motion_type == "diagonal_fast":
+            bg_scale = 1.0 + (0.25 * progress)
             pan_x_factor = 0.30 + (0.40 * progress)
-            pan_y_factor = 0.5
-        else: # pan_left
-            bg_scale = 1.15
-            pan_x_factor = 0.70 - (0.40 * progress)
-            pan_y_factor = 0.5
+            pan_y_factor = 0.30 + (0.40 * progress)
+        else: # spiral_zoom
+            bg_scale = 1.05 + (0.18 * math.sin(progress * math.pi))
+            pan_x_factor = 0.5 + 0.15 * math.sin(progress * math.pi * 2)
+            pan_y_factor = 0.5 + 0.15 * math.cos(progress * math.pi * 2)
             
         bg_w_scaled = int(bg_w_fit * bg_scale)
         bg_h_scaled = int(bg_h_fit * bg_scale)
@@ -545,17 +578,21 @@ def create_ultra_photo_motion_clip(
         light_pulse = 1.0 + (0.09 * math.sin(progress * math.pi * 2))
         frame_canvas = ImageEnhance.Brightness(frame_canvas.convert("RGB")).enhance(light_pulse).convert("RGBA")
         
-        # Character Cutout strictly grounded to bottom border (Never floats up, 100% Bottom Grounded)
+        # Fast Smooth Character Cutout Entrance (Fade & Slide in within first 0.6s)
         if has_cutout and fg_resized:
             fg_scale = 1.0 + (0.03 * math.sin(progress * math.pi))
             cur_fg_w = int(fg_resized.width * fg_scale)
             cur_fg_h = int(fg_resized.height * fg_scale)
             fg_cur = fg_resized.resize((cur_fg_w, cur_fg_h), Image.BILINEAR)
             
+            # Fast Smooth Entrance Offset (0s to 0.6s)
+            entrance_factor = min(1.0, progress * 4.0) # Fast 0.25s completion
+            slide_offset = int((1.0 - math.pow(entrance_factor, 2)) * w * 0.25)
+            
             if cutout_pos == "right":
-                fg_x = w - cur_fg_w
+                fg_x = (w - cur_fg_w) + slide_offset
             else: # left
-                fg_x = 0
+                fg_x = 0 - slide_offset
                 
             fg_y = h - cur_fg_h # 100% Flush Bottom Alignment
             frame_canvas.paste(fg_cur, (fg_x, fg_y), mask=fg_cur)
@@ -599,10 +636,14 @@ def merge_and_export(
                 video_paths = scene['video'] if isinstance(scene['video'], list) else [scene['video']]
                 bg_path = video_paths[0]
                 fg_path = video_paths[1] if len(video_paths) > 1 else None
-                filters = ["warm_epic", "vintage_parchment", "dramatic_cinematic"]
+                filters = [
+                    "warm_epic", "cyber_teal_orange", "vintage_parchment", 
+                    "royal_gold", "dramatic_cinematic", "dark_gothic", 
+                    "neon_cyberpunk", "golden_sunburst"
+                ]
                 filter_choice = filters[i % len(filters)]
                 side_pos = "left" if i % 2 == 0 else "right"
-                motions = ["zoom_in", "zoom_out", "pan_right", "pan_left"]
+                motions = ["zoom_in", "zoom_out", "pan_right", "pan_left", "diagonal_fast", "spiral_zoom"]
                 motion_choice = motions[i % len(motions)]
                 print(f"✨ Scene {i+1}: Generating Ultra Dual-Photo Motion Clip (Filter: {filter_choice}, Motion: {motion_choice.upper()}, Side: {side_pos.upper()})...")
                 v_clip = create_ultra_photo_motion_clip(bg_path, fg_photo_path=fg_path, duration=clip_duration, size=target_size, filter_style=filter_choice, cutout_pos=side_pos, motion_type=motion_choice)
