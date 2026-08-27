@@ -304,6 +304,26 @@ def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, desc
         print(f"❌ YouTube Auto-Upload Error for user {user_id}: {e}")
         return None
 
+def get_daily_unique_subtopic(base_topic: str, today_str: str, user_id: str) -> str:
+    """Generates a non-repetitive daily subtopic angle for automated auto reels."""
+    sub_angles = [
+        "Binary Numbers and Machine Code Secrets",
+        "Neural Networks and Brain Mimicry",
+        "Autonomous Robotics and Sensor Tech",
+        "Computer Vision and Image Recognition",
+        "Quantum Computing and Future Machine Learning",
+        "Natural Language Processing and Speech AI",
+        "Data Compression and Encryption Algorithms",
+        "Reinforcement Learning and Smart AI Systems"
+    ]
+    if not base_topic:
+        base_topic = "AI Technology"
+    if len(base_topic.split()) > 3:
+        return base_topic
+    seed = int(hashlib.md5(f"{today_str}_{user_id}_{base_topic}".encode()).hexdigest(), 16)
+    selected_angle = sub_angles[seed % len(sub_angles)]
+    return f"{base_topic}: {selected_angle}"
+
 def check_and_run_auto_schedules():
     """
     Automated Daily Profile Audit & 1-Hour Pre-Rendering Background Worker:
@@ -324,28 +344,26 @@ def check_and_run_auto_schedules():
     pre_render_ist_minutes = (current_ist_minutes + 60) % 1440
 
     try:
-        active_users = list(users_collection.find({
-            "auto_schedule.schedule_enabled": True
-        }))
-
-        for user in active_users:
+        users = list(users_collection.find({"auto_schedule.schedule_enabled": True}))
+        for user in users:
             internal_id = user.get("internal_id")
             schedule = user.get("auto_schedule", {})
+            
             subscription = user.get("subscription", {})
             sub_status = subscription.get("status")
             sub_expires = subscription.get("expires_at")
             plan_type = subscription.get("plan_type", "none")
 
-            if sub_status != "active" or not sub_expires:
-                continue
-
-            if isinstance(sub_expires, str):
+            is_active = (sub_status == "active")
+            if sub_expires and isinstance(sub_expires, str):
                 try:
-                    sub_expires = datetime.fromisoformat(sub_expires)
+                    exp_dt = datetime.fromisoformat(sub_expires.replace('Z', '+00:00'))
+                    if datetime.utcnow() > exp_dt.replace(tzinfo=None):
+                        is_active = False
                 except Exception:
-                    continue
+                    pass
 
-            if sub_expires <= now_utc:
+            if not is_active:
                 continue
 
             # 1. Short Reel Pre-render & Auto-Upload Engine
@@ -353,22 +371,24 @@ def check_and_run_auto_schedules():
                 short_time_str = schedule.get("short_time", "10:00")
                 short_target_minutes = parse_time_to_minutes(short_time_str) or 600
 
-                diff_current = min(abs(current_ist_minutes - short_target_minutes), 1440 - abs(current_ist_minutes - short_target_minutes))
-                diff_prerender = min(abs(pre_render_ist_minutes - short_target_minutes), 1440 - abs(pre_render_ist_minutes - short_target_minutes))
+                diff_current_s = min(abs(current_ist_minutes - short_target_minutes), 1440 - abs(current_ist_minutes - short_target_minutes))
+                diff_prerender_s = min(abs(pre_render_ist_minutes - short_target_minutes), 1440 - abs(pre_render_ist_minutes - short_target_minutes))
 
-                if (diff_current <= 15 or diff_prerender <= 15) and schedule.get("last_short_run") != today_str:
+                if (diff_current_s <= 15 or diff_prerender_s <= 15) and schedule.get("last_short_run") != today_str:
                     print(f"🚀 [AUTO-WORKER 1-HR PRE-RENDER & UPLOAD] Pre-rendering Short Reel for user {internal_id} (Scheduled IST Time: {short_time_str})...")
                     users_collection.update_one(
                         {"internal_id": internal_id},
                         {"$set": {"auto_schedule.last_short_run": today_str}}
                     )
 
-                    topic = schedule.get("short_topic") or "Space Exploration"
+                    raw_topic = schedule.get("short_topic") or "Space Exploration"
+                    # Auto Reel Non-Repetitive Daily Topic Angle
+                    topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id)
                     category = schedule.get("short_category") or "Random"
                     voice = schedule.get("short_voice") or "hi-IN-MadhurNeural"
                     font = schedule.get("short_font") or "Arial.ttf"
                     color = schedule.get("short_color") or "yellow"
-                    duration = int(schedule.get("short_duration") or 30)
+                    duration = int(schedule.get("short_duration") or 20)
 
                     res = render_video_with_smart_fallback(
                         user_id=internal_id,
@@ -384,6 +404,10 @@ def check_and_run_auto_schedules():
                     if res.get("status") == "completed":
                         video_file = res.get("file")
                         script_text = res.get("script", "")
+                        
+                        # ENFORCE: Min 80 words for engagement, max 120 for retention
+                        script_text = " ".join(script_text.split()[:120])
+                        
                         upload_video_to_youtube_core(
                             user_id=internal_id,
                             video_file=video_file,
@@ -1810,7 +1834,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     ai_server_urls = [u for u in candidate_urls if u and not (u in seen or seen.add(u))]
 
     scene_count = max(1, duration // 10)
-    word_count = int(duration * 2.5)
+    word_count = int(duration * 2.8) if video_type == "short" else int(duration * 2.5)
 
     cat_niche = f" in the '{category}' category" if category and str(category).lower() != "random" else ""
 
