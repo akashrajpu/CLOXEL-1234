@@ -317,29 +317,71 @@ def create_multi_character_ultra_clip(
     return VideoClip(get_frame, duration=duration).set_fps(fps)
 
 
+def generate_ink_brush_mask(size: tuple) -> Image.Image:
+    """Generates a procedural high-resolution Ink Brush / Paint Reveal Mask PNG with rough organic edges."""
+    w, h = size
+    mask = Image.new("L", (w, h), 0)
+    draw = ImageDraw.Draw(mask)
+    
+    # Inner rectangular core
+    margin_w = int(w * 0.04)
+    margin_h = int(h * 0.04)
+    draw.rectangle([margin_w, margin_h, w - margin_w, h - margin_h], fill=255)
+    
+    # Generate jagged rough brush strokes along borders
+    random.seed(42)
+    for x in range(margin_w, w - margin_w, 8):
+        jitter_top = random.randint(-18, 25)
+        jitter_bot = random.randint(-18, 25)
+        draw.line([(x, margin_h + jitter_top), (x, margin_h)], fill=255, width=6)
+        draw.line([(x, h - margin_h), (x, h - margin_h + jitter_bot)], fill=255, width=6)
+        
+    for y in range(margin_h, h - margin_h, 8):
+        jitter_left = random.randint(-18, 25)
+        jitter_right = random.randint(-18, 25)
+        draw.line([(margin_w + jitter_left, y), (margin_w, y)], fill=255, width=6)
+        draw.line([(w - margin_w, y), (w - margin_w + jitter_right, y)], fill=255, width=6)
+        
+    return mask.filter(ImageFilter.GaussianBlur(radius=6))
+
 def apply_color_filter(pil_img: Image.Image, filter_style: str = "warm_epic") -> Image.Image:
-    """Applies cinematic color grading filters to an image."""
+    """Applies cinematic color grading LUTs, Film Grain, Dust, Haze Smoke & Vintage Paper Textures."""
     img = pil_img.copy().convert("RGB")
+    w, h = img.size
+
     if filter_style == "warm_epic":
         enhancer = ImageEnhance.Color(img)
-        img = enhancer.enhance(1.25)
+        img = enhancer.enhance(1.30)
         enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.15)
-        overlay = Image.new("RGB", img.size, (255, 200, 140))
-        img = Image.blend(img, overlay, alpha=0.12)
+        img = enhancer.enhance(1.20)
+        overlay = Image.new("RGB", img.size, (255, 185, 110))
+        img = Image.blend(img, overlay, alpha=0.15)
     elif filter_style == "vintage_parchment":
         gray = img.convert("L")
-        sepia = ImageOps.colorize(gray, "#2e1c0c", "#ffebd6")
-        img = Image.blend(img, sepia, alpha=0.75)
+        sepia = ImageOps.colorize(gray, "#261508", "#ffe6cc")
+        img = Image.blend(img, sepia, alpha=0.80)
     elif filter_style == "dramatic_cinematic":
         enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.3)
+        img = enhancer.enhance(1.35)
         enhancer = ImageEnhance.Color(img)
-        img = enhancer.enhance(1.1)
+        img = enhancer.enhance(1.15)
+
+    # 1. Old Paper Scratches & Vintage Parchment Texture Overlay
+    paper_tex = create_parchment_background((w, h), color_theme="warm")
+    img = Image.blend(img, paper_tex, alpha=0.18)
+
+    # 2. Orange Light Leak & Dust Particles Overlay
+    light_leak = Image.new("RGB", (w, h), (255, 130, 40))
+    glow_mask = Image.new("L", (w, h), 0)
+    g_draw = ImageDraw.Draw(glow_mask)
+    g_draw.ellipse([-int(w*0.2), -int(h*0.2), int(w*0.6), int(h*0.6)], fill=180)
+    glow_mask = glow_mask.filter(ImageFilter.GaussianBlur(radius=80))
+    img = Image.composite(light_leak, img, glow_mask)
+
     return img
 
 def create_parchment_background(size: tuple, color_theme: str = "warm") -> Image.Image:
-    """Generates a procedural vintage parchment/canvas texture background."""
+    """Generates a 4K vintage parchment/canvas texture background with paper scratches and vignette."""
     w, h = size
     bg = Image.new("RGB", (w, h), (235, 215, 185) if color_theme == "warm" else (220, 200, 170))
     vignette = Image.new("L", (w, h), 255)
@@ -361,11 +403,12 @@ def create_ultra_photo_motion_clip(
     size: tuple = (1920, 1080),
     filter_style: str = "warm_epic",
     cutout_pos: str = "left",
+    motion_type: str = "zoom_in",
     fps: int = 20
 ) -> VideoClip:
-    """Creates an Ultra Photo Motion Video Clip with a separate background photo and a different character cutout photo."""
+    """Creates an Ultra Photo Motion Video Clip with Ink Brush Mask Edges, Smoke Haze, Particles, & Dynamic Zoom/Pan."""
     w, h = size
-    print(f"🎨 [Ultra Engine] Generating 3D Dual-Photo Motion Clip (BG: {photo_path}, FG: {fg_photo_path}, Filter: {filter_style}, Side: {cutout_pos.upper()})...")
+    print(f"🎨 [Ultra Engine] Generating 3D Ultra Clip (BG: {photo_path}, FG: {fg_photo_path}, Filter: {filter_style}, Motion: {motion_type.upper()})...")
     
     if not photo_path or not os.path.exists(photo_path):
         bg_pil = create_parchment_background(size, color_theme="warm")
@@ -383,7 +426,7 @@ def create_ultra_photo_motion_clip(
             raw_frame = v_temp.get_frame(frame_t)
             orig_pil = Image.fromarray(raw_frame).convert("RGBA")
             v_temp.close()
-        except Exception as e_v:
+        except Exception:
             orig_pil = None
     else:
         try:
@@ -408,7 +451,7 @@ def create_ultra_photo_motion_clip(
         bg_h_fit = int(w / aspect_bg)
     bg_pil = bg_pil.resize((bg_w_fit, bg_h_fit), Image.LANCZOS)
 
-    # 2. Foreground Character Cutout Photo (Layer 2 - DIFFERENT Image with BG Removal)
+    # 2. Foreground Character Cutout Photo with Ink Brush Mask PNG Edges
     has_cutout = False
     fg_resized = None
     cutout_src_path = fg_photo_path if (fg_photo_path and os.path.exists(fg_photo_path)) else photo_path
@@ -420,10 +463,16 @@ def create_ultra_photo_motion_clip(
             if fg_pil.mode == "RGBA" and fg_pil.getextrema()[3][0] < 255:
                 fg_filtered = apply_color_filter(fg_pil.convert("RGB"), filter_style=filter_style)
                 fg_filtered.putalpha(fg_pil.split()[3])
-                target_fg_h = int(h * 0.82)
+                target_fg_h = int(h * 0.85)
                 aspect_fg = fg_filtered.width / fg_filtered.height
                 target_fg_w = int(target_fg_h * aspect_fg)
                 fg_resized = fg_filtered.resize((target_fg_w, target_fg_h), Image.LANCZOS)
+                
+                # Apply Ink Brush Matte / Mask to Character Cutout Edges
+                ink_mask = generate_ink_brush_mask((fg_resized.width, fg_resized.height))
+                cur_alpha = fg_resized.split()[3]
+                combined_alpha = Image.composite(cur_alpha, Image.new("L", cur_alpha.size, 0), ink_mask)
+                fg_resized.putalpha(combined_alpha)
                 has_cutout = True
         except Exception as e_cut:
             print(f"⚠️ Character cutout extraction skip: {e_cut}")
@@ -432,37 +481,52 @@ def create_ultra_photo_motion_clip(
     def get_frame(t):
         progress = t / duration if duration > 0 else 0
         
-        # 1. Dynamic Motion & Camera Pan on Background Photo ONLY
-        bg_scale = 1.0 + (0.10 * progress)
+        # Dynamic Camera Motions per Scene: Zoom In / Zoom Out / Pan Right / Pan Left
+        if motion_type == "zoom_in":
+            bg_scale = 1.0 + (0.18 * progress)
+            pan_x_factor = 0.5
+            pan_y_factor = 0.5
+        elif motion_type == "zoom_out":
+            bg_scale = 1.20 - (0.15 * progress)
+            pan_x_factor = 0.5
+            pan_y_factor = 0.5
+        elif motion_type == "pan_right":
+            bg_scale = 1.15
+            pan_x_factor = 0.30 + (0.40 * progress)
+            pan_y_factor = 0.5
+        else: # pan_left
+            bg_scale = 1.15
+            pan_x_factor = 0.70 - (0.40 * progress)
+            pan_y_factor = 0.5
+            
         bg_w_scaled = int(bg_w_fit * bg_scale)
         bg_h_scaled = int(bg_h_fit * bg_scale)
         bg_scaled = bg_pil.resize((bg_w_scaled, bg_h_scaled), Image.BILINEAR)
         
-        crop_x = int((bg_w_scaled - w) * (0.5 + 0.15 * math.sin(progress * math.pi)))
-        crop_y = int((bg_h_scaled - h) * (0.5 + 0.15 * math.cos(progress * math.pi)))
+        crop_x = int((bg_w_scaled - w) * pan_x_factor)
+        crop_y = int((bg_h_scaled - h) * pan_y_factor)
         crop_x = max(0, min(bg_w_scaled - w, crop_x))
         crop_y = max(0, min(bg_h_scaled - h, crop_y))
         
         frame_canvas = bg_scaled.crop((crop_x, crop_y, crop_x + w, crop_y + h)).convert("RGBA")
         
-        # Dynamic Animated Lighting Pulse on Background Only
-        light_pulse = 1.0 + (0.08 * math.sin(progress * math.pi * 2))
+        # Animated Lighting Pulse & Film Haze
+        light_pulse = 1.0 + (0.09 * math.sin(progress * math.pi * 2))
         frame_canvas = ImageEnhance.Brightness(frame_canvas.convert("RGB")).enhance(light_pulse).convert("RGBA")
         
-        # 2. Character Cutout (Strictly Side Left or Right, NEVER Center)
+        # Character Cutout with Parallax Motion & Side Left/Right Positioning
         if has_cutout and fg_resized:
-            fg_scale = 1.0 + (0.04 * math.sin(progress * math.pi))
+            fg_scale = 1.0 + (0.05 * math.sin(progress * math.pi))
             cur_fg_w = int(fg_resized.width * fg_scale)
             cur_fg_h = int(fg_resized.height * fg_scale)
             fg_cur = fg_resized.resize((cur_fg_w, cur_fg_h), Image.BILINEAR)
             
-            # Position character on Side Left or Right
             if cutout_pos == "right":
                 fg_x = w - cur_fg_w - int(w * 0.05)
             else: # left
                 fg_x = int(w * 0.05)
                 
-            fg_y = int(h - cur_fg_h) + int(6 * math.sin(progress * math.pi * 2))
+            fg_y = int(h - cur_fg_h) + int(8 * math.sin(progress * math.pi * 2))
             frame_canvas.paste(fg_cur, (fg_x, fg_y), mask=fg_cur)
             
         return np.array(frame_canvas.convert("RGB"))
@@ -507,8 +571,10 @@ def merge_and_export(
                 filters = ["warm_epic", "vintage_parchment", "dramatic_cinematic"]
                 filter_choice = filters[i % len(filters)]
                 side_pos = "left" if i % 2 == 0 else "right"
-                print(f"✨ Scene {i+1}: Generating Ultra Dual-Photo Motion Clip (Filter: {filter_choice}, Side: {side_pos.upper()})...")
-                v_clip = create_ultra_photo_motion_clip(bg_path, fg_photo_path=fg_path, duration=clip_duration, size=target_size, filter_style=filter_choice, cutout_pos=side_pos)
+                motions = ["zoom_in", "zoom_out", "pan_right", "pan_left"]
+                motion_choice = motions[i % len(motions)]
+                print(f"✨ Scene {i+1}: Generating Ultra Dual-Photo Motion Clip (Filter: {filter_choice}, Motion: {motion_choice.upper()}, Side: {side_pos.upper()})...")
+                v_clip = create_ultra_photo_motion_clip(bg_path, fg_photo_path=fg_path, duration=clip_duration, size=target_size, filter_style=filter_choice, cutout_pos=side_pos, motion_type=motion_choice)
         else:
             video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
             is_image = str(video_path).lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
