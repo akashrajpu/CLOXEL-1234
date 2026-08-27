@@ -1864,19 +1864,27 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                 continue
 
     # 2. Secondary Attempt: Fallback to Gemini AI Direct Key
+    # 2. Secondary Attempt: Fallback to Gemini AI Direct Key
     gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if gemini_key:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+            ultra_special_prompt = (
+                f"\nSPECIAL ULTRA MODE REQUIREMENT:\n"
+                f"This is an ULTRA premium documentary video. Write a rich, deeply informative, and complete narrative script.\n"
+                f"Do NOT output short title fragments or half-baked sentences.\n"
+                f"Each scene text MUST contain 2-3 complete, highly engaging, informative spoken sentences explaining the history, key achievements, and full story of '{topic}'.\n"
+            ) if (video_type == "ultra") else ""
+
             prompt = (
                 f"You are a master viral video scriptwriter. Write a COMPLETE, fully-resolved video script about '{topic}' "
                 f"in {language} language. Video type: {video_type.upper()} ({duration} seconds, approx {word_count} spoken words).\n"
                 f"CRITICAL REQUIREMENT: The script MUST be 100% complete with a clear Hook, Full Core Information, and a Satisfying Conclusion. "
-                f"Do NOT leave the explanation half-done or cut off mid-sentence.\n"
+                f"Do NOT leave the explanation half-done or cut off mid-sentence.{ultra_special_prompt}\n"
                 f"Format requirement: Return ONLY a valid JSON object with:\n"
                 f"1. 'full_script': The complete spoken voiceover text covering the full story from hook to conclusion.\n"
                 f"2. 'scenes': An array of exactly {scene_count} complete sentence scene objects, each containing:\n"
-                f"   - 'text': 1-2 complete, well-formed sentences with full stops.\n"
+                f"   - 'text': 2-3 complete, detailed, well-formed sentences with full stops.\n"
                 f"   - 'keyword': 1-2 relevant visual search terms for background clips.\n"
                 f"Do not include markdown triple backticks or text outside JSON."
             )
@@ -1915,24 +1923,37 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     keywords = [w.lower() for w in topic.split() if w.isalpha() and w.lower() not in stop_words]
     main_kw = keywords[0] if keywords else topic
 
-    intro_templates = [
-        f"Dosto! Kya aapko pata hai {topic} ke baare mein ye hairatangez sach?",
-        f"{topic} ki duniya mein ek aisa raaz hai jo aapka hosh uda dega.",
-        f"Aaj hum {topic} se jude sabse bada aur shocking sach jaanenge."
-    ]
-
-    body_templates = [
-        f"Iske peeche ki asli wajah ye hai ki {topic} hamari daily life par deep impact daalta hai.",
-        f"Experts aur scientists ke mutabiq {topic} aane wale time mein poori tarah badalne wala hai.",
-        f"Research mein pata chala hai ki {topic} ki wajah se kayi bade changes dekhe gaye hain.",
-        f"Har roz hazaron log {topic} ke is naye aspect ko samajhne ki koshish kar rahe hain."
-    ]
-
-    outro_templates = [
-        f"Toh ye tha {topic} ka poora sach! Aise hi viral aur informative content ke liye hume zaroor follow karein.",
-        f"Yahi wajah hai ki {topic} itna special hai. Video acchi lagi ho toh like aur share zaroor karein!",
-        f"Umeed hai aapko {topic} ki ye information pasand aayi hogi. Channel ko subscribe karna na bhulein!"
-    ]
+    if video_type == "ultra":
+        intro_templates = [
+            f"Itihas aur gathaon mein {topic} ka naam swabhiman aur veerta ka prateek mana jata hai. Iski poori kahani aapko aashcharya mein daal degi.",
+            f"Kya aap jante hain {topic} se judi wo aitihasik baatein jo aaj bhi har bhartiya ke dil mein garv bhar deti hain? Aaiye vistaar se jaante hain."
+        ]
+        body_templates = [
+            f"Iska mukhya uddeshya swabhiman aur matribhumi ki raksha karna tha, jiske liye yoddhaon ne aakhir saans tak sangharsh kiya.",
+            f"Aitihasik shastron aur dastaavezon ke mutabiq {topic} ne shatruon ki sena ke chakke chhudaye the aur itihaas mein apna naam amar kar diya.",
+            f"Ranbhoomi mein inki talwar aur ranniti ne dushmano ko aisi shikast di jise aaj bhi yaad kiya jata hai."
+        ]
+        outro_templates = [
+            f"Yahi wajah hai ki {topic} ki ye veer gatha aaj bhi har peedhi ke liye prerna ka srot hai. Is aitihasik jaankari ke liye hume follow karein.",
+            f"Swabhiman ki is kahani ne {topic} ko mahan bana diya. Aise hi aur durlabh aitihasik kisse dekhne ke liye channel ko subscribe karein!"
+        ]
+    else:
+        intro_templates = [
+            f"Dosto! Kya aapko pata hai {topic} ke baare mein ye hairatangez sach?",
+            f"{topic} ki duniya mein ek aisa raaz hai jo aapka hosh uda dega.",
+            f"Aaj hum {topic} se jude sabse bada aur shocking sach jaanenge."
+        ]
+        body_templates = [
+            f"Iske peeche ki asli wajah ye hai ki {topic} hamari daily life par deep impact daalta hai.",
+            f"Experts aur scientists ke mutabiq {topic} aane wale time mein poori tarah badalne wala hai.",
+            f"Research mein pata chala hai ki {topic} ki wajah se kayi bade changes dekhe gaye hain.",
+            f"Har roz hazaron log {topic} ke is naye aspect ko samajhne ki koshish kar rahe hain."
+        ]
+        outro_templates = [
+            f"Toh ye tha {topic} ka poora sach! Aise hi viral aur informative content ke liye hume zaroor follow karein.",
+            f"Yahi wajah hai ki {topic} itna special hai. Video acchi lagi ho toh like aur share zaroor karein!",
+            f"Umeed hai aapko {topic} ki ye information pasand aayi hogi. Channel ko subscribe karna na bhulein!"
+        ]
 
     scenes = []
     full_text_list = []
