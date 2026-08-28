@@ -80,15 +80,11 @@ def create_dynamic_animated_text(
     if total_frames <= 0: total_frames = 1
     
     has_devanagari = any('\u0900' <= char <= '\u097F' for char in full_text)
-    if not has_devanagari:
-        full_text = full_text.upper().strip()
-    else:
-        full_text = full_text.strip()
-        
+    full_text = full_text.strip()
     words = full_text.split()
     
-    target_width = int(size[0] * 0.86)
-    max_font_size = int(size[1] * 0.08) if size[0] > size[1] else int(size[0] * 0.09)
+    target_width = int(size[0] * 0.72)
+    max_font_size = int(size[1] * 0.075) if size[0] > size[1] else int(size[0] * 0.08)
     user_font_size = min(font_size, max_font_size) if font_size > 50 else max_font_size
 
     # Choose random color & position per scene if specified (Picked ONCE per scene for 100% stability)
@@ -171,7 +167,7 @@ def create_dynamic_animated_text(
         if line2_words:
             lines.append(line2_words)
 
-        line_spacing = int(active_font.size * 1.30)
+        line_spacing = int(active_font.size * 1.25)
         total_h = len(lines) * line_spacing
         
         # Calculate Y-position based on chosen_pos (STABLE)
@@ -192,6 +188,7 @@ def create_dynamic_animated_text(
         
         local_word_count = 0
         shadow_offset = max(3, int(active_font.size * 0.05))
+        stop_words = {"in", "on", "at", "to", "for", "of", "and", "or", "an", "a", "the", "with", "by", "from", "up", "about", "into", "over", "after", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "but", "by", "if", "or", "because", "as", "until", "while", "ka", "ki", "ke", "ko", "se", "me", "par", "aur", "ya", "ha", "thi", "tha", "the"}
         
         for line_words in lines:
             space_bbox = draw.textbbox((0, 0), " ", font=active_font)
@@ -200,12 +197,18 @@ def create_dynamic_animated_text(
             # Calculate line width taking font scaling into account
             line_total_w = 0
             for w in line_words:
-                is_bold_kw = (len(w) > 4 or w[0].isupper() or local_word_count == target_local_idx)
+                is_bold_kw = (len(w) > 3 and w.lower() not in stop_words) or (local_word_count == target_local_idx)
                 w_f = load_font(int(user_font_size * 1.25)) if (is_ultra_mode and is_bold_kw) else load_font(int(user_font_size * 0.90))
                 wb = draw.textbbox((0, 0), w, font=w_f)
                 line_total_w += (wb[2] - wb[0]) + space_w
             line_total_w -= space_w
             
+            # Auto-Scale Font Size Down if line width exceeds target_width!
+            scale_down = 1.0
+            if line_total_w > target_width:
+                scale_down = max(0.60, target_width / float(line_total_w))
+                line_total_w = int(line_total_w * scale_down)
+
             # Clamp starting X position safely inside screen boundaries (NO OVERFLOW GUARANTEE)
             if is_ultra_mode and ultra_side_mode == "side_left":
                 calc_x = int(size[0] * 0.08) - slide_x_offset
@@ -221,9 +224,10 @@ def create_dynamic_animated_text(
             
             for w in line_words:
                 if is_ultra_mode:
-                    # Photo #2 Style: Important keywords larger & bold, normal words regular
-                    is_bold_keyword = (len(w) > 4 or w[0].isupper() or local_word_count == target_local_idx)
-                    w_font = load_font(int(user_font_size * 1.25)) if is_bold_keyword else load_font(int(user_font_size * 0.90))
+                    # Photo #1 & #2 Style: Important keywords larger & bold, normal words regular
+                    is_bold_keyword = (len(w) > 3 and w.lower() not in stop_words) or (local_word_count == target_local_idx)
+                    curr_kw_size = int(user_font_size * 1.25 * scale_down) if is_bold_keyword else int(user_font_size * 0.90 * scale_down)
+                    w_font = load_font(curr_kw_size)
                     
                     # Single theme color per scene: Active spoken word gets highlight color, others get clean white
                     if local_word_count == target_local_idx:
@@ -529,10 +533,10 @@ def create_ultra_photo_motion_clip(
         bg_h_fit = int(w / aspect_bg)
     bg_pil = bg_pil.resize((bg_w_fit, bg_h_fit), Image.LANCZOS)
 
-    # 2. Foreground Character Cutout Photo with Ink Brush Mask PNG Edges
+    # 2. Foreground Character Cutout Photo (ONLY if a DIFFERENT image exists, NEVER same photo over itself!)
     has_cutout = False
     fg_resized = None
-    cutout_src_path = fg_photo_path if (fg_photo_path and os.path.exists(fg_photo_path)) else photo_path
+    cutout_src_path = fg_photo_path if (fg_photo_path and os.path.exists(fg_photo_path) and fg_photo_path != photo_path) else None
     
     if remove_background and cutout_src_path:
         try:
