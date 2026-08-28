@@ -151,40 +151,27 @@ def create_dynamic_animated_text(
         word_idx = int((i / total_frames) * len(words))
         if word_idx >= len(words): word_idx = len(words) - 1
         
-        # 3 words max per chunk to guarantee compact line fitting like Photo #2 (Seene mae Dhadhkti)
-        chunk_size = 3
-        chunk_idx = word_idx // chunk_size
-        
-        start_idx = chunk_idx * chunk_size
-        end_idx = start_idx + chunk_size
-        current_chunk_words = words[start_idx:end_idx]
-        target_local_idx = word_idx - start_idx
-        
+        # Split scene words into 2 clean 50% half chunks (1st half in 1st part, 2nd half in 2nd part)
+        half_word_count = max(1, (len(words) + 1) // 2)
+        if t < (duration / 2.0):
+            current_chunk_words = words[:half_word_count]
+            target_local_idx = word_idx
+        else:
+            current_chunk_words = words[half_word_count:]
+            target_local_idx = max(0, word_idx - half_word_count)
+            
         active_font = load_font(user_font_size)
         
-        lines = []
-        curr_line = []
-        for w in current_chunk_words:
-            test_line = " ".join(curr_line + [w])
-            bbox = draw.textbbox((0, 0), test_line, font=active_font)
-            if (bbox[2] - bbox[0]) <= target_width or not curr_line:
-                curr_line.append(w)
-            else:
-                lines.append(curr_line)
-                curr_line = [w]
-        if curr_line:
-            lines.append(curr_line)
+        # Structure into max 2 balanced lines per half chunk (like Photo #1: Seene mae Dhadhkti / Le Jawaala)
+        mid_point = max(1, (len(current_chunk_words) + 1) // 2)
+        line1_words = current_chunk_words[:mid_point]
+        line2_words = current_chunk_words[mid_point:]
+        
+        lines = [line1_words]
+        if line2_words:
+            lines.append(line2_words)
 
-        for line_words in lines:
-            line_str = " ".join(line_words)
-            bbox = draw.textbbox((0, 0), line_str, font=active_font)
-            line_w = bbox[2] - bbox[0]
-            if line_w > target_width:
-                scaled_fs = max(int(user_font_size * (target_width / line_w)), 24)
-                active_font = load_font(scaled_fs)
-                break
-
-        line_spacing = int(active_font.size * 1.25)
+        line_spacing = int(active_font.size * 1.30)
         total_h = len(lines) * line_spacing
         
         # Calculate Y-position based on chosen_pos (STABLE)
