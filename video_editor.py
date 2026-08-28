@@ -151,8 +151,8 @@ def create_dynamic_animated_text(
         word_idx = int((i / total_frames) * len(words))
         if word_idx >= len(words): word_idx = len(words) - 1
         
-        is_landscape = size[0] > size[1]
-        chunk_size = 6 if is_landscape else 3
+        # 3 words max per chunk to guarantee compact line fitting like Photo #2 (Seene mae Dhadhkti)
+        chunk_size = 3
         chunk_idx = word_idx // chunk_size
         
         start_idx = chunk_idx * chunk_size
@@ -184,7 +184,7 @@ def create_dynamic_animated_text(
                 active_font = load_font(scaled_fs)
                 break
 
-        line_spacing = int(active_font.size * 1.2)
+        line_spacing = int(active_font.size * 1.25)
         total_h = len(lines) * line_spacing
         
         # Calculate Y-position based on chosen_pos (STABLE)
@@ -203,13 +203,6 @@ def create_dynamic_animated_text(
         slide_progress = min(1.0, t * 5.0) # 0.2s completion
         slide_x_offset = int((1.0 - math.pow(slide_progress, 2)) * size[0] * 0.08)
         
-        if is_ultra_mode and ultra_side_mode == "side_left":
-            base_x_start = int(size[0] * 0.08) - slide_x_offset
-        elif is_ultra_mode and ultra_side_mode == "side_right":
-            base_x_start = int(size[0] * 0.42) + slide_x_offset
-        else:
-            base_x_start = None
-
         local_word_count = 0
         shadow_offset = max(3, int(active_font.size * 0.05))
         
@@ -217,12 +210,27 @@ def create_dynamic_animated_text(
             space_bbox = draw.textbbox((0, 0), " ", font=active_font)
             space_w = space_bbox[2] - space_bbox[0]
             
-            line_total_w = sum((draw.textbbox((0, 0), w, font=active_font)[2] - draw.textbbox((0, 0), w, font=active_font)[0]) for w in line_words) + space_w * (len(line_words) - 1)
+            # Calculate line width taking font scaling into account
+            line_total_w = 0
+            for w in line_words:
+                is_bold_kw = (len(w) > 4 or w[0].isupper() or local_word_count == target_local_idx)
+                w_f = load_font(int(user_font_size * 1.25)) if (is_ultra_mode and is_bold_kw) else load_font(int(user_font_size * 0.90))
+                wb = draw.textbbox((0, 0), w, font=w_f)
+                line_total_w += (wb[2] - wb[0]) + space_w
+            line_total_w -= space_w
             
-            if base_x_start is not None:
-                current_x = base_x_start
+            # Clamp starting X position safely inside screen boundaries (NO OVERFLOW GUARANTEE)
+            if is_ultra_mode and ultra_side_mode == "side_left":
+                calc_x = int(size[0] * 0.08) - slide_x_offset
+            elif is_ultra_mode and ultra_side_mode == "side_right":
+                calc_x = int(size[0] * 0.92) - line_total_w + slide_x_offset
             else:
-                current_x = (size[0] - line_total_w) / 2
+                calc_x = (size[0] - line_total_w) // 2
+                
+            # Hard Clamp: Keep text strictly inside 6% left margin and 94% right margin!
+            min_x_margin = int(size[0] * 0.06)
+            max_x_margin = size[0] - line_total_w - int(size[0] * 0.06)
+            current_x = max(min_x_margin, min(max_x_margin, calc_x)) if max_x_margin > min_x_margin else min_x_margin
             
             for w in line_words:
                 if is_ultra_mode:
