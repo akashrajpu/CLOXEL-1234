@@ -499,7 +499,21 @@ function App() {
     setScenes(newScenes);
   };
 
+  const isLimitExhausted = !subStatus.has_active_subscription && (subStatus.free_demo_count !== undefined ? subStatus.free_demo_count <= 0 : false);
+
   const handleAutoGenerate = async () => {
+    if (isLimitExhausted) {
+      triggerAlert(
+        "🔒 Free Demo Limit Reached!",
+        "You have completed your 2 free demo videos & scripts. Please upgrade to a Premium Plan to generate unlimited scripts & videos!",
+        "🔒",
+        "warning",
+        () => openPricingModal('long'),
+        "Upgrade to Premium 🚀"
+      );
+      openPricingModal('long');
+      return;
+    }
     setIsGeneratingScript(true);
     const finalCategory = (category || '').includes('Custom Category') ? (customCategory || 'Random') : category;
     try {
@@ -532,6 +546,18 @@ function App() {
   };
 
   const handleGenerateVideo = async () => {
+    if (isLimitExhausted) {
+      triggerAlert(
+        "🔒 Free Demo Limit Reached!",
+        "You have completed your 2 free demo videos. Please upgrade to a Premium Plan to generate unlimited videos!",
+        "🔒",
+        "warning",
+        () => openPricingModal('long'),
+        "Upgrade to Premium 🚀"
+      );
+      openPricingModal('long');
+      return;
+    }
     setJobId(null);
     setJobStatus(null);
     setCloudinaryUrl(null);
@@ -909,17 +935,20 @@ function App() {
               style={{ 
                 width: '100%', 
                 marginBottom: '1.5rem', 
-                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)', 
+                background: isLimitExhausted ? 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)', 
                 color: 'white',
                 border: 'none',
                 borderRadius: '14px',
                 padding: '13px 20px',
                 fontWeight: '800',
                 fontSize: '0.98rem',
-                boxShadow: '0 6px 22px rgba(59, 130, 246, 0.45)'
+                boxShadow: isLimitExhausted ? '0 6px 22px rgba(239, 68, 68, 0.5)' : '0 6px 22px rgba(59, 130, 246, 0.45)',
+                cursor: 'pointer'
               }}
             >
-              {isGeneratingScript ? 'Generating Script via Gemini AI...' : '✨ Auto-Generate Script via AI'}
+              {isGeneratingScript 
+                ? 'Generating Script via Gemini AI...' 
+                : (isLimitExhausted ? '🔒 Free 2 Limit Exhausted (Click to Upgrade)' : '✨ Auto-Generate Script via AI')}
             </button>
           </div>
 
@@ -1165,23 +1194,27 @@ function App() {
           </div>
 
           <button 
-            className="button" 
+            type="button" 
+            className="btn-primary" 
             onClick={handleGenerateVideo}
             disabled={jobStatus === 'processing'}
             style={{ 
               marginTop: '2rem',
-              background: 'linear-gradient(135deg, #a855f7 0%, #c084fc 50%, #06b6d4 100%)',
+              background: isLimitExhausted ? 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)' : 'linear-gradient(135deg, #a855f7 0%, #c084fc 50%, #06b6d4 100%)',
               color: '#ffffff',
               border: 'none',
               borderRadius: '16px',
               padding: '14px 24px',
               fontSize: '1.05rem',
               fontWeight: '900',
-              boxShadow: '0 8px 30px rgba(168, 85, 247, 0.55)',
-              textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+              boxShadow: isLimitExhausted ? '0 8px 30px rgba(239, 68, 68, 0.6)' : '0 8px 30px rgba(168, 85, 247, 0.55)',
+              textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+              cursor: 'pointer'
             }}
           >
-            {jobStatus === 'processing' ? '⏳ Rendering Video in Background...' : '🚀 Generate Video'}
+            {jobStatus === 'processing' 
+              ? '⏳ Rendering Video in Background...' 
+              : (isLimitExhausted ? '🔒 Free 2 Video Limit Reached - Unlock Premium' : '🚀 Generate Video')}
           </button>
 
           {jobStatus && (
