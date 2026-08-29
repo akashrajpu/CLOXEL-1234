@@ -190,15 +190,23 @@ def create_dynamic_animated_text(
         shadow_offset = max(3, int(active_font.size * 0.05))
         stop_words = {"in", "on", "at", "to", "for", "of", "and", "or", "an", "a", "the", "with", "by", "from", "up", "about", "into", "over", "after", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "but", "by", "if", "or", "because", "as", "until", "while", "ka", "ki", "ke", "ko", "se", "me", "par", "aur", "ya", "ha", "thi", "tha", "the"}
         
-        for line_words in lines:
+        for line_idx, line_words in enumerate(lines):
             space_bbox = draw.textbbox((0, 0), " ", font=active_font)
             space_w = space_bbox[2] - space_bbox[0]
             
-            # Calculate line width taking font scaling into account
+            # Calculate line width taking exact line sequence scaling into account
             line_total_w = 0
-            for w in line_words:
-                is_bold_kw = (len(w) > 3 and w.lower() not in stop_words) or (local_word_count == target_local_idx)
-                w_f = load_font(int(user_font_size * 1.25)) if (is_ultra_mode and is_bold_kw) else load_font(int(user_font_size * 0.90))
+            for word_pos_in_line, w in enumerate(line_words):
+                if is_ultra_mode:
+                    # Line 1: First word is Large Bold (1.30x). Line 2: Last word is Large Bold (1.30x).
+                    if line_idx == 0:
+                        is_bold_kw = (word_pos_in_line == 0) or (local_word_count == target_local_idx)
+                    else:
+                        is_bold_kw = (word_pos_in_line == len(line_words) - 1) or (local_word_count == target_local_idx)
+                    w_f = load_font(int(user_font_size * 1.30)) if is_bold_kw else load_font(int(user_font_size * 0.85))
+                else:
+                    w_f = active_font
+                    
                 wb = draw.textbbox((0, 0), w, font=w_f)
                 line_total_w += (wb[2] - wb[0]) + space_w
             line_total_w -= space_w
@@ -206,7 +214,7 @@ def create_dynamic_animated_text(
             # Auto-Scale Font Size Down if line width exceeds target_width!
             scale_down = 1.0
             if line_total_w > target_width:
-                scale_down = max(0.60, target_width / float(line_total_w))
+                scale_down = max(0.55, target_width / float(line_total_w))
                 line_total_w = int(line_total_w * scale_down)
 
             # Clamp starting X position safely inside screen boundaries (NO OVERFLOW GUARANTEE)
@@ -222,11 +230,15 @@ def create_dynamic_animated_text(
             max_x_margin = size[0] - line_total_w - int(size[0] * 0.06)
             current_x = max(min_x_margin, min(max_x_margin, calc_x)) if max_x_margin > min_x_margin else min_x_margin
             
-            for w in line_words:
+            for word_pos_in_line, w in enumerate(line_words):
                 if is_ultra_mode:
-                    # Photo #1 & #2 Style: Important keywords larger & bold, normal words regular
-                    is_bold_keyword = (len(w) > 3 and w.lower() not in stop_words) or (local_word_count == target_local_idx)
-                    curr_kw_size = int(user_font_size * 1.25 * scale_down) if is_bold_keyword else int(user_font_size * 0.90 * scale_down)
+                    # Sequence: Line 1 -> 1st Word Bold (1.30x), Line 2 -> Last Word Bold (1.30x)
+                    if line_idx == 0:
+                        is_bold_keyword = (word_pos_in_line == 0) or (local_word_count == target_local_idx)
+                    else:
+                        is_bold_keyword = (word_pos_in_line == len(line_words) - 1) or (local_word_count == target_local_idx)
+                        
+                    curr_kw_size = int(user_font_size * 1.30 * scale_down) if is_bold_keyword else int(user_font_size * 0.85 * scale_down)
                     w_font = load_font(curr_kw_size)
                     
                     # Single theme color per scene: Active spoken word gets highlight color, others get clean white
