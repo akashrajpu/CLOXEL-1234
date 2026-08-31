@@ -480,6 +480,61 @@ def check_and_run_auto_schedules():
                             {"$set": {"auto_daily_usage": auto_usage}}
                         )
 
+            # 3. Ultra Mode Video Pre-render & Auto-Upload Engine (Requires 'ultra' plan!)
+            if plan_type in ["ultra", "combo"]:
+                ultra_time_str = schedule.get("ultra_time", "21:00")
+                ultra_target_minutes = parse_time_to_minutes(ultra_time_str) or 1260
+
+                diff_current_u = min(abs(current_ist_minutes - ultra_target_minutes), 1440 - abs(current_ist_minutes - ultra_target_minutes))
+                diff_prerender_u = min(abs(pre_render_ist_minutes - ultra_target_minutes), 1440 - abs(pre_render_ist_minutes - ultra_target_minutes))
+
+                if (diff_current_u <= 15 or diff_prerender_u <= 15) and schedule.get("last_ultra_run") != today_str:
+                    print(f"🚀 [AUTO-WORKER 1-HR PRE-RENDER & UPLOAD] Pre-rendering Ultra Mode Video for user {internal_id} (Scheduled IST Time: {ultra_time_str})...")
+                    users_collection.update_one(
+                        {"internal_id": internal_id},
+                        {"$set": {"auto_schedule.last_ultra_run": today_str}}
+                    )
+
+                    raw_topic = schedule.get("ultra_topic") or "History of Ancient Warriors"
+                    topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id)
+                    category = schedule.get("ultra_category") or "Random"
+                    voice = schedule.get("ultra_voice") or "hi-IN-MadhurNeural"
+                    font = schedule.get("ultra_font") or "Arial.ttf"
+                    color = schedule.get("ultra_color") or "yellow"
+                    duration = int(schedule.get("ultra_duration") or 60)
+
+                    res = render_video_with_smart_fallback(
+                        user_id=internal_id,
+                        topic=topic,
+                        category=category,
+                        voice_id=voice,
+                        font_name=font,
+                        font_color=color,
+                        video_type="ultra",
+                        requested_duration=duration
+                    )
+
+                    if res.get("status") == "completed":
+                        video_file = res.get("file")
+                        script_text = res.get("script", "")
+                        upload_video_to_youtube_core(
+                            user_id=internal_id,
+                            video_file=video_file,
+                            title=topic,
+                            description=script_text,
+                            is_short=False
+                        )
+
+                        # Increment auto_daily_usage tracking (Automated Engine Only!)
+                        auto_usage = user.get("auto_daily_usage", {})
+                        if auto_usage.get("date") != today_str:
+                            auto_usage = {"date": today_str, "auto_short_count": 0, "auto_long_count": 0, "auto_ultra_count": 0}
+                        auto_usage["auto_ultra_count"] = auto_usage.get("auto_ultra_count", 0) + 1
+                        users_collection.update_one(
+                            {"internal_id": internal_id},
+                            {"$set": {"auto_daily_usage": auto_usage}}
+                        )
+
     except Exception as e:
         print(f"❌ Error in check_and_run_auto_schedules: {e}")
 
@@ -880,6 +935,17 @@ class AutoScheduleRequest(BaseModel):
     long_duration: int = 60
     long_time: str = "18:00"
     long_language: str = "hi"
+
+    # Ultra Mode Settings (Dedicated ₹20/mo Ultra Subscription)
+    ultra_auto_topic: bool = True
+    ultra_topic: str = "History of Ancient Warriors, Science Mysteries"
+    ultra_category: str = "Random" # 30+ categories or custom
+    ultra_voice: str = "hi-IN-MadhurNeural"
+    ultra_font: str = "Arial.ttf"
+    ultra_color: str = "yellow"
+    ultra_duration: int = 60
+    ultra_time: str = "21:00"
+    ultra_language: str = "hi"
 
 @app.post("/generate-custom-video")
 async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundTasks):
@@ -1310,8 +1376,9 @@ def get_security_status():
         "total_banned_ips": len(waf.banned_ips)
     }
 
-PLAN_RANKS = {"short": 1, "long": 2, "combo": 3}
+PLAN_RANKS = {"ultra": 1, "short": 2, "long": 3, "combo": 4}
 PLAN_NAMES = {
+    "ultra": "Ultra Cinematic (₹20/mo)",
     "short": "Short Starter (₹50/mo)",
     "long": "Long Master (₹100/mo)",
     "combo": "Pro Combo (₹119/mo)"
@@ -1320,6 +1387,7 @@ PLAN_NAMES = {
 @app.post("/create-razorpay-order")
 async def create_razorpay_order(req: CreateOrderRequest):
     amounts = {
+        "ultra": 2000,    # ₹20
         "short": 5000,    # ₹50
         "long": 10000,    # ₹100
         "combo": 11900    # ₹119

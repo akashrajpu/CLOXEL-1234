@@ -521,6 +521,7 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          user_id: userId,
           topic: topic,
           category: finalCategory,
           duration_seconds: duration,
@@ -1394,7 +1395,31 @@ function App() {
               <p>Unlock 30 days of daily automated AI video creation and auto-uploads.</p>
             </div>
 
-            <div className="pricing-grid">
+            <div className="pricing-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))' }}>
+              {/* Plan 0: Ultra Cinematic */}
+              <div 
+                className={`pricing-card ${selectedPlan === 'ultra' ? 'featured' : ''}`}
+                onClick={() => setSelectedPlan('ultra')}
+                style={{ cursor: 'pointer', border: selectedPlan === 'ultra' ? '2px solid #ec4899' : '1px solid rgba(236, 72, 153, 0.4)' }}
+              >
+                <div className="card-tag" style={{ background: 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' }}>SPECIAL ULTRA</div>
+                <h3>Ultra Cinematic</h3>
+                <div className="plan-price">₹20 <span>/ month</span></div>
+                <p className="plan-desc">Multi-Character & Documentary Auto-Uploads.</p>
+                <ul className="plan-features">
+                  <li>✅ Daily 1 Ultra Mode Video for 30 Days</li>
+                  <li>✅ YouTube Auto-Upload Enabled</li>
+                  <li>✅ Multi-Character Dialogue & Ink FX</li>
+                </ul>
+                <button 
+                  className={`btn-buy-plan ${selectedPlan === 'ultra' ? 'featured-btn' : ''}`} 
+                  style={{ background: 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' }}
+                  onClick={(e) => { e.stopPropagation(); setSelectedPlan('ultra'); handleBuyPlan('ultra'); }}
+                >
+                  Subscribe for ₹20
+                </button>
+              </div>
+
               {/* Plan 1: Short Starter */}
               <div 
                 className={`pricing-card ${selectedPlan === 'short' ? 'featured' : ''}`}
