@@ -663,6 +663,17 @@ def merge_and_export(
 
     for i, scene in enumerate(scene_list):
         audio_path = scene['audio']
+        
+        # Audio File Validation Guard: Ensure audio file exists and is > 1000 bytes (Prevents MoviePy FFmpeg crashes)
+        if not audio_path or not os.path.exists(audio_path) or os.path.getsize(audio_path) < 1000:
+            print(f"⚠️ Warning: Invalid or 0-byte audio file {audio_path}. Generating silent audio fallback...")
+            safe_audio_path = os.path.join(job_dir, f"safe_audio_{i}.mp3")
+            try:
+                subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", "5.0", "-q:a", "9", "-acodec", "libmp3lame", safe_audio_path], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                audio_path = safe_audio_path
+            except Exception:
+                pass
+
         a_clip = AudioFileClip(audio_path)
         clip_duration = a_clip.duration
         

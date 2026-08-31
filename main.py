@@ -595,6 +595,9 @@ class VideoRequest(BaseModel):
 class ScriptRequest(BaseModel):
     topic: str
     duration_seconds: int
+    user_id: Optional[str] = None
+    category: Optional[str] = "Random"
+    video_type: Optional[str] = "short"
 
 # In-memory job status (Production mein Redis/DB use karna)
 jobs = {}
@@ -2031,8 +2034,31 @@ async def api_generate_ai_script(req: AIScriptRequest):
 
 @app.post("/generate-script")
 async def generate_script(req: ScriptRequest):
-    """Legacy Endpoint compatibility wrapper"""
-    res = generate_ai_script_core(topic=req.topic, duration=req.duration_seconds)
+    """Script generation endpoint with Free Quota & Security Protection"""
+    user_id = req.user_id
+    if user_id and user_id != "anonymous" and users_collection is not None:
+        user = users_collection.find_one({"internal_id": user_id})
+        if user:
+            subscription = user.get("subscription", {})
+            sub_status = subscription.get("status")
+            sub_expires = subscription.get("expires_at")
+            is_active = False
+            if sub_status == "active" and sub_expires:
+                if isinstance(sub_expires, str):
+                    try:
+                        sub_expires = datetime.fromisoformat(sub_expires)
+                    except Exception:
+                        sub_expires = None
+                if sub_expires and sub_expires > datetime.utcnow():
+                    is_active = True
+            
+            if not is_active and user.get("free_demo_count", 0) <= 0:
+                raise HTTPException(
+                    status_code=402, 
+                    detail="Demo quota exhausted! You have used your 2 free demo videos & scripts. Please upgrade your plan to continue generating AI scripts & videos."
+                )
+
+    res = generate_ai_script_core(topic=req.topic, duration=req.duration_seconds, category=req.category or "Random", video_type=req.video_type or "short")
     return {"scenes": res["scenes"], "full_script": res["full_script"]}
 
 # 4. Serve Frontend (Must be the last route)

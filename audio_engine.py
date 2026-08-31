@@ -2,28 +2,56 @@ import asyncio
 import edge_tts
 import os
 import random
+import subprocess
+from gtts import gTTS
 
 def make_audio(text, output_path, voice_id='hi-IN-MadhurNeural'):
+    """
+    Multi-Level Fail-Safe Audio Engine:
+    1. EdgeTTS (Microsoft Edge Neural Voice)
+    2. gTTS (Google Text-to-Speech Fallback)
+    3. FFmpeg Silent Audio Fallback (Zero-crash guarantee for 2+ parallel users)
+    """
     print(f"🎙️ Generating Voice: {text[:30]}...")
-    
-    async def amain():
-        try:
-            # Random delay taki rate-limit na ho
-            await asyncio.sleep(random.uniform(1.5, 3.0))
-            
-            communicate = edge_tts.Communicate(text, voice_id)
-            await communicate.save(output_path)
-            print(f"✅ Audio saved: {output_path}")
-        except Exception as e:
-            if "403" in str(e):
-                print(f"⚠️ Microsoft ne block kiya (403). Changing strategy...")
-                # Yahan hum retry limit badha sakte hain ya pause le sakte hain
-            raise e
+    if not text or not text.strip():
+        text = "Welcome to the video."
+        
+    # Attempt 1: EdgeTTS (Microsoft Edge Neural Voice)
+    async def run_edge_tts():
+        communicate = edge_tts.Communicate(text, voice_id)
+        await communicate.save(output_path)
 
     try:
-        asyncio.run(amain())
-        if os.path.exists(output_path):
+        asyncio.run(run_edge_tts())
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+            print(f"✅ EdgeTTS Audio saved: {output_path}")
             return output_path
     except Exception as e:
-        print(f"❌ Audio Engine Failed Final: {e}")
-        return None
+        print(f"⚠️ EdgeTTS Failed: {e}. Switching to gTTS Fallback...")
+
+    # Attempt 2: gTTS (Google Text-To-Speech Fallback)
+    try:
+        lang = "hi" if any('\u0900' <= char <= '\u097F' for char in text) else "en"
+        tts = gTTS(text=text, lang=lang, slow=False)
+        tts.save(output_path)
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+            print(f"✅ gTTS Audio saved: {output_path}")
+            return output_path
+    except Exception as e:
+        print(f"⚠️ gTTS Fallback Failed: {e}. Generating Silent Audio Fallback...")
+
+    # Attempt 3: Ultimate FFmpeg Silent Audio Fallback (Guarantees zero rendering crashes)
+    try:
+        dur = max(3.0, len(text.split()) / 2.5)
+        cmd = [
+            "ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", 
+            "-t", str(dur), "-q:a", "9", "-acodec", "libmp3lame", output_path
+        ]
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 500:
+            print(f"✅ Silent Audio Fallback created: {output_path}")
+            return output_path
+    except Exception as e:
+        print(f"❌ Ultimate Audio Fallback Failed: {e}")
+
+    return None
