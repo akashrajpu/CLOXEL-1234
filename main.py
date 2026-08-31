@@ -2058,11 +2058,11 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         "tone": tone
     }
     
-    for base_url in ai_server_urls:
-        for endpoint in ["/generate-script", "/api/generate-ai-script", "/generate"]:
+    for base_url in ai_server_urls[:2]:
+        for endpoint in ["/generate-script", "/api/generate-ai-script"]:
             target_url = f"{base_url}{endpoint}"
             try:
-                resp = requests.post(target_url, json=payload, timeout=3)
+                resp = requests.post(target_url, json=payload, timeout=1.2)
                 if resp.status_code == 200:
                     data = resp.json()
                     full_script = data.get("full_script") or data.get("script") or ""
