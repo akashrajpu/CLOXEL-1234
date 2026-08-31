@@ -316,12 +316,13 @@ function App() {
   };
 
   useEffect(() => {
-    fetchBgMusicAndFonts();
-    if (userId) {
-      fetchHistory();
-      fetchSubscriptionStatus();
-      fetchAutoSchedule();
-    }
+    // Concurrent Promise.allSettled execution for lightning-fast UI initialization
+    Promise.allSettled([
+      fetchBgMusicAndFonts(),
+      userId ? fetchHistory() : Promise.resolve(),
+      userId ? fetchSubscriptionStatus() : Promise.resolve(),
+      userId ? fetchAutoSchedule() : Promise.resolve()
+    ]);
   }, [userId]);
 
   const handleSaveAutoSchedule = async (explicitEnabledState = null) => {
