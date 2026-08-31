@@ -376,7 +376,6 @@ def get_daily_unique_subtopic(base_topic: str, today_str: str, user_id: str) -> 
     selected_angle = sub_angles[seed % len(sub_angles)]
     return f"{base_topic}: {selected_angle}"
 
-def check_and_run_auto_schedules():
 from concurrent.futures import ThreadPoolExecutor
 
 auto_worker_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="AutoRenderWorker")
