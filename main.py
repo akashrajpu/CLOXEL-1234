@@ -1855,7 +1855,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         for endpoint in ["/generate-script", "/api/generate-ai-script", "/generate"]:
             target_url = f"{base_url}{endpoint}"
             try:
-                resp = requests.post(target_url, json=payload, timeout=12)
+                resp = requests.post(target_url, json=payload, timeout=3)
                 if resp.status_code == 200:
                     data = resp.json()
                     full_script = data.get("full_script") or data.get("script") or ""
@@ -1918,7 +1918,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
 
             req_data = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode('utf-8')
             req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=12) as resp:
+            with urllib.request.urlopen(req, timeout=5) as resp:
                 res_body = json.loads(resp.read().decode('utf-8'))
                 raw_text = res_body['candidates'][0]['content']['parts'][0]['text'].strip()
                 if raw_text.startswith("```"):

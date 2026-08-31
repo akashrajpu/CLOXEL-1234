@@ -744,7 +744,7 @@ def merge_and_export(
             audio_codec="aac", 
             fps=20, 
             preset="ultrafast", 
-            threads=2, 
+            threads=0, 
             ffmpeg_params=["-crf", "26", "-pix_fmt", "yuv420p"],
             logger=None
         )
