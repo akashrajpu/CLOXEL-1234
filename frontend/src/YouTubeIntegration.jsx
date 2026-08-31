@@ -16,6 +16,7 @@ function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onS
       if (onStatusChange) onStatusChange(data);
     } catch (err) {
       setError("Failed to fetch YouTube status");
+      setStatus({ linked: false });
     } finally {
       setIsLoading(false);
     }
