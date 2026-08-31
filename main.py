@@ -114,27 +114,25 @@ scheduler.add_job(ping_server, 'interval', minutes=10)
 scheduler.add_job(waf.reset_all_bans, 'interval', hours=6)
 
 def parse_time_to_minutes(time_str: str) -> Optional[int]:
-    """Parses 12h or 24h time string (e.g. '10:00 AM', '06:00 PM', '18:00', '10:00') to minutes past midnight"""
+    """Parses 12h or 24h time string (e.g. '10:00 AM', '10:00 PM', '18:00', '10:00') to minutes past midnight"""
     if not time_str:
         return None
     time_str = str(time_str).strip().upper()
     try:
-        if "AM" in time_str or "PM" in time_str:
-            is_pm = "PM" in time_str
-            clean_str = time_str.replace("AM", "").replace("PM", "").strip()
-            parts = clean_str.split(":")
-            h = int(parts[0])
-            m = int(parts[1]) if len(parts) > 1 else 0
-            if is_pm and h < 12:
-                h += 12
-            elif not is_pm and h == 12:
-                h = 0
-            return h * 60 + m
-        else:
-            parts = time_str.split(":")
-            h = int(parts[0])
-            m = int(parts[1]) if len(parts) > 1 else 0
-            return h * 60 + m
+        is_pm = "PM" in time_str
+        is_am = "AM" in time_str
+        digits = re.findall(r'\d+', time_str)
+        if not digits:
+            return None
+        h = int(digits[0])
+        m = int(digits[1]) if len(digits) > 1 else 0
+        
+        if is_pm and h < 12:
+            h += 12
+        elif is_am and h == 12:
+            h = 0
+            
+        return h * 60 + m
     except Exception:
         return None
 
@@ -534,8 +532,21 @@ def check_and_run_auto_schedules():
                             {"$set": {"auto_daily_usage": auto_usage}}
                         )
 
-            # 3. Ultra Mode Video Pre-render & Auto-Upload Engine (Requires dedicated 'ultra' plan!)
-            if plan_type == "ultra":
+            # 3. Ultra Mode Video Pre-render & Auto-Upload Engine (Requires independent active Ultra plan!)
+            ultra_sub = user.get("ultra_subscription", {})
+            ultra_status = ultra_sub.get("status")
+            ultra_expires = ultra_sub.get("expires_at")
+            has_ultra_sub = False
+            if ultra_status == "active" and ultra_expires:
+                if isinstance(ultra_expires, str):
+                    try:
+                        ultra_expires = datetime.fromisoformat(ultra_expires)
+                    except Exception:
+                        ultra_expires = None
+                if isinstance(ultra_expires, datetime) and ultra_expires > datetime.utcnow():
+                    has_ultra_sub = True
+
+            if has_ultra_sub or plan_type == "ultra":
                 ultra_time_str = schedule.get("ultra_time", "21:00")
                 ultra_target_minutes = parse_time_to_minutes(ultra_time_str) or 1260
 
@@ -1472,7 +1483,7 @@ async def create_razorpay_order(req: CreateOrderRequest):
                 if isinstance(sub_expires, datetime) and sub_expires > datetime.utcnow():
                     is_active = True
 
-            if is_active:
+            if is_active and req.plan_type != "ultra":
                 curr_rank = PLAN_RANKS.get(current_plan, 0)
                 new_rank = PLAN_RANKS.get(req.plan_type, 0)
                 
@@ -1540,8 +1551,46 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
             print(f"❌ Razorpay signature verification failed: {e}")
             raise HTTPException(status_code=400, detail="Payment Signature Verification Failed. Activation Denied.")
 
-    # Mathematical Precision: Handle Plan Upgrades & Same-Plan Stacking
     existing_user = users_collection.find_one({"internal_id": req.internal_id})
+
+    # Independent Ultra Subscription Handling
+    if req.plan_type == "ultra":
+        existing_ultra = existing_user.get("ultra_subscription", {}) if existing_user else {}
+        ultra_exp = existing_ultra.get("expires_at")
+        is_ultra_active = False
+        if ultra_exp:
+            if isinstance(ultra_exp, str):
+                try:
+                    ultra_exp = datetime.fromisoformat(ultra_exp)
+                except Exception:
+                    ultra_exp = None
+            if isinstance(ultra_exp, datetime) and ultra_exp > datetime.utcnow():
+                is_ultra_active = True
+
+        if is_ultra_active:
+            expires_at = ultra_exp + timedelta(days=30)
+        else:
+            expires_at = datetime.utcnow() + timedelta(days=30)
+
+        ultra_data = {
+            "plan_type": "ultra",
+            "status": "active",
+            "payment_id": req.razorpay_payment_id,
+            "order_id": req.razorpay_order_id,
+            "activated_at": datetime.utcnow(),
+            "expires_at": expires_at
+        }
+        users_collection.update_one(
+            {"internal_id": req.internal_id},
+            {"$set": {"ultra_subscription": ultra_data}}
+        )
+        return {
+            "message": f"🎉 Ultra Cinematic Plan (₹20/mo) activated successfully!",
+            "plan_type": "ultra",
+            "expires_at": expires_at.isoformat()
+        }
+
+    # Standard / Long / Combo Subscription Handling
     existing_sub = existing_user.get("subscription", {}) if existing_user else {}
     current_plan = existing_sub.get("plan_type", "none")
     sub_status = existing_sub.get("status")
