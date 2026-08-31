@@ -162,6 +162,17 @@ def create_dynamic_animated_text(
         mid_point = max(1, (len(current_chunk_words) + 1) // 2)
         line1_words = current_chunk_words[:mid_point]
         line2_words = current_chunk_words[mid_point:]
+
+        if is_ultra_mode:
+            # Render Off-White Parchment Scroll Box with Crimson Red Distressed Font (Matching Screenshots 1, 2, 3!)
+            chunk_str = " ".join(current_chunk_words)
+            parchment_img = create_parchment_subtitle_box(chunk_str, size, font_size=user_font_size)
+            px = (size[0] - parchment_img.width) // 2
+            py = size[1] - parchment_img.height - int(size[1] * 0.06)
+            img.paste(parchment_img, (px, py), mask=parchment_img)
+            cache['t'] = t
+            cache['img'] = img
+            return img
         
         lines = [line1_words]
         if line2_words:
@@ -472,23 +483,134 @@ def apply_color_filter(pil_img: Image.Image, filter_style: str = "warm_epic") ->
     glow_mask = glow_mask.filter(ImageFilter.GaussianBlur(radius=80))
     img = Image.composite(light_leak, img, glow_mask)
 
-    return img
-
-def create_parchment_background(size: tuple, color_theme: str = "warm") -> Image.Image:
-    """Generates a 4K vintage parchment/canvas texture background with paper scratches and vignette."""
-    w, h = size
-    bg = Image.new("RGB", (w, h), (235, 215, 185) if color_theme == "warm" else (220, 200, 170))
-    vignette = Image.new("L", (w, h), 255)
-    draw = ImageDraw.Draw(vignette)
-    cx, cy = w / 2, h / 2
-    max_r = math.sqrt(cx**2 + cy**2)
-    for r in range(int(max_r), 0, -10):
-        alpha = int(255 * (r / max_r)**1.8)
-        draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=min(255, alpha + 60))
-    vignette_blur = vignette.filter(ImageFilter.GaussianBlur(radius=30))
-    dark_overlay = Image.new("RGB", (w, h), (40, 25, 15))
     bg = Image.composite(bg, dark_overlay, vignette_blur)
     return bg
+
+def create_history_spotlight_overlay(base_img: Image.Image, progress: float) -> Image.Image:
+    """
+    Creates the dynamic moving dark mask spotlight reveal animation for History Mode (matching user screenshots 1, 2, 3):
+      - Outer region: Darkened monochromatic / vignette overlay (0.28x brightness + desaturated).
+      - Inner spotlight window: Moves dynamically across the frame revealing warm colored image with glowing organic reveal border.
+    """
+    w, h = base_img.size
+    
+    # 1. Outer Dark Monochromatic Overlay
+    dark_bg = base_img.copy().convert("L").convert("RGB")
+    dark_bg = ImageEnhance.Brightness(dark_bg).enhance(0.28)
+    
+    # 2. Dynamic Moving Oval Spotlight Reveal Mask
+    spotlight_mask = Image.new("L", (w, h), 0)
+    s_draw = ImageDraw.Draw(spotlight_mask)
+    
+    # Smooth moving spotlight center X and Y
+    spotlight_cx = int(w * (0.35 + 0.30 * math.sin(progress * math.pi)))
+    spotlight_cy = int(h * (0.45 + 0.10 * math.cos(progress * math.pi)))
+    
+    spotlight_radius_x = int(w * (0.34 + 0.05 * math.sin(progress * math.pi * 2)))
+    spotlight_radius_y = int(h * (0.44 + 0.05 * math.cos(progress * math.pi * 2)))
+    
+    bbox = [
+        spotlight_cx - spotlight_radius_x,
+        spotlight_cy - spotlight_radius_y,
+        spotlight_cx + spotlight_radius_x,
+        spotlight_cy + spotlight_radius_y
+    ]
+    s_draw.ellipse(bbox, fill=255)
+    
+    # Add organic jagged brush edges to spotlight border
+    random.seed(int(progress * 100))
+    for angle in range(0, 360, 10):
+        rad = math.radians(angle)
+        jitter = random.randint(-18, 18)
+        px = int(spotlight_cx + (spotlight_radius_x + jitter) * math.cos(rad))
+        py = int(spotlight_cy + (spotlight_radius_y + jitter) * math.sin(rad))
+        s_draw.ellipse([px - 14, py - 14, px + 14, py + 14], fill=255)
+
+    # Soft Feather Gaussian Blur
+    spotlight_mask = spotlight_mask.filter(ImageFilter.GaussianBlur(radius=22))
+    
+    # Composite warm sharp original image inside spotlight window over dark outer background
+    result_img = Image.composite(base_img.convert("RGB"), dark_bg, spotlight_mask)
+    return result_img.convert("RGBA")
+
+
+def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) -> Image.Image:
+    """
+    Renders subtitles inside an authentic Off-White Cream Torn Paper Scroll Banner
+    with bold distressed Crimson Rust Red font (matching user screenshots 1, 2, 3!).
+    """
+    w, h = size
+    box_w = int(w * 0.78)
+    box_h = int(h * 0.22)
+    
+    # Off-White Parchment Background Canvas (#FFFDE8)
+    parchment = Image.new("RGBA", (box_w, box_h), (255, 253, 232, 245))
+    
+    # Jagged torn paper edges mask
+    torn_mask = Image.new("L", (box_w, box_h), 255)
+    t_draw = ImageDraw.Draw(torn_mask)
+    
+    random.seed(101)
+    for x in range(0, box_w, 6):
+        jitter_t = random.randint(0, 14)
+        jitter_b = random.randint(0, 14)
+        t_draw.line([(x, 0), (x, jitter_t)], fill=0, width=4)
+        t_draw.line([(x, box_h - jitter_b), (x, box_h)], fill=0, width=4)
+        
+    for y in range(0, box_h, 6):
+        jitter_l = random.randint(0, 14)
+        jitter_r = random.randint(0, 14)
+        t_draw.line([(0, y), (jitter_l, y)], fill=0, width=4)
+        t_draw.line([(box_w - jitter_r, y), (box_w, y)], fill=0, width=4)
+        
+    torn_mask = torn_mask.filter(ImageFilter.GaussianBlur(radius=2))
+    parchment.putalpha(torn_mask)
+    
+    # Load BetsyFlanagan / RaceFlow / CarbonBlock / Bebas / Anton font
+    font_candidates = [
+        "./fonts/BetsyFlanagan.ttf",
+        "./fonts/RaceFlow.ttf",
+        "./fonts/CarbonBlock.ttf",
+        "./fonts/bebas.ttf",
+        "./fonts/anton.ttf"
+    ]
+    chosen_font = None
+    for fc in font_candidates:
+        if os.path.exists(fc):
+            try:
+                chosen_font = ImageFont.truetype(fc, int(font_size * 0.38))
+                break
+            except Exception:
+                pass
+    if not chosen_font:
+        chosen_font = ImageFont.load_default()
+
+    # Wrap text into max 2 clean lines
+    words = text.upper().split()
+    mid = max(1, (len(words) + 1) // 2)
+    l1 = " ".join(words[:mid])
+    l2 = " ".join(words[mid:])
+    lines = [l1]
+    if l2:
+        lines.append(l2)
+
+    # Render bold distressed Crimson Rust Red text (#C83200 / #D9381E)
+    text_color = (200, 50, 0, 255)
+    
+    draw_p = ImageDraw.Draw(parchment)
+    y_pos = int(box_h * 0.16)
+    line_h = int(chosen_font.size * 1.20)
+    
+    for line in lines:
+        tb = draw_p.textbbox((0, 0), line, font=chosen_font)
+        lw = tb[2] - tb[0]
+        x_pos = (box_w - lw) // 2
+        # Text shadow + main text
+        draw_p.text((x_pos + 2, y_pos + 2), line, font=chosen_font, fill=(70, 15, 0, 180))
+        draw_p.text((x_pos, y_pos), line, font=chosen_font, fill=text_color)
+        y_pos += line_h
+
+    return parchment
 
 def create_ultra_photo_motion_clip(
     photo_path: str,
@@ -615,6 +737,10 @@ def create_ultra_photo_motion_clip(
         # Animated Lighting Pulse & Film Haze
         light_pulse = 1.0 + (0.09 * math.sin(progress * math.pi * 2))
         frame_canvas = ImageEnhance.Brightness(frame_canvas.convert("RGB")).enhance(light_pulse).convert("RGBA")
+        
+        # Apply History Dynamic Moving Spotlight Reveal Filter (Matching User Screenshots 1, 2, 3!)
+        if filter_style in ["warm_epic", "vintage_parchment", "history", "dramatic_cinematic"]:
+            frame_canvas = create_history_spotlight_overlay(frame_canvas, progress)
         
         # Fast Smooth Character Cutout Entrance (Fade & Slide in within first 0.6s)
         if has_cutout and fg_resized:
