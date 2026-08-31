@@ -649,7 +649,7 @@ function App() {
   };
 
   const PLAN_RANKS = { short: 1, long: 2, combo: 3 };
-  const PLAN_NAMES = { short: 'Short Starter (₹50)', long: 'Long Master (₹100)', combo: 'Pro Combo (₹119)' };
+  const PLAN_NAMES = { ultra: 'Ultra Cinematic (₹20)', short: 'Short Starter (₹50)', long: 'Long Master (₹100)', combo: 'Pro Combo (₹119)' };
 
   const executeCheckout = async (planType) => {
     try {
@@ -724,6 +724,10 @@ function App() {
   };
 
   const handleBuyPlan = async (planType) => {
+    if (planType === 'ultra') {
+      executeCheckout('ultra');
+      return;
+    }
     if (subStatus.has_active_subscription) {
       const currRank = PLAN_RANKS[subStatus.plan_type] || 0;
       const newRank = PLAN_RANKS[planType] || 0;
