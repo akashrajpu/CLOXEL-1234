@@ -1,0 +1,6 @@
+# Allow all search engine crawlers to index Cloxel AI
+User-agent: *
+Allow: /
+
+# Sitemap Location
+Sitemap: https://cloxelai.onrender.com/sitemap.xml

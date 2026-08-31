@@ -2129,6 +2129,29 @@ async def generate_script(req: ScriptRequest):
     res = generate_ai_script_core(topic=req.topic, duration=req.duration_seconds, category=req.category or "Random", video_type=req.video_type or "short")
     return {"scenes": res["scenes"], "full_script": res["full_script"]}
 
+# SEO & Google Search Console Verification Routes
+@app.get("/robots.txt", response_class=Response)
+async def get_robots_txt():
+    robots_content = "User-agent: *\nAllow: /\n\nSitemap: https://cloxelai.onrender.com/sitemap.xml\n"
+    return Response(content=robots_content, media_type="text/plain")
+
+@app.get("/sitemap.xml", response_class=Response)
+async def get_sitemap_xml():
+    sitemap_content = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>https://cloxelai.onrender.com/</loc>
+        <lastmod>2026-08-31</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>1.0</priority>
+    </url>
+</urlset>"""
+    return Response(content=sitemap_content, media_type="application/xml")
+
+@app.get("/googleaa929f03abece7ff.html", response_class=Response)
+async def get_google_verification_html():
+    return Response(content="google-site-verification: googleaa929f03abece7ff.html", media_type="text/html")
+
 # 4. Serve Frontend (Must be the last route)
 if os.path.isdir("frontend/dist"):
     app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
