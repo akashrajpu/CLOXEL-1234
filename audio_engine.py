@@ -3,7 +3,10 @@ import edge_tts
 import os
 import random
 import subprocess
-from gtts import gTTS
+try:
+    from gtts import gTTS
+except Exception:
+    gTTS = None
 
 def make_audio(text, output_path, voice_id='hi-IN-MadhurNeural'):
     """
@@ -30,15 +33,16 @@ def make_audio(text, output_path, voice_id='hi-IN-MadhurNeural'):
         print(f"⚠️ EdgeTTS Failed: {e}. Switching to gTTS Fallback...")
 
     # Attempt 2: gTTS (Google Text-To-Speech Fallback)
-    try:
-        lang = "hi" if any('\u0900' <= char <= '\u097F' for char in text) else "en"
-        tts = gTTS(text=text, lang=lang, slow=False)
-        tts.save(output_path)
-        if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
-            print(f"✅ gTTS Audio saved: {output_path}")
-            return output_path
-    except Exception as e:
-        print(f"⚠️ gTTS Fallback Failed: {e}. Generating Silent Audio Fallback...")
+    if gTTS is not None:
+        try:
+            lang = "hi" if any('\u0900' <= char <= '\u097F' for char in text) else "en"
+            tts = gTTS(text=text, lang=lang, slow=False)
+            tts.save(output_path)
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+                print(f"✅ gTTS Audio saved: {output_path}")
+                return output_path
+        except Exception as e:
+            print(f"⚠️ gTTS Fallback Failed: {e}. Generating Silent Audio Fallback...")
 
     # Attempt 3: Ultimate FFmpeg Silent Audio Fallback (Guarantees zero rendering crashes)
     try:
