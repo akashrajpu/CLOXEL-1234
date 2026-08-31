@@ -1159,6 +1159,20 @@ async def get_user_subscription(internal_id: str):
     if auto_daily_usage.get("date") != today_ist_str:
         auto_daily_usage = {"date": today_ist_str, "auto_short_count": 0, "auto_long_count": 0}
 
+    # Independent Ultra Subscription Check
+    ultra_sub = user.get("ultra_subscription", {})
+    ultra_status = ultra_sub.get("status")
+    ultra_expires = ultra_sub.get("expires_at")
+    has_ultra = False
+    if ultra_status == "active" and ultra_expires:
+        if isinstance(ultra_expires, str):
+            try:
+                ultra_expires = datetime.fromisoformat(ultra_expires)
+            except Exception:
+                ultra_expires = None
+        if isinstance(ultra_expires, datetime) and ultra_expires > datetime.utcnow():
+            has_ultra = True
+
     limit_text = "2 Free Demo Videos Total"
     if is_active:
         if sub_plan == "combo":
@@ -1167,6 +1181,8 @@ async def get_user_subscription(internal_id: str):
             limit_text = "1 Short Video Daily (9:16)"
         elif sub_plan == "long":
             limit_text = "1 Long Video Daily (16:9)"
+        elif sub_plan == "ultra":
+            limit_text = "1 Ultra Cinematic Video Daily"
 
     return {
         "name": user.get("name", "User"),
@@ -1176,8 +1192,10 @@ async def get_user_subscription(internal_id: str):
         "profile_pic": user.get("profile_pic", ""),
         "free_demo_count": free_demo,
         "has_active_subscription": is_active,
-        "plan_type": sub_plan if is_active else "none",
+        "has_active_ultra_subscription": has_ultra or (is_active and sub_plan == "ultra"),
+        "plan_type": sub_plan if is_active else ("ultra" if has_ultra else "none"),
         "expires_at": sub_expires.isoformat() if is_active and sub_expires else None,
+        "ultra_expires_at": ultra_expires.isoformat() if has_ultra and isinstance(ultra_expires, datetime) else None,
         "today_short_count": daily_usage.get("short_count", 0),
         "today_long_count": daily_usage.get("long_count", 0),
         "today_auto_short_count": auto_daily_usage.get("auto_short_count", 0),
