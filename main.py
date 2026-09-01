@@ -449,186 +449,137 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                 pass
 
         current_ist_minutes = now_ist.hour * 60 + now_ist.minute
-        pre_render_ist_minutes = (current_ist_minutes + 60) % 1440
 
-        # 1. Short Reel Pre-render & Auto-Upload Engine
+        def run_staged_auto_pipeline(kind: str, is_short_flag: bool, default_topic: str, default_dur: int):
+            time_str = schedule.get(f"{kind}_time", "10:00" if kind == "short" else ("18:00" if kind == "long" else "21:00"))
+            last_run_key = f"last_{kind}_run"
+
+            if schedule.get(last_run_key) == today_str:
+                return # Already published today
+
+            target_minutes = parse_time_to_minutes(time_str) or (600 if kind == "short" else (1080 if kind == "long" else 1260))
+            mins_until = (target_minutes - current_ist_minutes) % 1440
+            diff_current = min(abs(current_ist_minutes - target_minutes), 1440 - abs(current_ist_minutes - target_minutes))
+
+            staged_map = user.get("staged_auto_videos", {})
+            staged_item = staged_map.get(kind, {})
+
+            # PHASE 1: PREDICTIVE STAGING (Start pre-rendering up to 180 mins / 3 hours BEFORE target upload time)
+            if mins_until <= 180 or diff_current <= 90:
+                if staged_item.get("date") != today_str or not staged_item.get("file") or not os.path.exists(staged_item.get("file", "")):
+                    print(f"🚀 [PREDICTIVE AUTO-STAGING] Pre-rendering {kind.upper()} video ahead of time for user {internal_id} (Scheduled IST: {time_str}, Target in {mins_until} mins)...")
+                    raw_topic = schedule.get(f"{kind}_topic") or default_topic
+                    topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id)
+                    category = schedule.get(f"{kind}_category") or "Random"
+                    voice = schedule.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
+                    font = schedule.get(f"{kind}_font") or "Arial.ttf"
+                    color = schedule.get(f"{kind}_color") or "yellow"
+                    duration = int(schedule.get(f"{kind}_duration") or default_dur)
+
+                    with render_queue_lock:
+                        res = render_video_with_smart_fallback(
+                            user_id=internal_id,
+                            topic=topic,
+                            category=category,
+                            voice_id=voice,
+                            font_name=font,
+                            font_color=color,
+                            video_type=kind,
+                            requested_duration=duration
+                        )
+
+                    if res.get("status") == "completed":
+                        video_file = res.get("file")
+                        script_text = res.get("script", "")
+                        if is_short_flag:
+                            script_text = " ".join(script_text.split()[:120])
+
+                        staged_data = {
+                            "file": video_file,
+                            "title": topic,
+                            "script": script_text,
+                            "date": today_str,
+                            "staged_at": datetime.utcnow().isoformat()
+                        }
+                        staged_map[kind] = staged_data
+                        users_collection.update_one(
+                            {"internal_id": internal_id},
+                            {"$set": {f"staged_auto_videos.{kind}": staged_data}}
+                        )
+                        print(f"✅ [PREDICTIVE STAGING COMPLETE] {kind.upper()} video pre-rendered for user {internal_id}. Waiting for {time_str} IST to publish!")
+                        staged_item = staged_data
+
+            # PHASE 2: INSTANT BATCH UPLOAD (Publish when target time arrives within 25 mins)
+            if diff_current <= 25 or mins_until >= 1420:
+                print(f"💥 [INSTANT BATCH UPLOAD] Publishing {kind.upper()} video for user {internal_id} to YouTube (Scheduled IST: {time_str})...")
+                users_collection.update_one(
+                    {"internal_id": internal_id},
+                    {"$set": {f"auto_schedule.{last_run_key}": today_str}}
+                )
+
+                if staged_item.get("date") == today_str and staged_item.get("file") and os.path.exists(staged_item.get("file")):
+                    upload_video_to_youtube_core(
+                        user_id=internal_id,
+                        video_file=staged_item.get("file"),
+                        title=staged_item.get("title"),
+                        description=staged_item.get("script"),
+                        is_short=is_short_flag
+                    )
+                else:
+                    # Direct fallback rendering if pre-staging was skipped
+                    raw_topic = schedule.get(f"{kind}_topic") or default_topic
+                    topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id)
+                    category = schedule.get(f"{kind}_category") or "Random"
+                    voice = schedule.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
+                    font = schedule.get(f"{kind}_font") or "Arial.ttf"
+                    color = schedule.get(f"{kind}_color") or "yellow"
+                    duration = int(schedule.get(f"{kind}_duration") or default_dur)
+
+                    with render_queue_lock:
+                        res = render_video_with_smart_fallback(
+                            user_id=internal_id,
+                            topic=topic,
+                            category=category,
+                            voice_id=voice,
+                            font_name=font,
+                            font_color=color,
+                            video_type=kind,
+                            requested_duration=duration
+                        )
+                    if res.get("status") == "completed":
+                        video_file = res.get("file")
+                        script_text = res.get("script", "")
+                        if is_short_flag:
+                            script_text = " ".join(script_text.split()[:120])
+                        upload_video_to_youtube_core(
+                            user_id=internal_id,
+                            video_file=video_file,
+                            title=topic,
+                            description=script_text,
+                            is_short=is_short_flag
+                        )
+
+                auto_usage = user.get("auto_daily_usage", {})
+                if auto_usage.get("date") != today_str:
+                    auto_usage = {"date": today_str, "auto_short_count": 0, "auto_long_count": 0, "auto_ultra_count": 0}
+                auto_usage[f"auto_{kind}_count"] = auto_usage.get(f"auto_{kind}_count", 0) + 1
+                users_collection.update_one(
+                    {"internal_id": internal_id},
+                    {"$set": {"auto_daily_usage": auto_usage},
+                     "$unset": {f"staged_auto_videos.{kind}": ""}}
+                )
+
+        # 1. Short Reel
         if is_active and plan_type in ["short", "combo"]:
-            short_time_str = schedule.get("short_time", "10:00")
-            short_target_minutes = parse_time_to_minutes(short_time_str) or 600
+            run_staged_auto_pipeline("short", True, "Space Exploration", 20)
 
-            diff_current_s = min(abs(current_ist_minutes - short_target_minutes), 1440 - abs(current_ist_minutes - short_target_minutes))
-            diff_prerender_s = min(abs(pre_render_ist_minutes - short_target_minutes), 1440 - abs(pre_render_ist_minutes - short_target_minutes))
-
-            if (diff_current_s <= 90 or diff_prerender_s <= 90) and schedule.get("last_short_run") != today_str:
-                print(f"🚀 [PREDICTIVE AUTO-WORKER] Pre-rendering Short Reel ahead of time for user {internal_id} (Scheduled IST: {short_time_str})...")
-                users_collection.update_one(
-                    {"internal_id": internal_id},
-                    {"$set": {"auto_schedule.last_short_run": today_str}}
-                )
-
-                raw_topic = schedule.get("short_topic") or "Space Exploration"
-                topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id)
-                category = schedule.get("short_category") or "Random"
-                voice = schedule.get("short_voice") or "hi-IN-MadhurNeural"
-                font = schedule.get("short_font") or "Arial.ttf"
-                color = schedule.get("short_color") or "yellow"
-                duration = int(schedule.get("short_duration") or 20)
-
-                with render_queue_lock:
-                    res = render_video_with_smart_fallback(
-                        user_id=internal_id,
-                        topic=topic,
-                        category=category,
-                        voice_id=voice,
-                        font_name=font,
-                        font_color=color,
-                        video_type="short",
-                        requested_duration=duration
-                    )
-
-                if res.get("status") == "completed":
-                    video_file = res.get("file")
-                    script_text = res.get("script", "")
-                    script_text = " ".join(script_text.split()[:120])
-                    
-                    upload_video_to_youtube_core(
-                        user_id=internal_id,
-                        video_file=video_file,
-                        title=topic,
-                        description=script_text,
-                        is_short=True
-                    )
-
-                    auto_usage = user.get("auto_daily_usage", {})
-                    if auto_usage.get("date") != today_str:
-                        auto_usage = {"date": today_str, "auto_short_count": 0, "auto_long_count": 0}
-                    auto_usage["auto_short_count"] = auto_usage.get("auto_short_count", 0) + 1
-                    users_collection.update_one(
-                        {"internal_id": internal_id},
-                        {"$set": {"auto_daily_usage": auto_usage}}
-                    )
-
-        # 2. Long Video Pre-render & Auto-Upload Engine
+        # 2. Long Video
         if is_active and plan_type in ["long", "combo"]:
-            long_time_str = schedule.get("long_time", "18:00")
-            long_target_minutes = parse_time_to_minutes(long_time_str) or 1080
+            run_staged_auto_pipeline("long", False, "AI Innovations", 60)
 
-            diff_current_l = min(abs(current_ist_minutes - long_target_minutes), 1440 - abs(current_ist_minutes - long_target_minutes))
-            diff_prerender_l = min(abs(pre_render_ist_minutes - long_target_minutes), 1440 - abs(pre_render_ist_minutes - long_target_minutes))
-
-            if (diff_current_l <= 90 or diff_prerender_l <= 90) and schedule.get("last_long_run") != today_str:
-                print(f"🚀 [PREDICTIVE AUTO-WORKER] Pre-rendering Long Video ahead of time for user {internal_id} (Scheduled IST: {long_time_str})...")
-                users_collection.update_one(
-                    {"internal_id": internal_id},
-                    {"$set": {"auto_schedule.last_long_run": today_str}}
-                )
-
-                topic = schedule.get("long_topic") or "AI Innovations"
-                category = schedule.get("long_category") or "Random"
-                voice = schedule.get("long_voice") or "hi-IN-MadhurNeural"
-                font = schedule.get("long_font") or "Arial.ttf"
-                color = schedule.get("long_color") or "yellow"
-                duration = int(schedule.get("long_duration") or 60)
-
-                with render_queue_lock:
-                    res = render_video_with_smart_fallback(
-                        user_id=internal_id,
-                        topic=topic,
-                        category=category,
-                        voice_id=voice,
-                        font_name=font,
-                        font_color=color,
-                        video_type="long",
-                        requested_duration=duration
-                    )
-
-                if res.get("status") == "completed":
-                    video_file = res.get("file")
-                    script_text = res.get("script", "")
-                    upload_video_to_youtube_core(
-                        user_id=internal_id,
-                        video_file=video_file,
-                        title=topic,
-                        description=script_text,
-                        is_short=False
-                    )
-
-                    auto_usage = user.get("auto_daily_usage", {})
-                    if auto_usage.get("date") != today_str:
-                        auto_usage = {"date": today_str, "auto_short_count": 0, "auto_long_count": 0}
-                    auto_usage["auto_long_count"] = auto_usage.get("auto_long_count", 0) + 1
-                    users_collection.update_one(
-                        {"internal_id": internal_id},
-                        {"$set": {"auto_daily_usage": auto_usage}}
-                    )
-
-        # 3. Ultra Mode Video Pre-render & Auto-Upload Engine
-        ultra_sub = user.get("ultra_subscription", {})
-        ultra_status = ultra_sub.get("status")
-        ultra_expires = ultra_sub.get("expires_at")
-        has_ultra_sub = False
-        if ultra_status == "active" and ultra_expires:
-            if isinstance(ultra_expires, str):
-                try:
-                    ultra_expires = datetime.fromisoformat(ultra_expires)
-                except Exception:
-                    ultra_expires = None
-            if isinstance(ultra_expires, datetime) and ultra_expires > datetime.utcnow():
-                has_ultra_sub = True
-
+        # 3. Ultra Mode Video
         if has_ultra_sub or plan_type == "ultra":
-            ultra_time_str = schedule.get("ultra_time", "21:00")
-            ultra_target_minutes = parse_time_to_minutes(ultra_time_str) or 1260
-
-            diff_current_u = min(abs(current_ist_minutes - ultra_target_minutes), 1440 - abs(current_ist_minutes - ultra_target_minutes))
-            diff_prerender_u = min(abs(pre_render_ist_minutes - ultra_target_minutes), 1440 - abs(pre_render_ist_minutes - ultra_target_minutes))
-
-            if (diff_current_u <= 90 or diff_prerender_u <= 90) and schedule.get("last_ultra_run") != today_str:
-                print(f"🚀 [PREDICTIVE AUTO-WORKER] Pre-rendering Ultra Mode Video ahead of time for user {internal_id} (Scheduled IST: {ultra_time_str})...")
-                users_collection.update_one(
-                    {"internal_id": internal_id},
-                    {"$set": {"auto_schedule.last_ultra_run": today_str}}
-                )
-
-                raw_topic = schedule.get("ultra_topic") or "History of Ancient Warriors"
-                topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id)
-                category = schedule.get("ultra_category") or "Random"
-                voice = schedule.get("ultra_voice") or "hi-IN-MadhurNeural"
-                font = schedule.get("ultra_font") or "Arial.ttf"
-                color = schedule.get("ultra_color") or "yellow"
-                duration = int(schedule.get("ultra_duration") or 60)
-
-                with render_queue_lock:
-                    res = render_video_with_smart_fallback(
-                        user_id=internal_id,
-                        topic=topic,
-                        category=category,
-                        voice_id=voice,
-                        font_name=font,
-                        font_color=color,
-                        video_type="ultra",
-                        requested_duration=duration
-                    )
-
-                if res.get("status") == "completed":
-                    video_file = res.get("file")
-                    script_text = res.get("script", "")
-                    upload_video_to_youtube_core(
-                        user_id=internal_id,
-                        video_file=video_file,
-                        title=topic,
-                        description=script_text,
-                        is_short=False
-                    )
-
-                    auto_usage = user.get("auto_daily_usage", {})
-                    if auto_usage.get("date") != today_str:
-                        auto_usage = {"date": today_str, "auto_short_count": 0, "auto_long_count": 0, "auto_ultra_count": 0}
-                    auto_usage["auto_ultra_count"] = auto_usage.get("auto_ultra_count", 0) + 1
-                    users_collection.update_one(
-                        {"internal_id": internal_id},
-                        {"$set": {"auto_daily_usage": auto_usage}}
-                    )
+            run_staged_auto_pipeline("ultra", False, "History of Ancient Warriors", 60)
 
     except Exception as e_user:
         print(f"❌ Worker error for user {internal_id}: {e_user}")
