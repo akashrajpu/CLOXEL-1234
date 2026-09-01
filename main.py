@@ -1119,87 +1119,90 @@ async def update_profile_pic(req: ProfilePicRequest):
 async def get_user_subscription(internal_id: str):
     if users_collection is None:
         return {"free_demo_count": 2, "has_active_subscription": False, "plan_type": "none"}
+    try:
+        user = users_collection.find_one({"internal_id": internal_id})
+        if not user:
+            return {"free_demo_count": 2, "has_active_subscription": False, "plan_type": "none"}
+            
+        free_demo = user.get("free_demo_count", 2)
+        subscription = user.get("subscription", {})
+        sub_status = subscription.get("status")
+        sub_expires = subscription.get("expires_at")
+        sub_plan = subscription.get("plan_type", "none")
         
-    user = users_collection.find_one({"internal_id": internal_id})
-    if not user:
-        return {"free_demo_count": 2, "has_active_subscription": False, "plan_type": "none"}
-        
-    free_demo = user.get("free_demo_count", 2)
-    subscription = user.get("subscription", {})
-    sub_status = subscription.get("status")
-    sub_expires = subscription.get("expires_at")
-    sub_plan = subscription.get("plan_type", "none")
-    
-    is_active = (sub_status == "active")
-    if sub_expires:
-        if isinstance(sub_expires, str):
-            try:
-                sub_expires = datetime.fromisoformat(sub_expires.replace('Z', '+00:00'))
-            except Exception:
-                sub_expires = None
-        if isinstance(sub_expires, datetime) and sub_expires.replace(tzinfo=None) < datetime.utcnow():
-            is_active = False
+        is_active = (sub_status == "active")
+        if sub_expires:
+            if isinstance(sub_expires, str):
+                try:
+                    sub_expires = datetime.fromisoformat(sub_expires.replace('Z', '+00:00'))
+                except Exception:
+                    sub_expires = None
+            if isinstance(sub_expires, datetime) and sub_expires.replace(tzinfo=None) < datetime.utcnow():
+                is_active = False
 
-    today_ist_str = (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d")
-    daily_usage = user.get("daily_usage", {})
-    if daily_usage.get("date") != today_ist_str:
-        daily_usage = {"date": today_ist_str, "short_count": 0, "long_count": 0}
+        today_ist_str = (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d")
+        daily_usage = user.get("daily_usage", {})
+        if daily_usage.get("date") != today_ist_str:
+            daily_usage = {"date": today_ist_str, "short_count": 0, "long_count": 0}
 
-    auto_daily_usage = user.get("auto_daily_usage", {})
-    if auto_daily_usage.get("date") != today_ist_str:
-        auto_daily_usage = {"date": today_ist_str, "auto_short_count": 0, "auto_long_count": 0}
+        auto_daily_usage = user.get("auto_daily_usage", {})
+        if auto_daily_usage.get("date") != today_ist_str:
+            auto_daily_usage = {"date": today_ist_str, "auto_short_count": 0, "auto_long_count": 0}
 
-    ultra_sub = user.get("ultra_subscription", {})
-    ultra_status = ultra_sub.get("status")
-    ultra_expires = ultra_sub.get("expires_at")
-    has_ultra = (ultra_status == "active")
-    if ultra_expires:
-        if isinstance(ultra_expires, str):
-            try:
-                ultra_expires = datetime.fromisoformat(ultra_expires.replace('Z', '+00:00'))
-            except Exception:
-                ultra_expires = None
-        if isinstance(ultra_expires, datetime) and ultra_expires.replace(tzinfo=None) < datetime.utcnow():
-            has_ultra = False
+        ultra_sub = user.get("ultra_subscription", {})
+        ultra_status = ultra_sub.get("status")
+        ultra_expires = ultra_sub.get("expires_at")
+        has_ultra = (ultra_status == "active")
+        if ultra_expires:
+            if isinstance(ultra_expires, str):
+                try:
+                    ultra_expires = datetime.fromisoformat(ultra_expires.replace('Z', '+00:00'))
+                except Exception:
+                    ultra_expires = None
+            if isinstance(ultra_expires, datetime) and ultra_expires.replace(tzinfo=None) < datetime.utcnow():
+                has_ultra = False
 
-    has_active_sub = is_active or has_ultra
+        has_active_sub = is_active or has_ultra
 
-    limit_text = "2 Free Demo Videos Total"
-    if is_active or has_ultra:
-        if sub_plan == "combo":
-            limit_text = "2 Videos Daily (1 Short + 1 Long)"
-        elif sub_plan == "short":
-            limit_text = "1 Short Video Daily (9:16)"
-        elif sub_plan == "long":
-            limit_text = "1 Long Video Daily (16:9)"
-        elif sub_plan == "ultra" or has_ultra:
-            limit_text = "1 Ultra Cinematic Video Daily"
+        limit_text = "2 Free Demo Videos Total"
+        if is_active or has_ultra:
+            if sub_plan == "combo":
+                limit_text = "2 Videos Daily (1 Short + 1 Long)"
+            elif sub_plan == "short":
+                limit_text = "1 Short Video Daily (9:16)"
+            elif sub_plan == "long":
+                limit_text = "1 Long Video Daily (16:9)"
+            elif sub_plan == "ultra" or has_ultra:
+                limit_text = "1 Ultra Cinematic Video Daily"
 
-    user_name = user.get("name") or user.get("full_name") or user.get("username")
-    if not user_name or user_name == "User":
-        if user.get("email"):
-            user_name = user.get("email").split("@")[0].capitalize()
-        else:
-            user_name = "Cloxel Creator"
+        user_name = user.get("name") or user.get("full_name") or user.get("username")
+        if not user_name or user_name == "User":
+            if user.get("email"):
+                user_name = user.get("email").split("@")[0].capitalize()
+            else:
+                user_name = "Cloxel Creator"
 
-    return {
-        "name": user_name,
-        "email": user.get("email", ""),
-        "phone": user.get("phone", ""),
-        "country": user.get("country", ""),
-        "profile_pic": user.get("profile_pic", ""),
-        "free_demo_count": free_demo,
-        "has_active_subscription": has_active_sub,
-        "has_active_ultra_subscription": has_ultra,
-        "plan_type": sub_plan if is_active else ("ultra" if has_ultra else "none"),
-        "expires_at": sub_expires.isoformat() if is_active and isinstance(sub_expires, datetime) else (ultra_expires.isoformat() if has_ultra and isinstance(ultra_expires, datetime) else None),
-        "ultra_expires_at": ultra_expires.isoformat() if has_ultra and isinstance(ultra_expires, datetime) else None,
-        "today_short_count": daily_usage.get("short_count", 0),
-        "today_long_count": daily_usage.get("long_count", 0),
-        "today_auto_short_count": auto_daily_usage.get("auto_short_count", 0),
-        "today_auto_long_count": auto_daily_usage.get("auto_long_count", 0),
-        "daily_limit_text": limit_text
-    }
+        return {
+            "name": user_name,
+            "email": user.get("email", ""),
+            "phone": user.get("phone", ""),
+            "country": user.get("country", ""),
+            "profile_pic": user.get("profile_pic", ""),
+            "free_demo_count": free_demo,
+            "has_active_subscription": has_active_sub,
+            "has_active_ultra_subscription": has_ultra,
+            "plan_type": sub_plan if is_active else ("ultra" if has_ultra else "none"),
+            "expires_at": sub_expires.isoformat() if is_active and isinstance(sub_expires, datetime) else (ultra_expires.isoformat() if has_ultra and isinstance(ultra_expires, datetime) else None),
+            "ultra_expires_at": ultra_expires.isoformat() if has_ultra and isinstance(ultra_expires, datetime) else None,
+            "today_short_count": daily_usage.get("short_count", 0),
+            "today_long_count": daily_usage.get("long_count", 0),
+            "today_auto_short_count": auto_daily_usage.get("auto_short_count", 0),
+            "today_auto_long_count": auto_daily_usage.get("auto_long_count", 0),
+            "daily_limit_text": limit_text
+        }
+    except Exception as e:
+        print(f"⚠️ get_user_subscription fallback notice for {internal_id}: {e}")
+        return {"name": "Cloxel User", "free_demo_count": 2, "has_active_subscription": False, "plan_type": "none"}
 
 @app.post("/save-auto-schedule")
 async def save_auto_schedule(req: AutoScheduleRequest):

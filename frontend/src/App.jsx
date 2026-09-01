@@ -253,6 +253,9 @@ function App() {
   
   // Auth state
   const [userId, setUserId] = useState(() => localStorage.getItem('cloxel_user_id') || null);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+  const [isUploadingPic, setIsUploadingPic] = useState(false);
 
   const fetchWithTimeout = async (url, options = {}, timeoutMs = 6000) => {
     const controller = new AbortController();
@@ -352,7 +355,7 @@ function App() {
   }, [userId]);
 
   const handleSaveAutoSchedule = async (explicitEnabledState = null) => {
-    if (!userId) return;
+    if (!userId || isSavingSchedule) return;
     if (!subStatus.has_active_subscription) {
       triggerAlert(
         "Active Membership Required",
@@ -399,6 +402,7 @@ function App() {
       }
     }
 
+    setIsSavingSchedule(true);
     try {
       const res = await fetch(`${API_BASE}/save-auto-schedule`, {
         method: 'POST',
@@ -413,26 +417,34 @@ function App() {
           short_voice: autoSchedule.short_voice || 'hi-IN-MadhurNeural',
           short_font: autoSchedule.short_font || 'Arial.ttf',
           short_color: autoSchedule.short_color || 'yellow',
-          short_duration: parseInt(autoSchedule.short_duration || 30),
+          short_duration: autoSchedule.short_duration || 20,
           short_time: autoSchedule.short_time || '10:00',
-          short_language: autoSchedule.short_language || 'hi',
-          
+          short_language: 'hi',
+
           long_auto_topic: autoSchedule.long_auto_topic !== false,
           long_topic: autoSchedule.long_topic || 'Space Exploration, AI Technology',
           long_category: autoSchedule.long_category || 'Random',
           long_voice: autoSchedule.long_voice || 'hi-IN-MadhurNeural',
           long_font: autoSchedule.long_font || 'Arial.ttf',
           long_color: autoSchedule.long_color || 'yellow',
-          long_duration: parseInt(autoSchedule.long_duration || 60),
+          long_duration: autoSchedule.long_duration || 60,
           long_time: autoSchedule.long_time || '18:00',
-          long_language: autoSchedule.long_language || 'hi'
+          long_language: 'hi',
+
+          ultra_enabled: autoSchedule.ultra_enabled || false,
+          ultra_auto_topic: autoSchedule.ultra_auto_topic !== false,
+          ultra_topic: autoSchedule.ultra_topic || 'History of Ancient Warriors',
+          ultra_category: autoSchedule.ultra_category || 'Random',
+          ultra_voice: autoSchedule.ultra_voice || 'hi-IN-MadhurNeural',
+          ultra_font: autoSchedule.ultra_font || 'Arial.ttf',
+          ultra_color: autoSchedule.ultra_color || 'yellow',
+          ultra_duration: autoSchedule.ultra_duration || 60,
+          ultra_time: autoSchedule.ultra_time || '21:00',
+          ultra_language: 'hi'
         })
       });
       if (res.ok) {
-        const data = await res.json();
-        setAutoSchedule(data.schedule || { ...autoSchedule, schedule_enabled: finalEnabledState });
-        setEnableCheckbox(finalEnabledState);
-        setShowStopScheduleWarningModal(false);
+        await fetchAutoSchedule();
         setShowAutoUploadModal(false);
 
         if (finalEnabledState) {
@@ -456,6 +468,8 @@ function App() {
       }
     } catch (err) {
       triggerAlert("Error", "Error saving auto schedule.", "⚠️", "danger");
+    } finally {
+      setIsSavingSchedule(false);
     }
   };
 

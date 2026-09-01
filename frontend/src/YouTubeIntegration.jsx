@@ -5,6 +5,7 @@ const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:80
 function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onStatusChange, triggerAlert, compact = false }) {
   const [status, setStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isActionPending, setIsActionPending] = useState(false);
   const [error, setError] = useState(null);
 
   const fetchStatus = async () => {
@@ -27,6 +28,7 @@ function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onS
   }, [userId]);
 
   const handleLink = async () => {
+    if (isActionPending) return;
     if (!hasActiveSubscription) {
       if (triggerAlert) {
         triggerAlert(
@@ -44,11 +46,13 @@ function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onS
       return;
     }
 
+    setIsActionPending(true);
     try {
       const response = await fetch(`${API_BASE}/youtube/auth-url?internal_id=${userId}`);
       const data = await response.json();
       
       if (!response.ok) {
+        setIsActionPending(false);
         if (triggerAlert) {
           triggerAlert("YouTube Error", data.detail || "Error connecting to YouTube API.", "⚠️", "danger");
         } else {
@@ -59,15 +63,20 @@ function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onS
       
       if (data.auth_url) {
         window.location.href = data.auth_url;
+      } else {
+        setIsActionPending(false);
       }
     } catch (err) {
+      setIsActionPending(false);
       alert("Failed to get authorization URL. Is the backend running?");
     }
   };
 
   const handleUnlink = async () => {
+    if (isActionPending) return;
     if (!window.confirm("Are you sure you want to unlink your YouTube account?")) return;
     
+    setIsActionPending(true);
     try {
       const response = await fetch(`${API_BASE}/youtube/unlink`, {
         method: 'POST',
@@ -84,6 +93,8 @@ function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onS
       }
     } catch (err) {
       alert("Error unlinking account");
+    } finally {
+      setIsActionPending(false);
     }
   };
 
@@ -107,21 +118,22 @@ function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onS
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
             <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Connected for Auto-Upload</span>
             <button 
-              className={`btn-unlink ${!status.can_unlink ? 'disabled' : ''}`}
+              className={`btn-unlink ${!status.can_unlink || isActionPending ? 'disabled' : ''}`}
               onClick={handleUnlink}
-              disabled={!status.can_unlink}
-              style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+              disabled={!status.can_unlink || isActionPending}
+              style={{ padding: '4px 10px', fontSize: '0.75rem', opacity: isActionPending ? 0.6 : 1 }}
             >
-              Unlink
+              {isActionPending ? '⏳ Unlinking...' : 'Unlink'}
             </button>
           </div>
         ) : (
           <button 
             className="btn-yt-link" 
             onClick={handleLink}
-            style={{ width: '100%', padding: '8px', fontSize: '0.85rem', fontWeight: 'bold', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', marginTop: '8px' }}
+            disabled={isActionPending}
+            style={{ width: '100%', padding: '8px', fontSize: '0.85rem', fontWeight: 'bold', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: '#fff', border: 'none', borderRadius: '8px', cursor: isActionPending ? 'not-allowed' : 'pointer', marginTop: '8px', opacity: isActionPending ? 0.6 : 1 }}
           >
-            📺 Link YouTube Account
+            {isActionPending ? '⏳ Connecting...' : '📺 Link YouTube Account'}
           </button>
         )}
       </div>
