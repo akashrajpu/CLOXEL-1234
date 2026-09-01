@@ -587,7 +587,7 @@ function App() {
       return;
     }
     setJobId(null);
-    setJobStatus('processing');
+    setJobStatus(null);
     setCloudinaryUrl(null);
     setDownloadUrl(null);
     
@@ -619,12 +619,15 @@ function App() {
         setJobStatus('processing');
         pollStatus(data.job_id);
       } else if (data.detail) {
-        alert(`⚠️ ${data.detail}`);
+        setJobStatus(null);
+        triggerAlert("⚠️ Daily Limit Reached", data.detail, "⚠️", "warning");
       } else {
-        alert("Failed to start video generation. Please check your account subscription or login status.");
+        setJobStatus(null);
+        triggerAlert("⚠️ Generation Error", "Failed to start video generation. Please check your account subscription or login status.", "⚠️", "warning");
       }
     } catch (error) {
-      alert("Failed to connect to video generator backend.");
+      setJobStatus(null);
+      triggerAlert("⚠️ Network Error", "Failed to connect to video generator backend.", "⚠️", "warning");
     }
   };
 
