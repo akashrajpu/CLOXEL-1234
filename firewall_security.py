@@ -9,27 +9,21 @@ from fastapi import Request, Response, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-# Configure WAF Logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CloxelFortressWAF")
 
-# ==============================================================================
-# 🛡️ CLOXEL FORTRESS WAF v3.0 - ZERO-TRUST MILITARY GRADE SECURITY SHIELD
-# ==============================================================================
 
 class ThreatSignatures:
     """
     Exhaustive Repository of All Known Attack Vectors & Exploitation Techniques.
     """
     
-    # 1. Honeypot Trap Decoy Paths (Deception System)
     HONEYPOT_PATHS = {
         "/wp-admin", "/phpmyadmin", "/.env", "/.git/config", "/admin/db.sql",
         "/shell.php", "/api/v1/eval", "/actuator/env", "/config.json", "/backup.zip",
         "/admin.php", "/vendor/.env", "/.aws/credentials", "/server-status"
     }
 
-    # 2. SQL Injection (SQLi) Patterns
     SQLI_PATTERNS = [
         re.compile(r"(\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|EXEC|UNION|GRANT|REVOKE)\b)", re.IGNORECASE),
         re.compile(r"(\bOR\b\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+)", re.IGNORECASE),
@@ -40,14 +34,12 @@ class ThreatSignatures:
         re.compile(r"(\bUNION\b\s+ALL\s+SELECT\b)", re.IGNORECASE),
     ]
 
-    # 3. NoSQL Injection (MongoDB) Patterns
     NOSQLI_PATTERNS = [
         re.compile(r"(\$where|\$regex|\$gt|\$gte|\$lt|\$lte|\$ne|\$nin|\$exists|\$or|\$and|\$not|\$type|\$mod)", re.IGNORECASE),
         re.compile(r"(this\.[a-zA-Z0-9_]+\s*==\s*this\.[a-zA-Z0-9_]+)", re.IGNORECASE),
         re.compile(r"(\{\$ne:\s*null\}|\{\$gt:\s*\"\"\}|\{\$exists:\s*true\})", re.IGNORECASE),
     ]
 
-    # 4. Cross-Site Scripting (XSS) & HTML Injection Patterns
     XSS_PATTERNS = [
         re.compile(r"(<script[^>]*>.*?</script>)", re.IGNORECASE),
         re.compile(r"(javascript\s*:|vbscript\s*:|data\s*:text/html)", re.IGNORECASE),
@@ -57,7 +49,6 @@ class ThreatSignatures:
         re.compile(r"(alert\s*\(|prompt\s*\(|confirm\s*\()", re.IGNORECASE),
     ]
 
-    # 5. Remote Code Execution (RCE) / Command Injection Patterns
     RCE_PATTERNS = [
         re.compile(r"(;\s*(cat|ls|pwd|whoami|id|uname|nc|netcat|curl|wget|bash|sh|zsh|powershell|cmd)\b)", re.IGNORECASE),
         re.compile(r"(\|\s*(cat|ls|pwd|whoami|id|nc|curl|wget|bash|sh)\b)", re.IGNORECASE),
@@ -67,7 +58,6 @@ class ThreatSignatures:
         re.compile(r"(\\x90\\x90|\\xeb\\xfe|\\xcd\\x80)"), # NOP Sled & Shellcode Markers
     ]
 
-    # 6. Path Traversal & LFI/RFI Patterns
     TRAVERSAL_PATTERNS = [
         re.compile(r"(\.\./|\.\.\\|%2e%2e%2f|%2e%2e/|\.\.%2f|%252e%252e%252f)", re.IGNORECASE),
         re.compile(r"(file://|php://|zlib://|data://|glob://|expect://|zip://|phar://)", re.IGNORECASE),
@@ -75,19 +65,16 @@ class ThreatSignatures:
         re.compile(r"(\\x00|%00)", re.IGNORECASE), # Null Byte Injection
     ]
 
-    # 7. SSRF (Server-Side Request Forgery) Target IP Patterns
     SSRF_PATTERNS = [
         re.compile(r"(http://|https://)?(127\.0\.0\.1|localhost|169\.254\.169\.254|0\.0\.0\.0|::1)", re.IGNORECASE),
         re.compile(r"(http://|https://)?(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3})", re.IGNORECASE),
     ]
 
-    # 8. JWT Forgery & Alg None Patterns
     JWT_ATTACK_PATTERNS = [
         re.compile(r"\"alg\"\s*:\s*\"none\"", re.IGNORECASE),
         re.compile(r"eyJhbGciOiJub25lIn", re.IGNORECASE), # Base64 encoded {"alg":"none"
     ]
 
-    # 9. Zero-Day Exploits (Log4j, Shellshock, XXE Entity, CRLF Header Injection)
     ZERO_DAY_PATTERNS = [
         re.compile(r"(\$\{jndi:(ldap|rmi|dns|nis|nds|corba|iiop):)", re.IGNORECASE), # Log4j JNDI Exploit
         re.compile(r"(\(\)\s*\{\s*:;\s*\};)", re.IGNORECASE),                         # Shellshock Exploit
@@ -95,7 +82,6 @@ class ThreatSignatures:
         re.compile(r"(%0d%0a|\\r\\n)\s*(Set-Cookie|Location|Content-Length):", re.IGNORECASE), # CRLF Injection
     ]
 
-    # 10. Malicious User-Agents & Security Scanners
     MALICIOUS_BOTS = [
         "sqlmap", "nikto", "nmap", "acunetix", "havij", "dirbuster", "gobuster", 
         "masscan", "w3af", "netsparker", "zgrab", "zmap", "fimap", "commix", 
@@ -173,7 +159,6 @@ class SecurityFirewall:
         
         logger.warning(f"🚨 [FORTRESS THREAT DETECTED] Type: {threat_type.upper()} | IP: {ip} | Score: {self.threat_scores[ip]}")
         
-        # Only ban on hard malicious exploit signatures (SQLi, RCE, XSS, Scanners)
         if self.threat_scores[ip] >= 6:
             self.ban_ip(ip, duration=120)
 
@@ -199,7 +184,6 @@ class SecurityFirewall:
         if not text or not isinstance(text, str):
             return False, ""
 
-        # Whitelist valid HEX color codes (e.g. #00FF00, #FF00FF, #A855F7) and CSS color names
         clean_text = text.strip()
         import re
         if re.match(r"^#(?:[0-9a-fA-F]{3}){1,2}$", clean_text) or clean_text.lower() in [
@@ -207,58 +191,46 @@ class SecurityFirewall:
         ]:
             return False, ""
 
-        # 1. Null Byte Check
         if "\x00" in text or "%00" in text:
             return True, "traversal_blocked"
 
-        # 2. Honeypot check in text
         for hp in ThreatSignatures.HONEYPOT_PATHS:
             if hp in text:
                 return True, "honeypot_trap_blocked"
 
-        # 3. JWT Alg None Attack Check
         for pattern in ThreatSignatures.JWT_ATTACK_PATTERNS:
             if pattern.search(text):
                 return True, "jwt_attack_blocked"
 
-        # 4. Zero-Day Exploits (Log4j, Shellshock, XXE, CRLF) Check
         for pattern in ThreatSignatures.ZERO_DAY_PATTERNS:
             if pattern.search(text):
                 return True, "zero_day_blocked"
 
-        # 5. SSRF Target IP Check
         for pattern in ThreatSignatures.SSRF_PATTERNS:
             if pattern.search(text):
                 return True, "ssrf_blocked"
 
-        # 5. Path Traversal
         for pattern in ThreatSignatures.TRAVERSAL_PATTERNS:
             if pattern.search(text):
                 return True, "traversal_blocked"
 
-        # 6. RCE / Command Injection
         for pattern in ThreatSignatures.RCE_PATTERNS:
             if pattern.search(text):
                 return True, "rce_blocked"
 
-        # 7. XSS Injection
         for pattern in ThreatSignatures.XSS_PATTERNS:
             if pattern.search(text):
                 return True, "xss_blocked"
 
-        # 8. SQL Injection
         for pattern in ThreatSignatures.SQLI_PATTERNS:
             if pattern.search(text):
                 return True, "sqli_blocked"
 
-        # 9. NoSQL Injection
         for pattern in ThreatSignatures.NOSQLI_PATTERNS:
             if pattern.search(text):
                 return True, "nosqli_blocked"
 
-        # 10. High Entropy Payload Anomaly (> 5.8)
         if len(text) > 40 and self.calculate_entropy(text) > 5.8:
-            # Verify if it looks like obfuscated script/shellcode
             if any(sym in text for sym in [";", "|", "$", "<", ">", "`", "{", "}", "\\"]):
                 return True, "rce_blocked"
 
@@ -294,17 +266,12 @@ class SecurityFirewall:
         return False, ""
 
 
-# Singleton Fortress WAF Instance
 waf = SecurityFirewall()
 
 
-# ==============================================================================
-# 🧱 FASTAPI FORTRESS MIDDLEWARE IMPLEMENTATION
-# ==============================================================================
 
 class FirewallMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # 1. Client IP Resolution (Proxies / CDN Aware)
         forwarded = request.headers.get("X-Forwarded-For")
         if forwarded:
             client_ip = forwarded.split(",")[0].strip()
@@ -313,7 +280,6 @@ class FirewallMiddleware(BaseHTTPMiddleware):
 
         path = request.url.path.lower()
 
-        # 2. Banned IP Check (Instant Rejection)
         if waf.is_banned(client_ip):
             logger.warning(f"🚫 [FORTRESS BLOCKED BANNED IP] {client_ip} -> {path}")
             return JSONResponse(
@@ -325,7 +291,6 @@ class FirewallMiddleware(BaseHTTPMiddleware):
                 }
             )
 
-        # 3. Honeypot Decoy Trap Check (Instant 24h Ban)
         if path in ThreatSignatures.HONEYPOT_PATHS or any(path.startswith(hp) for hp in ThreatSignatures.HONEYPOT_PATHS):
             waf.record_threat(client_ip, "honeypot_trap_blocked", weight=10) # Instant Ban
             return JSONResponse(
@@ -333,7 +298,6 @@ class FirewallMiddleware(BaseHTTPMiddleware):
                 content={"status": "blocked", "error": "Honeypot Security Trap Triggered. IP Banned."}
             )
 
-        # 4. HTTP Request Smuggling Defense (Content-Length vs Transfer-Encoding Conflict)
         if "content-length" in request.headers and "transfer-encoding" in request.headers:
             waf.record_threat(client_ip, "protocol_smuggling_blocked", weight=5)
             return JSONResponse(
@@ -341,7 +305,6 @@ class FirewallMiddleware(BaseHTTPMiddleware):
                 content={"status": "blocked", "error": "HTTP Protocol Anomaly Detected (Smuggling Attempt)."}
             )
 
-        # 5. User-Agent Malicious Scanner Check
         user_agent = request.headers.get("User-Agent", "").lower()
         for bot in ThreatSignatures.MALICIOUS_BOTS:
             if bot in user_agent:
@@ -351,14 +314,12 @@ class FirewallMiddleware(BaseHTTPMiddleware):
                     content={"status": "blocked", "error": "Automated security scanner detected and blocked."}
                 )
 
-        # 6. Rate Limiting Check
         if not waf.check_rate_limit(client_ip, path):
             return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 content={"status": "rate_limited", "error": "Too many requests. Rate limit enforced."}
             )
 
-        # 7. Query Parameter Inspection
         for key, val in request.query_params.items():
             is_malicious, threat_type = waf.inspect_text(f"{key}={val}")
             if is_malicious:
@@ -368,7 +329,6 @@ class FirewallMiddleware(BaseHTTPMiddleware):
                     content={"status": "blocked", "error": f"Security Shield Flagged Request ({threat_type.upper()})."}
                 )
 
-        # 8. Request Body Payload Threat & Size Inspection
         if request.method in ["POST", "PUT", "PATCH"]:
             content_length = request.headers.get("Content-Length")
             if content_length and int(content_length) > 25 * 1024 * 1024:
@@ -398,7 +358,6 @@ class FirewallMiddleware(BaseHTTPMiddleware):
                 except Exception:
                     pass
 
-        # 9. Downstream Route Execution with Sanitized Error Handling
         try:
             response: Response = await call_next(request)
         except Exception as exc:
@@ -408,7 +367,6 @@ class FirewallMiddleware(BaseHTTPMiddleware):
                 content={"status": "error", "message": "An internal server error occurred. Logged by Security Shield."}
             )
 
-        # 10. OWASP Hardened Security Headers Enforcement
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"

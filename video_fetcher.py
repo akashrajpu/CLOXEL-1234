@@ -1,12 +1,6 @@
 import requests
 import os
 
-# === MULTI-PROVIDER ENVIRONMENT VARIABLES ===
-# Render Environment Variables:
-# - PEXELS_API_KEY
-# - PIXABAY_API_KEY
-# - UNSPLASH_ACCESS_KEY
-# - PINTEREST_ACCESS_TOKEN
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "jqGZN1a4uHQFpxqdFAdVaD1l1eyjW1kzHqtdlNJ1TPkSmOEXcbAL7yhN")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY", "")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY", "")
@@ -135,7 +129,6 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
     """
     cat_lower = str(category).lower()
     
-    # Optional Pinterest priority check
     prefer_pinterest = any(c in cat_lower for c in ['cartoon', 'animation', 'documentary', 'comedy', 'horror', 'mythology', 'history', 'anime', 'art', 'photo'])
     
     if prefer_pinterest:
@@ -150,7 +143,6 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
         except Exception as e_p:
             print(f"⚠️ [Pinterest Skip]: {e_p}")
 
-    # 1. Primary: Try Pexels Video Search
     try:
         clips = fetch_pexels_videos(keyword, job_id, count=count, orientation=orientation)
         if clips:
@@ -158,7 +150,6 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
     except Exception as e_px:
         print(f"⚠️ [Pexels Skip]: {e_px}")
         
-    # 2. Fallback 1: Try Pixabay Video Search
     try:
         clips = fetch_pixabay_videos(keyword, job_id, count=count, orientation=orientation)
         if clips:
@@ -166,7 +157,6 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
     except Exception as e_pb:
         print(f"⚠️ [Pixabay Skip]: {e_pb}")
 
-    # 3. Fallback 2: Try Pinterest Pins Search
     try:
         pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation)
         if pins:
@@ -174,7 +164,6 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
     except Exception as e_p2:
         print(f"⚠️ [Pinterest Fallback Skip]: {e_p2}")
 
-    # 4. Fallback 3: Retry Pexels with generic safe keywords
     for fallback_kw in ["nature", "technology", "abstract", "city"]:
         if fallback_kw != keyword.lower():
             try:

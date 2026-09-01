@@ -19,7 +19,6 @@ def make_audio(text, output_path, voice_id='hi-IN-MadhurNeural'):
     if not text or not text.strip():
         text = "Welcome to the video."
         
-    # Attempt 1: EdgeTTS (Microsoft Edge Neural Voice)
     async def run_edge_tts():
         communicate = edge_tts.Communicate(text, voice_id)
         await communicate.save(output_path)
@@ -32,7 +31,6 @@ def make_audio(text, output_path, voice_id='hi-IN-MadhurNeural'):
     except Exception as e:
         print(f"⚠️ EdgeTTS Failed: {e}. Switching to gTTS Fallback...")
 
-    # Attempt 2: gTTS (Google Text-To-Speech Fallback)
     if gTTS is not None:
         try:
             lang = "hi" if any('\u0900' <= char <= '\u097F' for char in text) else "en"
@@ -44,7 +42,6 @@ def make_audio(text, output_path, voice_id='hi-IN-MadhurNeural'):
         except Exception as e:
             print(f"⚠️ gTTS Fallback Failed: {e}. Generating Silent Audio Fallback...")
 
-    # Attempt 3: Ultimate FFmpeg Silent Audio Fallback (Guarantees zero rendering crashes)
     try:
         dur = max(3.0, len(text.split()) / 2.5)
         cmd = [

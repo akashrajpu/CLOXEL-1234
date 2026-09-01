@@ -32,7 +32,6 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance, ImageOps
 
 warnings.filterwarnings("ignore")
 
-# Pillow 10+ fix
 if not hasattr(Image, 'ANTIALIAS'):
     Image.ANTIALIAS = Image.LANCZOS
 
@@ -47,9 +46,6 @@ except ImportError:
     fetch_web_image = None
 
 
-# =============================================================================
-# Subtitle Color Palette & Random Dynamic Position Generator
-# =============================================================================
 COLOR_PALETTES = [
     "#FFEE00", # Vivid Yellow
     "#00FFFF", # Neon Cyan
@@ -87,7 +83,6 @@ def create_dynamic_animated_text(
     max_font_size = int(size[1] * 0.075) if size[0] > size[1] else int(size[0] * 0.08)
     user_font_size = min(font_size, max_font_size) if font_size > 50 else max_font_size
 
-    # Choose random color & position per scene if specified (Picked ONCE per scene for 100% stability)
     highlight_color = random.choice(COLOR_PALETTES) if text_color == "random" else text_color
     chosen_pos = random.choice(POSITIONS) if text_position == "random" else text_position
     ultra_side_mode = random.choice(["side_left", "side_right", "center"]) if is_ultra_mode else "center"
@@ -147,7 +142,6 @@ def create_dynamic_animated_text(
         word_idx = int((i / total_frames) * len(words))
         if word_idx >= len(words): word_idx = len(words) - 1
         
-        # Split scene words into 2 clean 50% half chunks (1st half in 1st part, 2nd half in 2nd part)
         half_word_count = max(1, (len(words) + 1) // 2)
         if t < (duration / 2.0):
             current_chunk_words = words[:half_word_count]
@@ -158,13 +152,11 @@ def create_dynamic_animated_text(
             
         active_font = load_font(user_font_size)
         
-        # Structure into max 2 balanced lines per half chunk (like Photo #1: Seene mae Dhadhkti / Le Jawaala)
         mid_point = max(1, (len(current_chunk_words) + 1) // 2)
         line1_words = current_chunk_words[:mid_point]
         line2_words = current_chunk_words[mid_point:]
 
         if is_ultra_mode:
-            # Render Off-White Parchment Scroll Box with Crimson Red Distressed Font (Matching Screenshots 1, 2, 3!)
             chunk_str = " ".join(current_chunk_words)
             parchment_img = create_parchment_subtitle_box(chunk_str, size, font_size=user_font_size)
             px = (size[0] - parchment_img.width) // 2
@@ -181,7 +173,6 @@ def create_dynamic_animated_text(
         line_spacing = int(active_font.size * 1.25)
         total_h = len(lines) * line_spacing
         
-        # Calculate Y-position based on chosen_pos (STABLE)
         if chosen_pos == "top":
             y_text = int(size[1] * 0.12)
         elif chosen_pos == "bottom":
@@ -189,11 +180,8 @@ def create_dynamic_animated_text(
         else: # center
             y_text = (size[1] - total_h) / 2
         
-        # Single Theme Color per Scene (Clean & Professional)
         scene_theme_color = highlight_color if (highlight_color and highlight_color != "random") else "#FFD700"
         
-        # 100% Rock-Solid Fixed Alignment (ZERO SHAKING / ZERO VIBRATION)
-        # Fast smooth 0.2s slide entrance at start of scene clip only!
         slide_progress = min(1.0, t * 5.0) # 0.2s completion
         slide_x_offset = int((1.0 - math.pow(slide_progress, 2)) * size[0] * 0.08)
         
@@ -205,11 +193,9 @@ def create_dynamic_animated_text(
             space_bbox = draw.textbbox((0, 0), " ", font=active_font)
             space_w = space_bbox[2] - space_bbox[0]
             
-            # Calculate line width taking exact line sequence scaling into account
             line_total_w = 0
             for word_pos_in_line, w in enumerate(line_words):
                 if is_ultra_mode:
-                    # Line 1: First word is Large Bold (1.30x). Line 2: Last word is Large Bold (1.30x).
                     if line_idx == 0:
                         is_bold_kw = (word_pos_in_line == 0) or (local_word_count == target_local_idx)
                     else:
@@ -222,13 +208,11 @@ def create_dynamic_animated_text(
                 line_total_w += (wb[2] - wb[0]) + space_w
             line_total_w -= space_w
             
-            # Auto-Scale Font Size Down if line width exceeds target_width!
             scale_down = 1.0
             if line_total_w > target_width:
                 scale_down = max(0.55, target_width / float(line_total_w))
                 line_total_w = int(line_total_w * scale_down)
 
-            # Clamp starting X position safely inside screen boundaries (NO OVERFLOW GUARANTEE)
             if is_ultra_mode and ultra_side_mode == "side_left":
                 calc_x = int(size[0] * 0.08) - slide_x_offset
             elif is_ultra_mode and ultra_side_mode == "side_right":
@@ -236,14 +220,12 @@ def create_dynamic_animated_text(
             else:
                 calc_x = (size[0] - line_total_w) // 2
                 
-            # Hard Clamp: Keep text strictly inside 6% left margin and 94% right margin!
             min_x_margin = int(size[0] * 0.06)
             max_x_margin = size[0] - line_total_w - int(size[0] * 0.06)
             current_x = max(min_x_margin, min(max_x_margin, calc_x)) if max_x_margin > min_x_margin else min_x_margin
             
             for word_pos_in_line, w in enumerate(line_words):
                 if is_ultra_mode:
-                    # Sequence: Line 1 -> 1st Word Bold (1.30x), Line 2 -> Last Word Bold (1.30x)
                     if line_idx == 0:
                         is_bold_keyword = (word_pos_in_line == 0) or (local_word_count == target_local_idx)
                     else:
@@ -252,7 +234,6 @@ def create_dynamic_animated_text(
                     curr_kw_size = int(user_font_size * 1.30 * scale_down) if is_bold_keyword else int(user_font_size * 0.85 * scale_down)
                     w_font = load_font(curr_kw_size)
                     
-                    # Single theme color per scene: Active spoken word gets highlight color, others get clean white
                     if local_word_count == target_local_idx:
                         color = scene_theme_color
                     elif is_bold_keyword:
@@ -263,7 +244,6 @@ def create_dynamic_animated_text(
                     w_font = active_font
                     color = highlight_color if local_word_count <= target_local_idx else "white"
                 
-                # Drop shadow & bold text outline
                 draw.text((current_x + shadow_offset, y_text + shadow_offset), w, font=w_font, fill=(0, 0, 0, 240))
                 draw.text((current_x, y_text), w, font=w_font, fill=color)
                 
@@ -289,9 +269,6 @@ def create_dynamic_animated_text(
     return clip.set_mask(mask_clip)
 
 
-# =============================================================================
-# Multi-Character Ultra Scene Canvas Generator
-# =============================================================================
 def create_multi_character_ultra_clip(
     scene_info: dict,
     duration: float,
@@ -308,14 +285,11 @@ def create_multi_character_ultra_clip(
     bg_img_path = scene_info.get("background_image") or scene_info.get("video")
     char_list = scene_info.get("characters", []) # List of dicts: [{"name": "Karna", "image": "...", "pos": "left"}]
     
-    # 1. Load Background Backdrop Canvas (Intact, NO BG Removal)
     if bg_img_path and os.path.exists(bg_img_path):
         bg_pil = Image.open(bg_img_path).convert("RGBA").resize(size, Image.LANCZOS)
     else:
-        # Fallback dark epic background
         bg_pil = Image.new("RGBA", size, (25, 18, 12, 255))
         
-    # 2. Process Dialogue Character Cutouts (Selective BG Removal)
     processed_chars = []
     
     for idx, c_info in enumerate(char_list):
@@ -324,19 +298,16 @@ def create_multi_character_ultra_clip(
         
         if c_path and os.path.exists(c_path):
             char_pil = Image.open(c_path).convert("RGBA")
-            # Selectively Remove BG for dialogue character
             if remove_background:
                 fg_cutout = remove_background(char_pil)
             else:
                 fg_cutout = char_pil
                 
-            # Resize character to ~80% height of canvas
             target_h = int(h * 0.82)
             aspect = fg_cutout.width / fg_cutout.height
             target_w = int(target_h * aspect)
             fg_resized = fg_cutout.resize((target_w, target_h), Image.LANCZOS)
             
-            # Position character (Left / Right / Center)
             if c_pos == "left":
                 pos_x = int(w * 0.04)
             elif c_pos == "right":
@@ -347,11 +318,9 @@ def create_multi_character_ultra_clip(
             pos_y = h - target_h
             processed_chars.append({"img": fg_resized, "x": pos_x, "y": pos_y, "pos": c_pos})
 
-    # 3. Frame generator with subtle motion (Ken Burns BG + Floating Characters)
     def get_frame(t):
         progress = t / duration if duration > 0 else 0
         
-        # Background slow zoom (1.0 -> 1.06)
         bg_scale = 1.0 + (0.06 * progress)
         bg_w_s = int(w * bg_scale)
         bg_h_s = int(h * bg_scale)
@@ -361,10 +330,8 @@ def create_multi_character_ultra_clip(
         crop_y = (bg_h_s - h) // 2
         canvas = bg_s.crop((crop_x, crop_y, crop_x + w, crop_y + h)).convert("RGBA")
         
-        # Paste dialogue characters with subtle entrance & floating Y pan
         for c in processed_chars:
             c_img = c["img"]
-            # Gentle Floating Y motion
             float_y = int(8 * math.sin(progress * math.pi * 2))
             final_x = c["x"]
             final_y = c["y"] + float_y
@@ -382,12 +349,10 @@ def generate_ink_brush_mask(size: tuple) -> Image.Image:
     mask = Image.new("L", (w, h), 0)
     draw = ImageDraw.Draw(mask)
     
-    # Inner rectangular core
     margin_w = int(w * 0.04)
     margin_h = int(h * 0.04)
     draw.rectangle([margin_w, margin_h, w - margin_w, h - margin_h], fill=255)
     
-    # Generate jagged rough brush strokes along borders
     random.seed(42)
     for x in range(margin_w, w - margin_w, 8):
         jitter_top = random.randint(-18, 25)
@@ -471,11 +436,9 @@ def apply_color_filter(pil_img: Image.Image, filter_style: str = "warm_epic") ->
         overlay = Image.new("RGB", img.size, (56, 189, 248))
         img = Image.blend(img, overlay, alpha=0.18)
 
-    # 1. Old Paper Scratches & Vintage Parchment Texture Overlay
     paper_tex = create_parchment_background((w, h), color_theme="warm")
     img = Image.blend(img, paper_tex, alpha=0.18)
 
-    # 2. Orange Light Leak & Dust Particles Overlay
     light_leak = Image.new("RGB", (w, h), (255, 130, 40))
     glow_mask = Image.new("L", (w, h), 0)
     g_draw = ImageDraw.Draw(glow_mask)
@@ -494,15 +457,12 @@ def create_history_spotlight_overlay(base_img: Image.Image, progress: float) -> 
     """
     w, h = base_img.size
     
-    # 1. Outer Dark Monochromatic Overlay
     dark_bg = base_img.copy().convert("L").convert("RGB")
     dark_bg = ImageEnhance.Brightness(dark_bg).enhance(0.28)
     
-    # 2. Dynamic Moving Oval Spotlight Reveal Mask
     spotlight_mask = Image.new("L", (w, h), 0)
     s_draw = ImageDraw.Draw(spotlight_mask)
     
-    # Smooth moving spotlight center X and Y
     spotlight_cx = int(w * (0.35 + 0.30 * math.sin(progress * math.pi)))
     spotlight_cy = int(h * (0.45 + 0.10 * math.cos(progress * math.pi)))
     
@@ -517,7 +477,6 @@ def create_history_spotlight_overlay(base_img: Image.Image, progress: float) -> 
     ]
     s_draw.ellipse(bbox, fill=255)
     
-    # Add organic jagged brush edges to spotlight border
     random.seed(int(progress * 100))
     for angle in range(0, 360, 10):
         rad = math.radians(angle)
@@ -526,10 +485,8 @@ def create_history_spotlight_overlay(base_img: Image.Image, progress: float) -> 
         py = int(spotlight_cy + (spotlight_radius_y + jitter) * math.sin(rad))
         s_draw.ellipse([px - 14, py - 14, px + 14, py + 14], fill=255)
 
-    # Soft Feather Gaussian Blur
     spotlight_mask = spotlight_mask.filter(ImageFilter.GaussianBlur(radius=22))
     
-    # Composite warm sharp original image inside spotlight window over dark outer background
     result_img = Image.composite(base_img.convert("RGB"), dark_bg, spotlight_mask)
     return result_img.convert("RGBA")
 
@@ -543,10 +500,8 @@ def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) 
     box_w = int(w * 0.78)
     box_h = int(h * 0.22)
     
-    # Off-White Parchment Background Canvas (#FFFDE8)
     parchment = Image.new("RGBA", (box_w, box_h), (255, 253, 232, 245))
     
-    # Jagged torn paper edges mask
     torn_mask = Image.new("L", (box_w, box_h), 255)
     t_draw = ImageDraw.Draw(torn_mask)
     
@@ -566,7 +521,6 @@ def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) 
     torn_mask = torn_mask.filter(ImageFilter.GaussianBlur(radius=2))
     parchment.putalpha(torn_mask)
     
-    # Load BetsyFlanagan / RaceFlow / CarbonBlock / Bebas / Anton font
     font_candidates = [
         "./fonts/BetsyFlanagan.ttf",
         "./fonts/RaceFlow.ttf",
@@ -585,7 +539,6 @@ def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) 
     if not chosen_font:
         chosen_font = ImageFont.load_default()
 
-    # Wrap text into max 2 clean lines
     words = text.upper().split()
     mid = max(1, (len(words) + 1) // 2)
     l1 = " ".join(words[:mid])
@@ -594,7 +547,6 @@ def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) 
     if l2:
         lines.append(l2)
 
-    # Render bold distressed Crimson Rust Red text (#C83200 / #D9381E)
     text_color = (200, 50, 0, 255)
     
     draw_p = ImageDraw.Draw(parchment)
@@ -605,7 +557,6 @@ def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) 
         tb = draw_p.textbbox((0, 0), line, font=chosen_font)
         lw = tb[2] - tb[0]
         x_pos = (box_w - lw) // 2
-        # Text shadow + main text
         draw_p.text((x_pos + 2, y_pos + 2), line, font=chosen_font, fill=(70, 15, 0, 180))
         draw_p.text((x_pos, y_pos), line, font=chosen_font, fill=text_color)
         y_pos += line_h
@@ -632,7 +583,6 @@ def create_ultra_photo_motion_clip(
             return np.array(bg_pil.convert("RGB"))
         return VideoClip(get_fallback_frame, duration=duration).set_fps(fps)
 
-    # 1. Background Photo (Layer 1 - 0% BG Removal)
     is_video_file = str(photo_path).lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm'))
     orig_pil = None
     if is_video_file and os.path.exists(photo_path):
@@ -667,7 +617,6 @@ def create_ultra_photo_motion_clip(
         bg_h_fit = int(w / aspect_bg)
     bg_pil = bg_pil.resize((bg_w_fit, bg_h_fit), Image.LANCZOS)
 
-    # 2. Foreground Character Cutout Photo (ONLY if a DIFFERENT image exists, NEVER same photo over itself!)
     has_cutout = False
     fg_resized = None
     cutout_src_path = fg_photo_path if (fg_photo_path and os.path.exists(fg_photo_path) and fg_photo_path != photo_path) else None
@@ -684,7 +633,6 @@ def create_ultra_photo_motion_clip(
                 target_fg_w = int(target_fg_h * aspect_fg)
                 fg_resized = fg_filtered.resize((target_fg_w, target_fg_h), Image.LANCZOS)
                 
-                # Apply Ink Brush Matte / Mask to Character Cutout Edges
                 ink_mask = generate_ink_brush_mask((fg_resized.width, fg_resized.height))
                 cur_alpha = fg_resized.split()[3]
                 combined_alpha = Image.composite(cur_alpha, Image.new("L", cur_alpha.size, 0), ink_mask)
@@ -697,7 +645,6 @@ def create_ultra_photo_motion_clip(
     def get_frame(t):
         progress = t / duration if duration > 0 else 0
         
-        # Dynamic Camera Motions per Scene: Zoom In / Zoom Out / Pan Right / Pan Left / Fast Diagonal Zoom
         if motion_type == "zoom_in":
             bg_scale = 1.0 + (0.22 * progress)
             pan_x_factor = 0.5
@@ -734,22 +681,18 @@ def create_ultra_photo_motion_clip(
         
         frame_canvas = bg_scaled.crop((crop_x, crop_y, crop_x + w, crop_y + h)).convert("RGBA")
         
-        # Animated Lighting Pulse & Film Haze
         light_pulse = 1.0 + (0.09 * math.sin(progress * math.pi * 2))
         frame_canvas = ImageEnhance.Brightness(frame_canvas.convert("RGB")).enhance(light_pulse).convert("RGBA")
         
-        # Apply History Dynamic Moving Spotlight Reveal Filter (Matching User Screenshots 1, 2, 3!)
         if filter_style in ["warm_epic", "vintage_parchment", "history", "dramatic_cinematic"]:
             frame_canvas = create_history_spotlight_overlay(frame_canvas, progress)
         
-        # Fast Smooth Character Cutout Entrance (Fade & Slide in within first 0.6s)
         if has_cutout and fg_resized:
             fg_scale = 1.0 + (0.03 * math.sin(progress * math.pi))
             cur_fg_w = int(fg_resized.width * fg_scale)
             cur_fg_h = int(fg_resized.height * fg_scale)
             fg_cur = fg_resized.resize((cur_fg_w, cur_fg_h), Image.BILINEAR)
             
-            # Fast Smooth Entrance Offset (0s to 0.6s)
             entrance_factor = min(1.0, progress * 4.0) # Fast 0.25s completion
             slide_offset = int((1.0 - math.pow(entrance_factor, 2)) * w * 0.25)
             
@@ -765,9 +708,6 @@ def create_ultra_photo_motion_clip(
 
     return VideoClip(get_frame, duration=duration).set_fps(fps)
 
-# =============================================================================
-# Main Export Function: merge_and_export
-# =============================================================================
 def merge_and_export(
     scene_list: list,
     output_name: str,
@@ -790,7 +730,6 @@ def merge_and_export(
     for i, scene in enumerate(scene_list):
         audio_path = scene['audio']
         
-        # Audio File Validation Guard: Ensure audio file exists and is > 1000 bytes (Prevents MoviePy FFmpeg crashes)
         if not audio_path or not os.path.exists(audio_path) or os.path.getsize(audio_path) < 1000:
             print(f"⚠️ Warning: Invalid or 0-byte audio file {audio_path}. Generating silent audio fallback...")
             safe_audio_path = os.path.join(job_dir, f"safe_audio_{i}.mp3")
@@ -811,7 +750,6 @@ def merge_and_export(
                 video_paths = scene['video'] if isinstance(scene['video'], list) else [scene['video']]
                 bg_path = video_paths[0]
                 
-                # Character Cutout Frequency: Only 2 to 3 scenes in a video have character cutouts!
                 show_cutout = (i % 2 == 0) and (i < 6)
                 fg_path = video_paths[1] if (show_cutout and len(video_paths) > 1) else None
                 
@@ -847,7 +785,6 @@ def merge_and_export(
         v_clip = v_clip.set_duration(clip_duration)
         v_clip = v_clip.set_audio(a_clip)
 
-        # Dynamic Subtitle rendering with random position & color animation
         clip_text_segment = scene['text']
         txt_clip = create_dynamic_animated_text(
             full_text=clip_text_segment,
@@ -875,7 +812,6 @@ def merge_and_export(
             logger=None
         )
         
-        # Cleanup
         scene_combined.close()
         v_clip.close()
         a_clip.close()
@@ -885,7 +821,6 @@ def merge_and_export(
         
         temp_scene_files.append(scene_output)
 
-    # Concatenate clips using RAW FFMPEG
     print(f"🔗 Concatenating {len(temp_scene_files)} scenes via ffmpeg...")
     list_path = os.path.join(job_dir, "concat_list.txt")
     with open(list_path, "w") as f:
@@ -895,7 +830,6 @@ def merge_and_export(
     temp_merged = os.path.join(job_dir, "temp_merged_final.mp4")
     subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", temp_merged], check=True)
 
-    # Background Music
     bg_music_file = None
     if bg_music and str(bg_music).lower() != "none":
         if os.path.exists(bg_music):

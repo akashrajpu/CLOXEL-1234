@@ -20,7 +20,6 @@ from PIL import Image, ImageColor, ImageFilter
 import numpy as np
 from collections import deque
 
-# Load dotenv if available locally
 try:
     from dotenv import load_dotenv
     if os.path.exists("config.env"):
@@ -133,10 +132,8 @@ def remove_background(
     Removes background using Remove.bg API (via REMOVE_BG_API_KEY env var or api_key param)
     with automatic local fallbacks.
     """
-    # 1. Check for API Key in param or environment variables
     effective_api_key = api_key or os.getenv("REMOVE_BG_API_KEY") or os.getenv("REMOVEBG_API_KEY")
 
-    # Load raw bytes & PIL image
     if isinstance(input_image, (str, Path)):
         with open(input_image, "rb") as f:
             raw_bytes = f.read()
@@ -154,14 +151,12 @@ def remove_background(
 
     result_img = None
 
-    # 2. Try Remove.bg Cloud AI API if API Key is available
     if effective_api_key:
         try:
             result_img = remove_bg_removebg_api(raw_bytes, effective_api_key)
         except Exception as err:
             print(f"⚠️ Remove.bg API Notice: {err}. Using local fallback engine...")
 
-    # 3. Local rembg AI model fallback
     if result_img is None and REMBG_AVAILABLE:
         try:
             session = new_session("u2net")
@@ -169,11 +164,9 @@ def remove_background(
         except Exception:
             pass
 
-    # 4. Local Pro Engine fallback
     if result_img is None:
         result_img = remove_background_pro(img)
 
-    # Custom background color if requested
     if bg_color is not None:
         if isinstance(bg_color, str):
             rgb_vals = ImageColor.getrgb(bg_color)
@@ -184,7 +177,6 @@ def remove_background(
         bg_canvas.paste(result_img, (0, 0), mask=result_img)
         result_img = bg_canvas.convert("RGB")
 
-    # Save output file
     if output_path:
         out_path = Path(output_path)
         out_path.parent.mkdir(parents=True, exist_ok=True)

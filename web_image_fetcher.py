@@ -12,7 +12,6 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-# Hinglish -> English Keyword Translator for HD Web Search
 KEYWORD_TRANSLATIONS = {
     "matribhumi": "motherland india warrior",
     "yodha": "warrior warrior king",
@@ -54,7 +53,6 @@ def fetch_web_image(query: str, save_path: str) -> bool:
     clean_q_term = clean_search_term(english_query)
     print(f"🔎 [Web Image Search Engine] Searching HD Photos for: '{clean_q_term}' (Original Query: '{query}')...")
 
-    # 1. Pexels HD Photo Search API (Direct HD Photography)
     if PEXELS_API_KEY:
         try:
             p_url = f"https://api.pexels.com/v1/search?query={urllib.parse.quote(clean_q_term)}&per_page=5&orientation=landscape"
@@ -75,7 +73,6 @@ def fetch_web_image(query: str, save_path: str) -> bool:
         except Exception as e_pex:
             print(f"⚠️ Pexels photo search skip: {e_pex}")
 
-    # 2. Pollinations HD Photo AI Generator
     try:
         clean_prompt = urllib.parse.quote(f"epic cinematic photo of {clean_q_term}, 8k resolution, detailed background")
         poll_url = f"https://image.pollinations.ai/prompt/{clean_prompt}?width=1280&height=720&nologo=true"
@@ -88,7 +85,6 @@ def fetch_web_image(query: str, save_path: str) -> bool:
     except Exception as e_u:
         print(f"⚠️ Pollinations search skip: {e_u}")
 
-    # 3. Google Images Scraping (Direct HD Web Images)
     try:
         clean_q = urllib.parse.quote(f"{english_query} HD wallpaper photo")
         google_url = f"https://www.google.com/search?q={clean_q}&tbm=isch"
@@ -113,7 +109,6 @@ def fetch_web_image(query: str, save_path: str) -> bool:
     except Exception as e_g:
         print(f"⚠️ Google Images search skip: {e_g}")
 
-    # 4. Try Wikimedia Commons API
     try:
         wiki_url = f"https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch={urllib.parse.quote(english_query)}&gsrlimit=5&prop=imageinfo&iiprop=url&format=json"
         res = requests.get(wiki_url, headers=HEADERS, timeout=4)
@@ -133,7 +128,6 @@ def fetch_web_image(query: str, save_path: str) -> bool:
     except Exception as e_w:
         print(f"⚠️ Wikimedia search skip: {e_w}")
 
-    # 5. Try Pollinations Free AI Image Generator (10s Timeout)
     try:
         print(f"🎨 [AI Generator Fallback] Generating exact HD image for: '{english_query}'...")
         clean_prompt = urllib.parse.quote(f"epic cinematic wallpaper photo of {english_query}, 8k resolution, detailed background")
@@ -147,7 +141,6 @@ def fetch_web_image(query: str, save_path: str) -> bool:
     except Exception as e_p:
         print(f"⚠️ Pollinations search skip: {e_p}")
 
-    # 6. Picsum HD Real Photo API Fallback (Guaranteed 100% Real HD Photography)
     try:
         print(f"🎨 [Picsum HD Photo Fallback] Downloading fallback HD photo...")
         picsum_url = f"https://picsum.photos/1280/720"
