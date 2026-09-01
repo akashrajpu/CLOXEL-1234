@@ -1019,7 +1019,7 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
                 if sub_expires and sub_expires > datetime.utcnow():
                     is_active = True
 
-            # Independent Ultra Subscription Verification
+            # Independent Ultra Subscription Check
             ultra_sub = user.get("ultra_subscription", {})
             ultra_status = ultra_sub.get("status")
             ultra_expires = ultra_sub.get("expires_at")
@@ -1032,17 +1032,21 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
                         ultra_expires = None
                 if isinstance(ultra_expires, datetime) and ultra_expires > datetime.utcnow():
                     has_active_ultra = True
-                    
-            if req.video_type == "ultra" and not has_active_ultra and sub_plan != "ultra":
-                # Check demo count if no active ultra subscription
-                if free_demo <= 0:
-                    raise HTTPException(status_code=402, detail="Demo quota exhausted! Ultra Mode requires a dedicated ULTRA CINEMATIC plan (₹20/mo). Please upgrade to continue.")
-                else:
-                    users_collection.update_one(
-                        {"internal_id": user_id, "free_demo_count": {"$gt": 0}},
-                        {"$inc": {"free_demo_count": -1}}
-                    )
-            elif not is_active and not has_active_ultra:
+
+            v_type = req.video_type
+
+            # 1. Mode Specific Entitlement Check
+            if v_type == "ultra":
+                if not has_active_ultra and sub_plan != "ultra":
+                    if is_active:
+                        raise HTTPException(status_code=403, detail="⚠️ Ultra Mode requires a dedicated ULTRA CINEMATIC plan (₹20/mo). Please subscribe to the Ultra Cinematic plan to generate Ultra videos.")
+            elif sub_plan == "short" and v_type == "long":
+                raise HTTPException(status_code=403, detail="⚠️ Your SHORT STARTER plan only permits Short videos (9:16). Please upgrade to LONG MASTER or PRO COMBO to generate Long videos.")
+            elif sub_plan == "long" and v_type == "short":
+                raise HTTPException(status_code=403, detail="⚠️ Your LONG MASTER plan only permits Long videos (16:9). Please upgrade to SHORT STARTER or PRO COMBO to generate Short videos.")
+
+            # 2. Quota Check (Demo vs Active Subscription)
+            if not is_active and not (v_type == "ultra" and has_active_ultra):
                 res = users_collection.update_one(
                     {"internal_id": user_id, "free_demo_count": {"$gt": 0}},
                     {"$inc": {"free_demo_count": -1}}
@@ -1057,33 +1061,18 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
                 
                 short_count = daily_usage.get("short_count", 0)
                 long_count = daily_usage.get("long_count", 0)
-                v_type = req.video_type
 
-                if v_type == "ultra":
-                    if not has_active_ultra and sub_plan != "ultra":
-                        raise HTTPException(status_code=403, detail="⚠️ Ultra Mode requires a dedicated ULTRA CINEMATIC plan (₹20/mo). Please subscribe to the Ultra Cinematic plan to generate & auto-upload Ultra videos.")
+                if v_type == "short" and sub_plan == "short" and short_count >= 1:
+                    raise HTTPException(status_code=429, detail="⚠️ Daily video limit reached! Your SHORT STARTER plan permits 1 Short video daily. Please try again tomorrow or upgrade to PRO COMBO.")
+                elif v_type == "long" and sub_plan == "long" and long_count >= 1:
+                    raise HTTPException(status_code=429, detail="⚠️ Daily video limit reached! Your LONG MASTER plan permits 1 Long video daily. Please try again tomorrow or upgrade to PRO COMBO.")
+
+                if v_type == "short":
+                    daily_usage["short_count"] = short_count + 1
+                elif v_type == "long":
+                    daily_usage["long_count"] = long_count + 1
+                elif v_type == "ultra":
                     daily_usage["ultra_count"] = daily_usage.get("ultra_count", 0) + 1
-                elif sub_plan == "ultra":
-                    pass
-                elif sub_plan == "short":
-                    if v_type == "long":
-                        raise HTTPException(status_code=403, detail="⚠️ Your SHORT STARTER plan only permits Short videos (9:16). Please upgrade to LONG MASTER or PRO COMBO to generate Long videos.")
-                    if short_count >= 1:
-                        raise HTTPException(status_code=429, detail="⚠️ Daily video limit reached! Your SHORT STARTER plan permits 1 Short video daily. Please try again tomorrow or upgrade to PRO COMBO.")
-                    daily_usage["short_count"] += 1
-
-                elif sub_plan == "long":
-                    if v_type == "short":
-                        raise HTTPException(status_code=403, detail="⚠️ Your LONG MASTER plan only permits Long videos (16:9). Please upgrade to SHORT STARTER or PRO COMBO to generate Short videos.")
-                    if long_count >= 1:
-                        raise HTTPException(status_code=429, detail="⚠️ Daily video limit reached! Your LONG MASTER plan permits 1 Long video daily. Please try again tomorrow or upgrade to PRO COMBO.")
-                    daily_usage["long_count"] += 1
-
-                elif sub_plan == "combo":
-                    if v_type == "short":
-                        daily_usage["short_count"] += 1
-                    else:
-                        daily_usage["long_count"] += 1
 
                 users_collection.update_one(
                     {"internal_id": user_id},
