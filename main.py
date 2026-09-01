@@ -998,8 +998,31 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
                         sub_expires = None
                 if sub_expires and sub_expires > datetime.utcnow():
                     is_active = True
+
+            # Independent Ultra Subscription Verification
+            ultra_sub = user.get("ultra_subscription", {})
+            ultra_status = ultra_sub.get("status")
+            ultra_expires = ultra_sub.get("expires_at")
+            has_active_ultra = False
+            if ultra_status == "active" and ultra_expires:
+                if isinstance(ultra_expires, str):
+                    try:
+                        ultra_expires = datetime.fromisoformat(ultra_expires)
+                    except Exception:
+                        ultra_expires = None
+                if isinstance(ultra_expires, datetime) and ultra_expires > datetime.utcnow():
+                    has_active_ultra = True
                     
-            if not is_active:
+            if req.video_type == "ultra" and not has_active_ultra and sub_plan != "ultra":
+                # Check demo count if no active ultra subscription
+                if free_demo <= 0:
+                    raise HTTPException(status_code=402, detail="Demo quota exhausted! Ultra Mode requires a dedicated ULTRA CINEMATIC plan (₹20/mo). Please upgrade to continue.")
+                else:
+                    users_collection.update_one(
+                        {"internal_id": user_id, "free_demo_count": {"$gt": 0}},
+                        {"$inc": {"free_demo_count": -1}}
+                    )
+            elif not is_active and not has_active_ultra:
                 res = users_collection.update_one(
                     {"internal_id": user_id, "free_demo_count": {"$gt": 0}},
                     {"$inc": {"free_demo_count": -1}}
@@ -1010,18 +1033,18 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
                 today_str = datetime.utcnow().strftime("%Y-%m-%d")
                 daily_usage = user.get("daily_usage", {})
                 if daily_usage.get("date") != today_str:
-                    daily_usage = {"date": today_str, "short_count": 0, "long_count": 0}
+                    daily_usage = {"date": today_str, "short_count": 0, "long_count": 0, "ultra_count": 0}
                 
                 short_count = daily_usage.get("short_count", 0)
                 long_count = daily_usage.get("long_count", 0)
-                v_type = req.video_type  # 'short' or 'long'
+                v_type = req.video_type
 
                 if v_type == "ultra":
-                    if sub_plan != "ultra":
+                    if not has_active_ultra and sub_plan != "ultra":
                         raise HTTPException(status_code=403, detail="⚠️ Ultra Mode requires a dedicated ULTRA CINEMATIC plan (₹20/mo). Please subscribe to the Ultra Cinematic plan to generate & auto-upload Ultra videos.")
                     daily_usage["ultra_count"] = daily_usage.get("ultra_count", 0) + 1
                 elif sub_plan == "ultra":
-                    raise HTTPException(status_code=403, detail="⚠️ Your ULTRA CINEMATIC plan (₹20/mo) is dedicated exclusively to Ultra Mode videos. Please select Ultra Mode to generate videos.")
+                    pass
                 elif sub_plan == "short":
                     if v_type == "long":
                         raise HTTPException(status_code=403, detail="⚠️ Your SHORT STARTER plan only permits Short videos (9:16). Please upgrade to LONG MASTER or PRO COMBO to generate Long videos.")
