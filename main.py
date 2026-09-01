@@ -561,13 +561,13 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                      "$unset": {f"staged_auto_videos.{kind}": ""}}
                 )
 
-        if is_active and plan_type in ["short", "combo"]:
+        if schedule.get("short_enabled", True) and is_active and plan_type in ["short", "combo"]:
             run_staged_auto_pipeline("short", True, "Space Exploration", 20)
 
-        if is_active and plan_type in ["long", "combo"]:
+        if schedule.get("long_enabled", True) and is_active and plan_type in ["long", "combo"]:
             run_staged_auto_pipeline("long", False, "AI Innovations", 60)
 
-        if has_ultra_sub or plan_type == "ultra":
+        if schedule.get("ultra_enabled", False) and (has_ultra_sub or plan_type == "ultra"):
             run_staged_auto_pipeline("ultra", False, "History of Ancient Warriors", 60)
 
     except Exception as e_user:
@@ -954,9 +954,10 @@ class AutoScheduleRequest(BaseModel):
     internal_id: str
     schedule_enabled: bool = True
     
+    short_enabled: bool = True
     short_auto_topic: bool = True
     short_topic: str = "Space Exploration, AI Innovations"
-    short_category: str = "Random" # 30+ categories or custom
+    short_category: str = "Random"
     short_voice: str = "hi-IN-MadhurNeural"
     short_font: str = "Arial.ttf"
     short_color: str = "yellow"
@@ -964,9 +965,10 @@ class AutoScheduleRequest(BaseModel):
     short_time: str = "10:00"
     short_language: str = "hi"
     
+    long_enabled: bool = True
     long_auto_topic: bool = True
     long_topic: str = "Space Exploration, AI Technology"
-    long_category: str = "Random" # 30+ categories or custom
+    long_category: str = "Random"
     long_voice: str = "hi-IN-MadhurNeural"
     long_font: str = "Arial.ttf"
     long_color: str = "yellow"
@@ -974,9 +976,10 @@ class AutoScheduleRequest(BaseModel):
     long_time: str = "18:00"
     long_language: str = "hi"
 
+    ultra_enabled: bool = False
     ultra_auto_topic: bool = True
     ultra_topic: str = "History of Ancient Warriors, Science Mysteries"
-    ultra_category: str = "Random" # 30+ categories or custom
+    ultra_category: str = "Random"
     ultra_voice: str = "hi-IN-MadhurNeural"
     ultra_font: str = "Arial.ttf"
     ultra_color: str = "yellow"
@@ -1228,6 +1231,7 @@ async def save_auto_schedule(req: AutoScheduleRequest):
         "schedule_started_at": schedule_started_at,
         "plan_type": sub_plan,
         
+        "short_enabled": req.short_enabled,
         "short_auto_topic": req.short_auto_topic,
         "short_topic": req.short_topic if not req.short_auto_topic else "AI Auto Topic (Daily Dynamic)",
         "short_category": req.short_category,
@@ -1238,6 +1242,7 @@ async def save_auto_schedule(req: AutoScheduleRequest):
         "short_time": req.short_time,
         "short_language": req.short_language,
         
+        "long_enabled": req.long_enabled,
         "long_auto_topic": req.long_auto_topic,
         "long_topic": req.long_topic if not req.long_auto_topic else "AI Auto Topic (Daily Dynamic)",
         "long_category": req.long_category,
@@ -1247,6 +1252,17 @@ async def save_auto_schedule(req: AutoScheduleRequest):
         "long_duration": req.long_duration,
         "long_time": req.long_time,
         "long_language": req.long_language,
+
+        "ultra_enabled": req.ultra_enabled,
+        "ultra_auto_topic": req.ultra_auto_topic,
+        "ultra_topic": req.ultra_topic if not req.ultra_auto_topic else "AI Auto Topic (Daily Dynamic)",
+        "ultra_category": req.ultra_category,
+        "ultra_voice": req.ultra_voice,
+        "ultra_font": req.ultra_font,
+        "ultra_color": req.ultra_color,
+        "ultra_duration": req.ultra_duration,
+        "ultra_time": req.ultra_time,
+        "ultra_language": req.ultra_language,
         
         "updated_at": datetime.utcnow()
     }
