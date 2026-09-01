@@ -1175,7 +1175,12 @@ async def get_user_subscription(internal_id: str):
         elif sub_plan == "ultra" or has_ultra:
             limit_text = "1 Ultra Cinematic Video Daily"
 
-    user_name = user.get("name") or user.get("username") or "Cloxel Creator"
+    user_name = user.get("name") or user.get("full_name") or user.get("username")
+    if not user_name or user_name == "User":
+        if user.get("email"):
+            user_name = user.get("email").split("@")[0].capitalize()
+        else:
+            user_name = "Cloxel Creator"
 
     return {
         "name": user_name,

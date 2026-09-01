@@ -1316,32 +1316,54 @@ function App() {
               <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>×</button>
             </div>
 
-            <div className="sidebar-profile" style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.04)', padding: '12px 14px', borderRadius: '16px', border: '1px solid rgba(168,85,247,0.3)', marginBottom: '12px' }}>
-              <div style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} title="Click to change profile picture">
-                {subStatus.profile_pic ? (
-                  <img src={subStatus.profile_pic} alt="Profile" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #a855f7' }} />
-                ) : (
-                  <div className="profile-avatar" style={{ width: '48px', height: '48px', fontSize: '1.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #3b0764 0%, #6b21a8 100%)', borderRadius: '50%', color: '#c084fc', border: '2px solid #a855f7' }}>
-                    {subStatus.name ? subStatus.name.charAt(0).toUpperCase() : '👤'}
+            <div className="sidebar-profile" style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255,255,255,0.04)', padding: '14px', borderRadius: '16px', border: '1px solid rgba(168,85,247,0.3)', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} title="Click to change profile picture">
+                  {subStatus.profile_pic ? (
+                    <img src={subStatus.profile_pic} alt="Profile" style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #a855f7' }} />
+                  ) : (
+                    <div className="profile-avatar" style={{ width: '50px', height: '50px', fontSize: '1.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #3b0764 0%, #6b21a8 100%)', borderRadius: '50%', color: '#c084fc', border: '2px solid #a855f7' }}>
+                      {subStatus.name ? subStatus.name.charAt(0).toUpperCase() : '👤'}
+                    </div>
+                  )}
+                  <label htmlFor="profile-pic-input" style={{ position: 'absolute', bottom: '-2px', right: '-2px', background: '#a855f7', color: 'white', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', cursor: 'pointer' }}>
+                    📷
+                  </label>
+                  <input id="profile-pic-input" type="file" accept="image/*" onChange={handleProfilePicUpload} style={{ display: 'none' }} />
+                </div>
+
+                <div style={{ textAlign: 'left', flex: 1, overflow: 'hidden' }}>
+                  <h4 style={{ margin: '0 0 2px 0', fontSize: '1.05rem', color: '#ffffff', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {subStatus.name || 'Cloxel User'}
+                  </h4>
+                  <div style={{ fontSize: '0.78rem', color: subStatus.has_active_subscription ? '#34d399' : '#c084fc', fontWeight: 'bold' }}>
+                    💎 {subStatus.has_active_subscription ? `${subStatus.plan_type.toUpperCase()} PLAN (ACTIVE)` : (subStatus.has_active_ultra_subscription ? 'ULTRA CINEMATIC (ACTIVE)' : `Free Demo (${subStatus.free_demo_count}/2)`)}
                   </div>
-                )}
-                <label htmlFor="profile-pic-input" style={{ position: 'absolute', bottom: '-2px', right: '-2px', background: '#a855f7', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', cursor: 'pointer' }}>
-                  📷
-                </label>
-                <input id="profile-pic-input" type="file" accept="image/*" onChange={handleProfilePicUpload} style={{ display: 'none' }} />
+                  <div style={{ fontSize: '0.72rem', color: autoSchedule.schedule_enabled ? '#34d399' : '#94a3b8', fontWeight: 'bold', marginTop: '2px' }}>
+                    {autoSchedule.schedule_enabled ? '🟢 Auto-Publishing: ACTIVE' : '🔴 Auto-Publishing: PAUSED'}
+                  </div>
+                </div>
               </div>
 
-              <div style={{ textAlign: 'left', flex: 1, overflow: 'hidden' }}>
-                <h4 style={{ margin: '0 0 2px 0', fontSize: '1rem', color: '#ffffff', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {subStatus.name || 'Account Active'}
-                </h4>
-                <div style={{ fontSize: '0.75rem', color: '#c084fc', fontWeight: 'bold' }}>
-                  💎 {subStatus.has_active_subscription ? `${subStatus.plan_type.toUpperCase()} PLAN` : `Free Demo (${subStatus.free_demo_count}/2)`}
+              {(subStatus.email || subStatus.phone || subStatus.country) && (
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.75rem', color: '#cbd5e1', textAlign: 'left' }}>
+                  {subStatus.email && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span>📧</span> <span>{subStatus.email}</span>
+                    </div>
+                  )}
+                  {subStatus.phone && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>📞</span> <span>{subStatus.phone}</span>
+                    </div>
+                  )}
+                  {subStatus.country && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>📍</span> <span>{subStatus.country}</span>
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: '0.72rem', color: autoSchedule.schedule_enabled ? '#34d399' : '#94a3b8', fontWeight: 'bold', marginTop: '2px' }}>
-                  {autoSchedule.schedule_enabled ? '🟢 Auto-Publishing: ACTIVE' : '🔴 Auto-Publishing: PAUSED'}
-                </div>
-              </div>
+              )}
             </div>
 
             {/* YOUTUBE INTEGRATION INSIDE SIDEBAR DRAWER (COMPACT MODE) */}
