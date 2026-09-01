@@ -72,11 +72,11 @@ if MONGO_URI:
     try:
         mongo_client = MongoClient(
             MONGO_URI,
-            maxPoolSize=100,
-            minPoolSize=10,
-            serverSelectionTimeoutMS=4000,
-            socketTimeoutMS=15000,
-            connectTimeoutMS=5000,
+            maxPoolSize=50,
+            minPoolSize=5,
+            serverSelectionTimeoutMS=5000,
+            socketTimeoutMS=45000,
+            connectTimeoutMS=10000,
             retryWrites=True
         )
         mongo_client.admin.command('ping')
@@ -595,7 +595,15 @@ def check_and_run_auto_schedules():
     today_str = now_ist.strftime("%Y-%m-%d")
 
     try:
-        users = list(users_collection.find({"auto_schedule.schedule_enabled": True}))
+        projection = {
+            "internal_id": 1,
+            "auto_schedule": 1,
+            "subscription": 1,
+            "ultra_subscription": 1,
+            "auto_daily_usage": 1,
+            "staged_auto_videos": 1
+        }
+        users = list(users_collection.find({"auto_schedule.schedule_enabled": True}, projection))
         for user in users:
             auto_worker_executor.submit(process_single_user_schedule, user, now_ist, today_str)
     except Exception as e:
