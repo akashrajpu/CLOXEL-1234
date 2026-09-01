@@ -458,8 +458,7 @@ def apply_color_filter(pil_img: Image.Image, filter_style: str = "warm_epic") ->
     glow_mask = glow_mask.filter(ImageFilter.GaussianBlur(radius=80))
     img = Image.composite(light_leak, img, glow_mask)
 
-    bg = Image.composite(bg, dark_overlay, vignette_blur)
-    return bg
+    return img
 
 def create_history_spotlight_overlay(base_img: Image.Image, progress: float) -> Image.Image:
     """
