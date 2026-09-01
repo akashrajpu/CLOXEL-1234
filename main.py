@@ -281,21 +281,23 @@ def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, desc
             scopes=creds_data.get("scopes", ["https://www.googleapis.com/auth/youtube.upload"])
         )
 
-        # Automatic Token Refresh Safeguard
-        if credentials.expired and credentials.refresh_token:
+        # Automatic Permanent Token Refresh Safeguard
+        if (credentials.expired or not credentials.valid) and credentials.refresh_token:
             try:
                 credentials.refresh(Request())
-                # Update refreshed credentials in DB
-                users_collection.update_one(
-                    {"internal_id": user_id},
-                    {"$set": {
-                        "youtube_credentials.token": credentials.token,
-                        "youtube_credentials.refreshed_at": datetime.utcnow()
-                    }}
-                )
+                # Update refreshed access token in DB
+                if users_collection is not None:
+                    users_collection.update_one(
+                        {"internal_id": user_id},
+                        {"$set": {
+                            "youtube_credentials.token": credentials.token,
+                            "youtube_credentials.status": "active",
+                            "youtube_credentials.refreshed_at": datetime.utcnow()
+                        }}
+                    )
                 print(f"🔄 YouTube OAuth token refreshed successfully for user {user_id}")
             except Exception as e_ref:
-                print(f"⚠️ Token refresh warning for user {user_id}: {e_ref}")
+                print(f"⚠️ Automatic token refresh warning for user {user_id}: {e_ref}")
 
         youtube = build("youtube", "v3", credentials=credentials)
 
@@ -1958,17 +1960,21 @@ async def youtube_callback(state: str, code: str):
             frontend_url = os.getenv("FRONTEND_URL", "https://cloxel.onrender.com")
             return RedirectResponse(url=f"{frontend_url}/?yt_error={error_msg}")
             
+        user = users_collection.find_one({"internal_id": internal_id}) if users_collection is not None else None
+        existing_creds = user.get("youtube_credentials", {}) if user else {}
+        fresh_refresh_token = res_json.get('refresh_token') or existing_creds.get('refresh_token')
+
         creds_dict = {
             'token': res_json.get('access_token'),
-            'refresh_token': res_json.get('refresh_token'),
+            'refresh_token': fresh_refresh_token,
             'token_uri': "https://oauth2.googleapis.com/token",
             'client_id': client_id,
             'client_secret': client_secret,
-            'scopes': YOUTUBE_SCOPES
+            'scopes': YOUTUBE_SCOPES,
+            'status': 'active'
         }
         
         if users_collection is not None:
-            user = users_collection.find_one({"internal_id": internal_id})
             pending_list = user.get("pending_youtube_uploads", []) if user else []
             
             users_collection.update_one(
@@ -2115,7 +2121,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         for endpoint in ["/generate-script", "/api/generate-ai-script"]:
             target_url = f"{base_url}{endpoint}"
             try:
-                resp = requests.post(target_url, json=payload, timeout=1.2)
+                resp = requests.post(target_url, json=payload, timeout=15.0)
                 if resp.status_code == 200:
                     data = resp.json()
                     full_script = data.get("full_script") or data.get("script") or ""
