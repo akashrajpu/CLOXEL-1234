@@ -414,8 +414,10 @@ def get_daily_unique_subtopic(base_topic: str, today_str: str, user_id: str) -> 
     return f"{base_topic}: {selected_angle}"
 
 from concurrent.futures import ThreadPoolExecutor
+import threading
 
-auto_worker_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="AutoRenderWorker")
+auto_worker_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="AutoRenderWorker")
+render_queue_lock = threading.Lock()
 
 def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
     """
@@ -472,16 +474,17 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                 color = schedule.get("short_color") or "yellow"
                 duration = int(schedule.get("short_duration") or 20)
 
-                res = render_video_with_smart_fallback(
-                    user_id=internal_id,
-                    topic=topic,
-                    category=category,
-                    voice_id=voice,
-                    font_name=font,
-                    font_color=color,
-                    video_type="short",
-                    requested_duration=duration
-                )
+                with render_queue_lock:
+                    res = render_video_with_smart_fallback(
+                        user_id=internal_id,
+                        topic=topic,
+                        category=category,
+                        voice_id=voice,
+                        font_name=font,
+                        font_color=color,
+                        video_type="short",
+                        requested_duration=duration
+                    )
 
                 if res.get("status") == "completed":
                     video_file = res.get("file")
@@ -527,16 +530,17 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                 color = schedule.get("long_color") or "yellow"
                 duration = int(schedule.get("long_duration") or 60)
 
-                res = render_video_with_smart_fallback(
-                    user_id=internal_id,
-                    topic=topic,
-                    category=category,
-                    voice_id=voice,
-                    font_name=font,
-                    font_color=color,
-                    video_type="long",
-                    requested_duration=duration
-                )
+                with render_queue_lock:
+                    res = render_video_with_smart_fallback(
+                        user_id=internal_id,
+                        topic=topic,
+                        category=category,
+                        voice_id=voice,
+                        font_name=font,
+                        font_color=color,
+                        video_type="long",
+                        requested_duration=duration
+                    )
 
                 if res.get("status") == "completed":
                     video_file = res.get("file")
@@ -594,16 +598,17 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                 color = schedule.get("ultra_color") or "yellow"
                 duration = int(schedule.get("ultra_duration") or 60)
 
-                res = render_video_with_smart_fallback(
-                    user_id=internal_id,
-                    topic=topic,
-                    category=category,
-                    voice_id=voice,
-                    font_name=font,
-                    font_color=color,
-                    video_type="ultra",
-                    requested_duration=duration
-                )
+                with render_queue_lock:
+                    res = render_video_with_smart_fallback(
+                        user_id=internal_id,
+                        topic=topic,
+                        category=category,
+                        voice_id=voice,
+                        font_name=font,
+                        font_color=color,
+                        video_type="ultra",
+                        requested_duration=duration
+                    )
 
                 if res.get("status") == "completed":
                     video_file = res.get("file")
@@ -883,8 +888,8 @@ def full_process(req: VideoRequest, job_id: str):
             output_file = f"acoumation_video_{job_id}.mp4"
             # Editor ko user ki choice bhejna (font, color, bg_music, mode)
             target_size = (1280, 720) if (req.video_type in ["long", "ultra"]) else (720, 1280)
-            adjusted_font_size = int(req.font_size * 0.7) if (req.video_type in ["long", "ultra"]) else req.font_size
-            merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music, mode=req.video_type) 
+            with render_queue_lock:
+                merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music, mode=req.video_type) 
             
             # Upload to Cloudinary
             cloudinary_url = None
