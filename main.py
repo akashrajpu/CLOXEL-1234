@@ -70,7 +70,15 @@ videos_collection = None
 
 if MONGO_URI:
     try:
-        mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        mongo_client = MongoClient(
+            MONGO_URI,
+            maxPoolSize=100,
+            minPoolSize=10,
+            serverSelectionTimeoutMS=4000,
+            socketTimeoutMS=15000,
+            connectTimeoutMS=5000,
+            retryWrites=True
+        )
         mongo_client.admin.command('ping')
         db = mongo_client.cloxel_db
         users_collection = db.users
