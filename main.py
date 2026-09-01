@@ -337,6 +337,27 @@ def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, desc
                 if status:
                     print(f"🚀 YouTube Upload Progress for {user_id}: {int(status.progress() * 100)}%")
             except Exception as e_chunk:
+                err_msg = str(e_chunk)
+                if "invalid_grant" in err_msg or "expired" in err_msg or "revoked" in err_msg:
+                    print(f"⚠️ YouTube OAuth Token Expired/Revoked for user {user_id}. Marking channel as expired & saving pending upload.")
+                    if users_collection is not None:
+                        users_collection.update_one(
+                            {"internal_id": user_id},
+                            {"$set": {
+                                "youtube_credentials.status": "expired",
+                                "youtube_credentials.error": "Google OAuth token expired or revoked. Please re-connect YouTube channel."
+                            },
+                            "$push": {
+                                "pending_youtube_uploads": {
+                                    "video_file": video_file,
+                                    "title": title,
+                                    "description": description,
+                                    "is_short": is_short,
+                                    "created_at": datetime.utcnow()
+                                }
+                            }}
+                        )
+                    return None
                 retry_count += 1
                 print(f"⚠️ YouTube upload chunk retry {retry_count}/3 for {user_id}: {e_chunk}")
                 time.sleep(2 * retry_count)
@@ -357,7 +378,17 @@ def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, desc
         return youtube_url
 
     except Exception as e:
+        err_str = str(e)
         print(f"❌ YouTube Auto-Upload Error for user {user_id}: {e}")
+        if "invalid_grant" in err_str or "expired" in err_str or "revoked" in err_str:
+            if users_collection is not None:
+                users_collection.update_one(
+                    {"internal_id": user_id},
+                    {"$set": {
+                        "youtube_credentials.status": "expired",
+                        "youtube_credentials.error": "Google OAuth token expired or revoked. Please re-connect YouTube channel."
+                    }}
+                )
         return None
 
 def get_daily_unique_subtopic(base_topic: str, today_str: str, user_id: str) -> str:
@@ -1937,13 +1968,31 @@ async def youtube_callback(state: str, code: str):
         }
         
         if users_collection is not None:
+            user = users_collection.find_one({"internal_id": internal_id})
+            pending_list = user.get("pending_youtube_uploads", []) if user else []
+            
             users_collection.update_one(
                 {"internal_id": internal_id},
                 {"$set": {
                     "youtube_credentials": creds_dict,
                     "youtube_linked_at": datetime.utcnow()
-                }}
+                },
+                "$unset": {"pending_youtube_uploads": ""}}
             )
+
+            if pending_list:
+                print(f"🚀 Auto-flushing {len(pending_list)} pending videos for user {internal_id}...")
+                for p_vid in pending_list:
+                    try:
+                        upload_video_to_youtube_core(
+                            user_id=internal_id,
+                            video_file=p_vid.get("video_file"),
+                            title=p_vid.get("title"),
+                            description=p_vid.get("description"),
+                            is_short=p_vid.get("is_short", False)
+                        )
+                    except Exception as e_p:
+                        print(f"⚠️ Error uploading pending video for {internal_id}: {e_p}")
             
         frontend_url = os.getenv("FRONTEND_URL", "https://cloxel.onrender.com")
         return RedirectResponse(url=f"{frontend_url}/?yt_success=1")
@@ -1962,6 +2011,10 @@ async def get_youtube_status(internal_id: str):
     user = users_collection.find_one({"internal_id": internal_id})
     if not user or "youtube_credentials" not in user:
         return {"linked": False}
+
+    creds = user.get("youtube_credentials", {})
+    if creds.get("status") == "expired":
+        return {"linked": False, "expired": True, "error": "YouTube Authorization Expired. Please re-connect channel."}
         
     linked_at = user.get("youtube_linked_at")
     if not linked_at:
