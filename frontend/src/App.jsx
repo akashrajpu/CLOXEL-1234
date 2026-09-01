@@ -630,15 +630,22 @@ function App() {
           } else if (data.status === 'completed') {
             setDownloadUrl(`${API_BASE}/download/${id}`);
           }
-          // Refresh history after video generation completes
           if (data.status === 'completed' && userId) {
             fetchHistory();
+          }
+          if (data.status === 'failed') {
+            triggerAlert(
+              "⚠️ Generation Error",
+              data.error || "Video generation encountered an error. Please try again.",
+              "⚠️",
+              "warning"
+            );
           }
         }
       } catch (e) {
         console.error(e);
       }
-    }, 5000);
+    }, 2000);
   };
 
   const handleProfilePicUpload = (e) => {

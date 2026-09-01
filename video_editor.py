@@ -368,6 +368,18 @@ def generate_ink_brush_mask(size: tuple) -> Image.Image:
         
     return mask.filter(ImageFilter.GaussianBlur(radius=6))
 
+def create_parchment_background(size, color_theme="warm"):
+    w, h = size
+    if color_theme == "warm":
+        base_color = (245, 230, 210)
+    else:
+        base_color = (220, 230, 240)
+    img = Image.new("RGB", (w, h), base_color)
+    np_noise = np.random.randint(-15, 15, (h, w, 3), dtype=np.int16)
+    np_img = np.array(img, dtype=np.int16) + np_noise
+    np_img = np.clip(np_img, 0, 255).astype(np.uint8)
+    return Image.fromarray(np_img)
+
 def apply_color_filter(pil_img: Image.Image, filter_style: str = "warm_epic") -> Image.Image:
     """Applies premium cinematic color grading LUTs, Film Grain, Dust, Haze Smoke & Vintage Paper Textures."""
     img = pil_img.copy().convert("RGB")
