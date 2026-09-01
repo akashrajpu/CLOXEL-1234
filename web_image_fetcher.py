@@ -75,17 +75,18 @@ def fetch_web_image(query: str, save_path: str) -> bool:
         except Exception as e_pex:
             print(f"⚠️ Pexels photo search skip: {e_pex}")
 
-    # 2. Unsplash Source Direct HD Engine
+    # 2. Pollinations HD Photo AI Generator
     try:
-        u_url = f"https://source.unsplash.com/1280x720/?{urllib.parse.quote(clean_q_term)}"
-        u_res = requests.get(u_url, headers=HEADERS, timeout=5)
-        if u_res.status_code == 200 and len(u_res.content) > 25000:
+        clean_prompt = urllib.parse.quote(f"epic cinematic photo of {clean_q_term}, 8k resolution, detailed background")
+        poll_url = f"https://image.pollinations.ai/prompt/{clean_prompt}?width=1280&height=720&nologo=true"
+        u_res = requests.get(poll_url, headers=HEADERS, timeout=5)
+        if u_res.status_code == 200 and len(u_res.content) > 15000:
             with open(save_path, "wb") as f:
                 f.write(u_res.content)
-            print(f"✅ [Unsplash HD Engine] Successfully downloaded: {save_path}")
+            print(f"✅ [Pollinations HD Engine] Successfully downloaded: {save_path}")
             return True
     except Exception as e_u:
-        print(f"⚠️ Unsplash search skip: {e_u}")
+        print(f"⚠️ Pollinations search skip: {e_u}")
 
     # 3. Google Images Scraping (Direct HD Web Images)
     try:

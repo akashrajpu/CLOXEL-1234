@@ -1162,15 +1162,18 @@ async def get_user_subscription(internal_id: str):
         if isinstance(ultra_expires, datetime) and ultra_expires > datetime.utcnow():
             has_ultra = True
 
+    # User has active subscription if EITHER standard plan (short/long/combo) OR ultra plan is active!
+    has_active_sub = is_active or has_ultra
+
     limit_text = "2 Free Demo Videos Total"
-    if is_active:
+    if is_active or has_ultra:
         if sub_plan == "combo":
             limit_text = "2 Videos Daily (1 Short + 1 Long)"
         elif sub_plan == "short":
             limit_text = "1 Short Video Daily (9:16)"
         elif sub_plan == "long":
             limit_text = "1 Long Video Daily (16:9)"
-        elif sub_plan == "ultra":
+        elif sub_plan == "ultra" or has_ultra:
             limit_text = "1 Ultra Cinematic Video Daily"
 
     return {
@@ -1180,10 +1183,10 @@ async def get_user_subscription(internal_id: str):
         "country": user.get("country", ""),
         "profile_pic": user.get("profile_pic", ""),
         "free_demo_count": free_demo,
-        "has_active_subscription": is_active,
-        "has_active_ultra_subscription": has_ultra or (is_active and sub_plan == "ultra"),
+        "has_active_subscription": has_active_sub,
+        "has_active_ultra_subscription": has_ultra,
         "plan_type": sub_plan if is_active else ("ultra" if has_ultra else "none"),
-        "expires_at": sub_expires.isoformat() if is_active and sub_expires else None,
+        "expires_at": sub_expires.isoformat() if is_active and isinstance(sub_expires, datetime) else (ultra_expires.isoformat() if has_ultra and isinstance(ultra_expires, datetime) else None),
         "ultra_expires_at": ultra_expires.isoformat() if has_ultra and isinstance(ultra_expires, datetime) else None,
         "today_short_count": daily_usage.get("short_count", 0),
         "today_long_count": daily_usage.get("long_count", 0),
