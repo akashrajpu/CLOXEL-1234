@@ -517,13 +517,10 @@ function App() {
     }
     setIsGeneratingScript(true);
     const finalCategory = (category || '').includes('Custom Category') ? (customCategory || 'Random') : category;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 7000);
     try {
       const response = await fetch(`${API_BASE}/generate-script`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
         body: JSON.stringify({
           user_id: userId,
           topic: topic,
@@ -532,7 +529,6 @@ function App() {
           video_type: videoType
         })
       });
-      clearTimeout(timeoutId);
       const data = await response.json();
       if (data.full_script) {
         setFullScript(data.full_script);
@@ -545,12 +541,7 @@ function App() {
         }
       }
     } catch (error) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        triggerAlert("Request Timeout", "Script generation took longer than expected. Please try again.", "⏱️", "warning");
-      } else {
-        triggerAlert("Notice", "Script generation service temporary fallback active.", "ℹ️", "info");
-      }
+      console.error("Script generation error:", error);
     } finally {
       setIsGeneratingScript(false);
     }
