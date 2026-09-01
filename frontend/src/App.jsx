@@ -328,13 +328,26 @@ function App() {
     }
   };
 
+  const fetchYoutubeStatus = async () => {
+    if (!userId) return;
+    try {
+      const res = await fetchWithTimeout(`${API_BASE}/youtube/status/${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setYtStatus(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch YouTube status:", e);
+    }
+  };
+
   useEffect(() => {
-    // Concurrent Promise.allSettled execution for lightning-fast UI initialization
     Promise.allSettled([
       fetchBgMusicAndFonts(),
       userId ? fetchHistory() : Promise.resolve(),
       userId ? fetchSubscriptionStatus() : Promise.resolve(),
-      userId ? fetchAutoSchedule() : Promise.resolve()
+      userId ? fetchAutoSchedule() : Promise.resolve(),
+      userId ? fetchYoutubeStatus() : Promise.resolve()
     ]);
   }, [userId]);
 
