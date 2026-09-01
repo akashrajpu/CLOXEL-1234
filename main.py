@@ -432,6 +432,19 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
 
         current_ist_minutes = now_ist.hour * 60 + now_ist.minute
 
+        ultra_sub = user.get("ultra_subscription", {})
+        ultra_status = ultra_sub.get("status")
+        ultra_expires = ultra_sub.get("expires_at")
+        has_ultra_sub = False
+        if ultra_status == "active" and ultra_expires:
+            if isinstance(ultra_expires, str):
+                try:
+                    ultra_expires = datetime.fromisoformat(ultra_expires)
+                except Exception:
+                    ultra_expires = None
+            if isinstance(ultra_expires, datetime) and ultra_expires > datetime.utcnow():
+                has_ultra_sub = True
+
         def run_staged_auto_pipeline(kind: str, is_short_flag: bool, default_topic: str, default_dur: int):
             time_str = schedule.get(f"{kind}_time", "10:00" if kind == "short" else ("18:00" if kind == "long" else "21:00"))
             last_run_key = f"last_{kind}_run"
