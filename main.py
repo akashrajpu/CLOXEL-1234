@@ -33,11 +33,9 @@ except Exception as _w_err:
     print(f"⚠️ web_image_fetcher top import warning: {_w_err}")
     fetch_web_image = None
 
-# Fix OAuth behind proxy (Render)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
-# Razorpay Setup
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_placeholder")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "secret_placeholder")
 
@@ -48,7 +46,6 @@ except Exception as e:
     razorpay_client = None
     print(f"Razorpay initialization warning: {e}")
 
-# Aapke modules
 from video_editor import merge_and_export
 from audio_engine import make_audio
 from video_fetcher import fetch_videos
@@ -65,7 +62,6 @@ cloudinary.config(
   api_secret = os.getenv('CLOUDINARY_API_SECRET') 
 )
 
-# 2. MongoDB Setup
 MONGO_URI = os.getenv('MONGO_URI')
 mongo_client = None
 db = None
@@ -74,15 +70,12 @@ videos_collection = None
 
 if MONGO_URI:
     try:
-        # Wrap in try-except to prevent app crash if DNS/URI is invalid
         mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-        # Test the connection to ensure it's valid
         mongo_client.admin.command('ping')
         db = mongo_client.cloxel_db
         users_collection = db.users
         videos_collection = db.videos
 
-        # High-Performance DB Indexing for Sub-Millisecond (< 2ms) Lookups
         try:
             users_collection.create_index("internal_id", unique=True, background=True)
             users_collection.create_index("email", background=True)
@@ -103,10 +96,8 @@ if MONGO_URI:
 else:
     print("WARNING: MONGO_URI is missing in config.env! Authentication will not work properly.")
 
-# Prevent Render Sleep by Self-Pinging
 def ping_server():
     try:
-        # Pings the external URL every 10 minutes
         url = os.getenv("RENDER_EXTERNAL_URL", "https://cloxel.onrender.com")
         resp = requests.get(url)
         print(f"⏰ Self-ping to keep server awake: {resp.status_code}")
@@ -154,15 +145,12 @@ def build_youtube_metadata(topic: str, full_script: str = "", video_type: str = 
     topic_title = topic_clean.title()
     script_text = (full_script or "").strip()
     
-    # Generate unique seed based on script content + timestamp + random salt
     seed_str = f"{topic_clean}_{script_text[:100]}_{random.randint(1000, 9999)}_{time.time()}"
     hash_num = int(hashlib.md5(seed_str.encode()).hexdigest(), 16)
     
-    # Extract unique keywords from script for title variation
     script_words = [w for w in script_text.replace("\n", " ").split() if len(w) > 4 and w.isalpha()]
     keyword_addon = f" ({script_words[hash_num % len(script_words)].title()})" if script_words else ""
     
-    # 1. DYNAMIC & UNIQUE TITLE GENERATION
     if custom_title and len(custom_title.strip()) > 15 and custom_title.strip().lower() != topic_clean.lower():
         clean_title = custom_title.strip()
     else:
@@ -190,13 +178,11 @@ def build_youtube_metadata(topic: str, full_script: str = "", video_type: str = 
             ]
             clean_title = short_title_templates[hash_num % len(short_title_templates)]
 
-    # Ensure max 95 chars for YouTube Title limit
     if len(clean_title) > 95:
         clean_title = clean_title[:91] + "..."
     if video_type == "short" and "#shorts" not in clean_title.lower():
         clean_title = clean_title[:85] + " #shorts"
 
-    # 2. DYNAMIC & UNIQUE DESCRIPTION GENERATION
     body_text = (custom_desc or script_text or "").strip()
     if not body_text:
         body_text = f"Explore everything about {topic_title} in this AI-generated video!"
@@ -281,11 +267,9 @@ def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, desc
             scopes=creds_data.get("scopes", ["https://www.googleapis.com/auth/youtube.upload"])
         )
 
-        # Automatic Permanent Token Refresh Safeguard
         if (credentials.expired or not credentials.valid) and credentials.refresh_token:
             try:
                 credentials.refresh(Request())
-                # Update refreshed access token in DB
                 if users_collection is not None:
                     users_collection.update_one(
                         {"internal_id": user_id},
@@ -323,7 +307,6 @@ def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, desc
             }
         }
 
-        # Resumable Chunked Upload (1MB chunks) with Exponential Backoff Retry Loop
         media = MediaFileUpload(video_file, chunksize=1024*1024, resumable=True, mimetype="video/mp4")
         request = youtube.videos().insert(
             part="snippet,status",
@@ -371,7 +354,6 @@ def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, desc
         youtube_url = f"https://www.youtube.com/watch?v={youtube_id}"
         print(f"🎉 SUCCESS! Video auto-published to YouTube for user {user_id}: {youtube_url}")
 
-        # Save YouTube URL to DB
         videos_collection.update_one(
             {"internal_id": user_id, "topic": title},
             {"$set": {"youtube_url": youtube_url, "youtube_id": youtube_id, "uploaded_to_yt_at": datetime.utcnow()}}
@@ -464,7 +446,6 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             staged_map = user.get("staged_auto_videos", {})
             staged_item = staged_map.get(kind, {})
 
-            # PHASE 1: PREDICTIVE STAGING (Start pre-rendering up to 180 mins / 3 hours BEFORE target upload time)
             if mins_until <= 180 or diff_current <= 90:
                 if staged_item.get("date") != today_str or not staged_item.get("file") or not os.path.exists(staged_item.get("file", "")):
                     print(f"🚀 [PREDICTIVE AUTO-STAGING] Pre-rendering {kind.upper()} video ahead of time for user {internal_id} (Scheduled IST: {time_str}, Target in {mins_until} mins)...")
@@ -509,7 +490,6 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         print(f"✅ [PREDICTIVE STAGING COMPLETE] {kind.upper()} video pre-rendered for user {internal_id}. Waiting for {time_str} IST to publish!")
                         staged_item = staged_data
 
-            # PHASE 2: INSTANT BATCH UPLOAD (Publish when target time arrives within 25 mins)
             if diff_current <= 25 or mins_until >= 1420:
                 print(f"💥 [INSTANT BATCH UPLOAD] Publishing {kind.upper()} video for user {internal_id} to YouTube (Scheduled IST: {time_str})...")
                 users_collection.update_one(
@@ -526,7 +506,6 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         is_short=is_short_flag
                     )
                 else:
-                    # Direct fallback rendering if pre-staging was skipped
                     raw_topic = schedule.get(f"{kind}_topic") or default_topic
                     topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id)
                     category = schedule.get(f"{kind}_category") or "Random"
@@ -569,15 +548,12 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                      "$unset": {f"staged_auto_videos.{kind}": ""}}
                 )
 
-        # 1. Short Reel
         if is_active and plan_type in ["short", "combo"]:
             run_staged_auto_pipeline("short", True, "Space Exploration", 20)
 
-        # 2. Long Video
         if is_active and plan_type in ["long", "combo"]:
             run_staged_auto_pipeline("long", False, "AI Innovations", 60)
 
-        # 3. Ultra Mode Video
         if has_ultra_sub or plan_type == "ultra":
             run_staged_auto_pipeline("ultra", False, "History of Ancient Warriors", 60)
 
@@ -607,7 +583,6 @@ def check_and_run_auto_schedules():
 scheduler.add_job(check_and_run_auto_schedules, 'interval', minutes=1)
 scheduler.start()
 
-# 3. Robust Crash-Proof Password Hashing & Verification Engine
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 import bcrypt as _raw_bcrypt
 
@@ -642,10 +617,8 @@ async def unblock_firewall():
     waf.reset_all_bans()
     return {"message": "🔓 Firewall IP bans & rate limits reset successfully!"}
 
-# 0. Ultimate Web Application Firewall (WAF) & Threat Shield Middleware
 app.add_middleware(FirewallMiddleware)
 
-# Import AI Background Remover module
 try:
     from bg_remover import remove_background
 except Exception as _bg_err:
@@ -720,30 +693,24 @@ class ScriptRequest(BaseModel):
     category: Optional[str] = "Random"
     video_type: Optional[str] = "short"
 
-# In-memory job status (Production mein Redis/DB use karna)
 jobs = {}
 
 def full_process(req: VideoRequest, job_id: str):
     """Asli logic jo background mein chalega"""
     try:
-        # User ke liye ek alag folder banate hain taaki kachra mix na ho
         job_dir = f"temp_{job_id}"
         os.makedirs(job_dir, exist_ok=True)
         
         user_id = req.user_id if req.user_id else "anonymous"
         print(f"🎬 Processing video for User: {user_id} (Category: {req.category})")
         
-        # Scenes ki taiyari: Robust Script & Scenes Engine for Long & Short Videos
         scenes_data = []
 
-        # 1. If explicit scenes array is provided with text, use explicit scenes directly
         if req.scenes and len(req.scenes) > 0 and any(s.text and s.text.strip() for s in req.scenes):
             scenes_data = [{"text": s.text.strip(), "keyword": s.keyword.strip() if s.keyword else "technology"} for s in req.scenes if s.text and s.text.strip()]
 
-        # 2. If full_script is provided (for Long or Short videos), split full_script into complete sentences
         if not scenes_data and req.full_script and req.full_script.strip():
             import re
-            # Split strictly by sentence enders (. ! ? or newlines), NOT by commas or colons!
             raw_sentences = re.split(r'(?<=[.!?])\s+|\n+', req.full_script.strip())
             stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi", "hain", "kya", "toh", "liye", "bhi", "yeh", "kuch", "hoti", "hain", "mil", "sakti"}
             
@@ -751,7 +718,6 @@ def full_process(req: VideoRequest, job_id: str):
                 sentence = sentence.strip()
                 if len(sentence) < 4: continue
                 
-                # Keyword Extraction: Pick the longest non-stop word
                 words = [w.lower() for w in sentence.split() if w.isalpha() and w.lower() not in stop_words]
                 keyword = "technology"
                 if words:
@@ -763,7 +729,6 @@ def full_process(req: VideoRequest, job_id: str):
             if not scenes_data:
                 scenes_data = [{"text": req.full_script.strip(), "keyword": "technology"}]
 
-        # 3. Fail-safe: If still empty, use topic
         if not scenes_data:
             fallback_text = req.topic if req.topic else "AI Video Generation"
             scenes_data = [{"text": fallback_text, "keyword": "technology"}]
@@ -773,7 +738,6 @@ def full_process(req: VideoRequest, job_id: str):
             a_path = os.path.join(job_dir, f"audio_{i}.mp3")
             v_path = os.path.join(job_dir, f"video_{i}.mp4")
             
-            # Custom settings apply karna
             make_audio(sc["text"], a_path, req.voice_id)
             is_ultra = (req.video_type == "ultra")
             orientation = "landscape" if (req.video_type in ["long", "ultra"]) else "portrait"
@@ -787,7 +751,6 @@ def full_process(req: VideoRequest, job_id: str):
                     scene_text = sc.get('text', '')
                     scene_kw = sc.get('keyword', '').strip()
                     
-                    # Extract script-specific terms from scene text & keywords
                     scene_specific = scene_kw if (scene_kw and len(scene_kw.split()) <= 4) else ""
                     if not scene_specific and scene_text:
                         words = [w for w in scene_text.split() if len(w) > 3][:3]
@@ -821,7 +784,6 @@ def full_process(req: VideoRequest, job_id: str):
             
             if os.path.exists(a_path):
                 if not v_paths:
-                    # Internal fail-safe visual canvas fallback if no API key/media available
                     fallback_img_path = os.path.join(job_dir, f"fallback_canvas_{i}.jpg")
                     from PIL import Image
                     target_w, target_h = (1280, 720) if (req.video_type in ["long", "ultra"]) else (720, 1280)
@@ -837,12 +799,10 @@ def full_process(req: VideoRequest, job_id: str):
 
         if taiyaar_scenes:
             output_file = f"acoumation_video_{job_id}.mp4"
-            # Editor ko user ki choice bhejna (font, color, bg_music, mode)
             target_size = (1280, 720) if (req.video_type in ["long", "ultra"]) else (720, 1280)
             with render_queue_lock:
                 merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music, mode=req.video_type) 
             
-            # Upload to Cloudinary
             cloudinary_url = None
             try:
                 upload_result = cloudinary.uploader.upload(output_file, resource_type="video")
@@ -868,7 +828,6 @@ def full_process(req: VideoRequest, job_id: str):
                 "topic": req.topic
             }
             
-            # Save to Video History in MongoDB
             if videos_collection is not None and req.user_id != "anonymous":
                 try:
                     videos_collection.insert_one({
@@ -891,7 +850,6 @@ def full_process(req: VideoRequest, job_id: str):
         print(f"❌ Error in full_process: {e}")
         jobs[job_id] = {"status": "failed", "error": str(e)}
     finally:
-        # Safety Disk Space Cleanup: Remove temporary raw audio & video clips to prevent server disk fill-up
         try:
             if os.path.exists(job_dir):
                 shutil.rmtree(job_dir, ignore_errors=True)
@@ -980,7 +938,6 @@ class AutoScheduleRequest(BaseModel):
     internal_id: str
     schedule_enabled: bool = True
     
-    # Short / Reel Settings
     short_auto_topic: bool = True
     short_topic: str = "Space Exploration, AI Innovations"
     short_category: str = "Random" # 30+ categories or custom
@@ -991,7 +948,6 @@ class AutoScheduleRequest(BaseModel):
     short_time: str = "10:00"
     short_language: str = "hi"
     
-    # Long Video Settings
     long_auto_topic: bool = True
     long_topic: str = "Space Exploration, AI Technology"
     long_category: str = "Random" # 30+ categories or custom
@@ -1002,7 +958,6 @@ class AutoScheduleRequest(BaseModel):
     long_time: str = "18:00"
     long_language: str = "hi"
 
-    # Ultra Mode Settings (Dedicated ₹20/mo Ultra Subscription)
     ultra_auto_topic: bool = True
     ultra_topic: str = "History of Ancient Warriors, Science Mysteries"
     ultra_category: str = "Random" # 30+ categories or custom
@@ -1019,7 +974,6 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
     if not user_id or user_id == "anonymous":
         raise HTTPException(status_code=401, detail="Please login or register to generate videos.")
 
-    # Safety Check: Script Length & Scene Count Limits (Anti-DDoS / Anti-Memory Crash)
     if req.full_script and len(req.full_script) > 5000:
         raise HTTPException(status_code=400, detail="⚠️ Script too long! Maximum script length allowed is 5,000 characters per video.")
 
@@ -1046,7 +1000,6 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
                     is_active = True
                     
             if not is_active:
-                # Atomic decrement safeguard: Prevents multi-tab parallel race conditions
                 res = users_collection.update_one(
                     {"internal_id": user_id, "free_demo_count": {"$gt": 0}},
                     {"$inc": {"free_demo_count": -1}}
@@ -1054,7 +1007,6 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
                 if res.modified_count == 0:
                     raise HTTPException(status_code=402, detail="Demo quota exhausted! You have used your 2 free demo videos. Please upgrade your plan to continue generating videos.")
             else:
-                # Active Subscription Quota Enforcement per Plan
                 today_str = datetime.utcnow().strftime("%Y-%m-%d")
                 daily_usage = user.get("daily_usage", {})
                 if daily_usage.get("date") != today_str:
@@ -1085,13 +1037,11 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
                     daily_usage["long_count"] += 1
 
                 elif sub_plan == "combo":
-                    # COMBO plan: Short (9:16) + Long (16:9). Dedicated Ultra plan (₹20/mo) required for Ultra mode.
                     if v_type == "short":
                         daily_usage["short_count"] += 1
                     else:
                         daily_usage["long_count"] += 1
 
-                # Save updated daily usage tracking to MongoDB profile
                 users_collection.update_one(
                     {"internal_id": user_id},
                     {"$set": {"daily_usage": daily_usage}}
@@ -1148,7 +1098,6 @@ async def get_user_subscription(internal_id: str):
     if auto_daily_usage.get("date") != today_ist_str:
         auto_daily_usage = {"date": today_ist_str, "auto_short_count": 0, "auto_long_count": 0}
 
-    # Independent Ultra Subscription Check
     ultra_sub = user.get("ultra_subscription", {})
     ultra_status = ultra_sub.get("status")
     ultra_expires = ultra_sub.get("expires_at")
@@ -1162,7 +1111,6 @@ async def get_user_subscription(internal_id: str):
         if isinstance(ultra_expires, datetime) and ultra_expires > datetime.utcnow():
             has_ultra = True
 
-    # User has active subscription if EITHER standard plan (short/long/combo) OR ultra plan is active!
     has_active_sub = is_active or has_ultra
 
     limit_text = "2 Free Demo Videos Total"
@@ -1204,7 +1152,6 @@ async def save_auto_schedule(req: AutoScheduleRequest):
     if not user:
         raise HTTPException(status_code=404, detail="User profile not found")
 
-    # Safeguard: Check if user has active paid membership before saving schedule
     subscription = user.get("subscription", {})
     sub_status = subscription.get("status")
     sub_expires = subscription.get("expires_at")
@@ -1223,10 +1170,7 @@ async def save_auto_schedule(req: AutoScheduleRequest):
     if not is_active:
         raise HTTPException(status_code=403, detail="🔒 Membership Only Feature! Auto-Schedule & Auto-Upload require an active paid membership plan. Please upgrade your membership to activate automatic video generation & YouTube publishing.")
 
-    # Duration constraints enforcement per plan:
-    # Short duration: 10s to 55s
     req.short_duration = max(10, min(55, req.short_duration))
-    # Long duration: 20s to 300s (5 mins)
     req.long_duration = max(20, min(300, req.long_duration))
 
     existing_schedule = user.get("auto_schedule", {})
@@ -1245,7 +1189,6 @@ async def save_auto_schedule(req: AutoScheduleRequest):
         "schedule_started_at": schedule_started_at,
         "plan_type": sub_plan,
         
-        # Short schedule profile
         "short_auto_topic": req.short_auto_topic,
         "short_topic": req.short_topic if not req.short_auto_topic else "AI Auto Topic (Daily Dynamic)",
         "short_category": req.short_category,
@@ -1256,7 +1199,6 @@ async def save_auto_schedule(req: AutoScheduleRequest):
         "short_time": req.short_time,
         "short_language": req.short_language,
         
-        # Long schedule profile
         "long_auto_topic": req.long_auto_topic,
         "long_topic": req.long_topic if not req.long_auto_topic else "AI Auto Topic (Daily Dynamic)",
         "long_category": req.long_category,
@@ -1338,7 +1280,6 @@ async def get_auto_schedule(internal_id: str):
     plan_type = sub.get("plan_type", "none")
     purchase_count = sub.get("purchase_count", 1) if sub.get("status") == "active" else 0
     
-    # Calculate exact days passed since subscription activation timestamp
     days_elapsed = 0
     activated_at = sub.get("activated_at")
     if sub.get("status") == "active":
@@ -1364,11 +1305,9 @@ async def get_auto_schedule(internal_id: str):
                     total_days_purchased = purchase_count * 30
                     days_elapsed = max(0, total_days_purchased - days_left)
 
-    # Videos per day based on plan
     daily_quota = 2 if plan_type == "combo" else (1 if plan_type in ["short", "long"] else 0)
     total_allowance = purchase_count * 30 * daily_quota if daily_quota > 0 else 2
     
-    # Videos used based on elapsed days (whether generated or missed!)
     used_videos = days_elapsed * daily_quota if daily_quota > 0 else (2 - user.get("free_demo_count", 2))
     remaining = max(0, total_allowance - used_videos)
     
@@ -1398,7 +1337,6 @@ async def get_auto_schedule(internal_id: str):
         "hours_active": hours_active,
         "plan_type": plan_type,
         
-        # Short settings
         "short_auto_topic": schedule.get("short_auto_topic", True),
         "short_topic": schedule.get("short_topic", "Space Exploration, AI Innovations"),
         "short_category": schedule.get("short_category", "Random"),
@@ -1409,7 +1347,6 @@ async def get_auto_schedule(internal_id: str):
         "short_time": schedule.get("short_time", "10:00"),
         "short_language": schedule.get("short_language", "hi"),
         
-        # Long settings
         "long_auto_topic": schedule.get("long_auto_topic", True),
         "long_topic": schedule.get("long_topic", "Space Exploration, AI Technology"),
         "long_category": schedule.get("long_category", "Random"),
@@ -1486,7 +1423,6 @@ async def create_razorpay_order(req: CreateOrderRequest):
         "combo": 11900    # ₹119
     }
     
-    # Rule A: Check for Active High-Tier Plan to Prevent Unintended Downgrades
     if users_collection is not None and req.internal_id:
         user = users_collection.find_one({"internal_id": req.internal_id})
         if user:
@@ -1540,7 +1476,6 @@ async def create_razorpay_order(req: CreateOrderRequest):
         except Exception as e:
             print(f"⚠️ Razorpay API order warning: {e}. Falling back to standard test checkout mode.")
             
-    # Fallback to test checkout order so popup always opens smoothly
     fake_order_id = f"order_test_{str(uuid.uuid4())[:8]}"
     return {
         "order_id": fake_order_id,
@@ -1575,7 +1510,6 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
 
     existing_user = users_collection.find_one({"internal_id": req.internal_id})
 
-    # Independent Ultra Subscription Handling
     if req.plan_type == "ultra":
         existing_ultra = existing_user.get("ultra_subscription", {}) if existing_user else {}
         ultra_exp = existing_ultra.get("expires_at")
@@ -1612,7 +1546,6 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
             "expires_at": expires_at.isoformat()
         }
 
-    # Standard / Long / Combo Subscription Handling
     existing_sub = existing_user.get("subscription", {}) if existing_user else {}
     current_plan = existing_sub.get("plan_type", "none")
     sub_status = existing_sub.get("status")
@@ -1631,12 +1564,10 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
 
     if is_active:
         if current_plan == req.plan_type:
-            # Rule C: Same plan stacking! Add +30 days to existing active expiration date!
             expires_at = sub_exp + timedelta(days=30)
             purchase_count += 1
             print(f"🔄 Stacked +30 days on '{req.plan_type}' for user {req.internal_id} (Purchase #{purchase_count}, Expiry: {expires_at.isoformat()})")
         else:
-            # Rule B: Upgrading from lower tier to higher tier plan! Start fresh 30 days!
             expires_at = datetime.utcnow() + timedelta(days=30)
             purchase_count = 1
             print(f"🚀 Upgraded user {req.internal_id} from '{current_plan}' to '{req.plan_type}'! Expiry set to {expires_at.isoformat()}")
@@ -1672,7 +1603,6 @@ async def register_user(req: UserRegister):
         raise HTTPException(status_code=500, detail="Database not configured")
         
     primary_email = req.email.strip().lower()
-    # Clean phone to digits
     primary_phone = "".join(filter(str.isdigit, req.phone))
     
     if not primary_email or not primary_phone or not req.name.strip() or not req.country.strip():
@@ -1757,7 +1687,6 @@ async def get_video_history(internal_id: str):
         raise HTTPException(status_code=500, detail="Database not configured")
     
     try:
-        # Sort by creation date descending (newest first)
         videos_cursor = videos_collection.find({"internal_id": internal_id}).sort("created_at", -1)
         videos_list = []
         for v in videos_cursor:
@@ -1812,7 +1741,6 @@ async def cleanup(job_id: str):
         return {"status": "Cleaned"}
     return {"error": "Job not found"}
 
-# ================= YouTube Auth Endpoints =================
 YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 def get_youtube_flow():
@@ -1848,7 +1776,6 @@ async def get_youtube_auth_url(internal_id: str):
     if not internal_id:
         raise HTTPException(status_code=400, detail="Missing user internal_id")
 
-    # Check for active paid membership before allowing YouTube connection
     if users_collection is not None:
         user = users_collection.find_one({"internal_id": internal_id})
         if user:
@@ -1901,7 +1828,6 @@ async def youtube_callback(state: str, code: str):
         raise HTTPException(status_code=500, detail="YouTube Client ID/Secret not configured.")
     
     try:
-        # Direct OAuth2 Token Exchange
         token_data = {
             "code": code,
             "client_id": client_id,
@@ -2051,7 +1977,6 @@ class AIScriptRequest(BaseModel):
     tone: Optional[str] = "viral"        # 'viral', 'informative', 'mysterious', 'funny'
 
 def generate_ai_script_core(topic: str, duration: int, video_type: str = "short", language: str = "hinglish", tone: str = "viral", category: str = "Random"):
-    # Multi-service AI Script Server Priority List (Railway -> Render -> Custom)
     raw_env_url = os.getenv("AI_SERVER_URL", "").rstrip("/")
     candidate_urls = [
         "https://ai-script-generator-service-production.up.railway.app",
@@ -2066,7 +1991,6 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
 
     cat_niche = f" in the '{category}' category" if category and str(category).lower() != "random" else ""
 
-    # 1. Primary Attempt: Call External Dedicated AI Script Services (Railway -> Render)
     payload = {
         "topic": topic,
         "category": category,
@@ -2087,7 +2011,6 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                     scenes = data.get("scenes") or []
                     
                     if full_script or scenes:
-                        # Auto-build scenes if missing
                         if not scenes and full_script:
                             stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko"}
                             kws = [w.lower() for w in topic.split() if w.isalpha() and w.lower() not in stop_words]
@@ -2115,8 +2038,6 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
             except Exception as e_inner:
                 continue
 
-    # 2. Secondary Attempt: Fallback to Gemini AI Direct Key
-    # 2. Secondary Attempt: Fallback to Gemini AI Direct Key
     gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if gemini_key:
         try:
@@ -2170,7 +2091,6 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         except Exception as err:
             print(f"⚠️ Gemini API Warning (Falling back to dynamic engine): {err}")
 
-    # Dynamic Smart Script Generator (Zero-Failure Structured Fallback)
     stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi"}
     keywords = [w.lower() for w in topic.split() if w.isalpha() and w.lower() not in stop_words]
     main_kw = keywords[0] if keywords else topic
@@ -2286,7 +2206,6 @@ async def generate_script(req: ScriptRequest):
     res = generate_ai_script_core(topic=req.topic, duration=req.duration_seconds, category=req.category or "Random", video_type=req.video_type or "short")
     return {"scenes": res["scenes"], "full_script": res["full_script"]}
 
-# SEO & Google Search Console Verification Routes
 @app.get("/robots.txt", response_class=Response)
 async def get_robots_txt():
     robots_content = "User-agent: *\nAllow: /\n\nSitemap: https://cloxelai.onrender.com/sitemap.xml\n"
@@ -2309,7 +2228,6 @@ async def get_sitemap_xml():
 async def get_google_verification_html():
     return Response(content="google-site-verification: googleaa929f03abece7ff.html", media_type="text/html")
 
-# 4. Serve Frontend (Must be the last route)
 if os.path.isdir("frontend/dist"):
     app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
 else:

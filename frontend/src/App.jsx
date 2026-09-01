@@ -1405,9 +1405,17 @@ function App() {
               <div 
                 className={`pricing-card ${selectedPlan === 'ultra' ? 'featured' : ''}`}
                 onClick={() => setSelectedPlan('ultra')}
-                style={{ cursor: 'pointer', border: selectedPlan === 'ultra' ? '2px solid #ec4899' : '1px solid rgba(236, 72, 153, 0.4)' }}
+                style={{ 
+                  cursor: 'pointer', 
+                  border: selectedPlan === 'ultra' ? '2px solid #ec4899' : (subStatus.has_active_ultra_subscription ? '2px solid #22c55e' : '1px solid rgba(255, 255, 255, 0.12)'),
+                  boxShadow: selectedPlan === 'ultra' ? '0 0 25px rgba(236, 72, 153, 0.4)' : 'none'
+                }}
               >
-                <div className="card-tag" style={{ background: 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' }}>SPECIAL ULTRA</div>
+                {subStatus.has_active_ultra_subscription ? (
+                  <div className="card-tag" style={{ background: '#22c55e', color: '#ffffff', fontWeight: 'bold' }}>✅ ACTIVE ULTRA PLAN</div>
+                ) : (
+                  <div className="card-tag" style={{ background: 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' }}>SPECIAL ULTRA</div>
+                )}
                 <h3>Ultra Cinematic</h3>
                 <div className="plan-price">₹20 <span>/ month</span></div>
                 <p className="plan-desc">Multi-Character & Documentary Auto-Uploads.</p>
@@ -1418,10 +1426,10 @@ function App() {
                 </ul>
                 <button 
                   className={`btn-buy-plan ${selectedPlan === 'ultra' ? 'featured-btn' : ''}`} 
-                  style={{ background: 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' }}
+                  style={{ background: subStatus.has_active_ultra_subscription ? '#16a34a' : 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' }}
                   onClick={(e) => { e.stopPropagation(); setSelectedPlan('ultra'); handleBuyPlan('ultra'); }}
                 >
-                  Subscribe for ₹20
+                  {subStatus.has_active_ultra_subscription ? '✅ Ultra Active (Stack +30 Days ₹20)' : 'Subscribe for ₹20'}
                 </button>
               </div>
 
@@ -1429,9 +1437,17 @@ function App() {
               <div 
                 className={`pricing-card ${selectedPlan === 'short' ? 'featured' : ''}`}
                 onClick={() => setSelectedPlan('short')}
-                style={{ cursor: 'pointer' }}
+                style={{ 
+                  cursor: 'pointer',
+                  border: selectedPlan === 'short' ? '2px solid #a855f7' : (subStatus.plan_type === 'short' ? '2px solid #22c55e' : '1px solid rgba(255, 255, 255, 0.12)'),
+                  boxShadow: selectedPlan === 'short' ? '0 0 25px rgba(168, 85, 247, 0.4)' : 'none'
+                }}
               >
-                <div className="card-tag">30 DAYS</div>
+                {subStatus.plan_type === 'short' ? (
+                  <div className="card-tag" style={{ background: '#22c55e', color: '#ffffff' }}>✅ ACTIVE PLAN</div>
+                ) : (
+                  <div className="card-tag">30 DAYS</div>
+                )}
                 <h3>Short Starter</h3>
                 <div className="plan-price">₹50 <span>/ month</span></div>
                 <p className="plan-desc">Perfect for Shorts & Reels creators.</p>
@@ -1444,7 +1460,7 @@ function App() {
                   className={`btn-buy-plan ${selectedPlan === 'short' ? 'featured-btn' : ''}`} 
                   onClick={(e) => { e.stopPropagation(); setSelectedPlan('short'); handleBuyPlan('short'); }}
                 >
-                  Subscribe for ₹50
+                  {subStatus.plan_type === 'short' ? '✅ Active (Stack +30 Days ₹50)' : 'Subscribe for ₹50'}
                 </button>
               </div>
 
@@ -1452,9 +1468,17 @@ function App() {
               <div 
                 className={`pricing-card ${selectedPlan === 'long' ? 'featured' : ''}`}
                 onClick={() => setSelectedPlan('long')}
-                style={{ cursor: 'pointer' }}
+                style={{ 
+                  cursor: 'pointer',
+                  border: selectedPlan === 'long' ? '2px solid #a855f7' : (subStatus.plan_type === 'long' ? '2px solid #22c55e' : '1px solid rgba(255, 255, 255, 0.12)'),
+                  boxShadow: selectedPlan === 'long' ? '0 0 25px rgba(168, 85, 247, 0.4)' : 'none'
+                }}
               >
-                <div className="card-tag gold">POPULAR</div>
+                {subStatus.plan_type === 'long' ? (
+                  <div className="card-tag" style={{ background: '#22c55e', color: '#ffffff' }}>✅ ACTIVE PLAN</div>
+                ) : (
+                  <div className="card-tag gold">POPULAR</div>
+                )}
                 <h3>Long Master</h3>
                 <div className="plan-price">₹100 <span>/ month</span></div>
                 <p className="plan-desc">For full-length YouTube video channels.</p>
@@ -1467,7 +1491,7 @@ function App() {
                   className={`btn-buy-plan ${selectedPlan === 'long' ? 'featured-btn' : ''}`} 
                   onClick={(e) => { e.stopPropagation(); setSelectedPlan('long'); handleBuyPlan('long'); }}
                 >
-                  Subscribe for ₹100
+                  {subStatus.plan_type === 'long' ? '✅ Active (Stack +30 Days ₹100)' : 'Subscribe for ₹100'}
                 </button>
               </div>
 
@@ -1475,9 +1499,17 @@ function App() {
               <div 
                 className={`pricing-card ${selectedPlan === 'combo' ? 'featured' : ''}`}
                 onClick={() => setSelectedPlan('combo')}
-                style={{ cursor: 'pointer' }}
+                style={{ 
+                  cursor: 'pointer',
+                  border: selectedPlan === 'combo' ? '2px solid #a855f7' : (subStatus.plan_type === 'combo' ? '2px solid #22c55e' : '1px solid rgba(255, 255, 255, 0.12)'),
+                  boxShadow: selectedPlan === 'combo' ? '0 0 25px rgba(168, 85, 247, 0.4)' : 'none'
+                }}
               >
-                <div className="card-tag purple">BEST VALUE</div>
+                {subStatus.plan_type === 'combo' ? (
+                  <div className="card-tag" style={{ background: '#22c55e', color: '#ffffff' }}>✅ ACTIVE PLAN</div>
+                ) : (
+                  <div className="card-tag purple">BEST VALUE</div>
+                )}
                 <h3>Pro Combo</h3>
                 <div className="plan-price">₹119 <span>/ month</span></div>
                 <p className="plan-desc">All-in-one power suite for max reach.</p>
@@ -1490,7 +1522,7 @@ function App() {
                   className={`btn-buy-plan ${selectedPlan === 'combo' ? 'featured-btn' : ''}`} 
                   onClick={(e) => { e.stopPropagation(); setSelectedPlan('combo'); handleBuyPlan('combo'); }}
                 >
-                  Subscribe for ₹119
+                  {subStatus.plan_type === 'combo' ? '✅ Active (Stack +30 Days ₹119)' : 'Subscribe for ₹119'}
                 </button>
               </div>
             </div>
