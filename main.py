@@ -1964,42 +1964,35 @@ async def youtube_callback(state: str, code: str):
 async def get_youtube_status(internal_id: str):
     if users_collection is None:
         return {"linked": False}
-        
-    user = users_collection.find_one({"internal_id": internal_id})
-    if not user or "youtube_credentials" not in user:
+    try:
+        projection = {"youtube_credentials": 1, "youtube_linked_at": 1}
+        user = users_collection.find_one({"internal_id": internal_id}, projection)
+        if not user or "youtube_credentials" not in user:
+            return {"linked": False}
+
+        creds = user.get("youtube_credentials", {})
+        if creds.get("status") == "expired":
+            return {"linked": False, "expired": True, "error": "YouTube Authorization Expired. Please re-connect channel."}
+            
+        linked_at = user.get("youtube_linked_at")
+        if not linked_at:
+            return {"linked": True, "can_unlink": True, "hours_left": 0}
+            
+        if isinstance(linked_at, str):
+            try:
+                linked_at = datetime.fromisoformat(linked_at.replace('Z', '+00:00'))
+            except Exception:
+                linked_at = None
+                
+        if isinstance(linked_at, datetime):
+            hours_passed = (datetime.utcnow() - linked_at.replace(tzinfo=None)).total_seconds() / 3600
+            hours_left = max(0, int(24 - hours_passed))
+            return {"linked": True, "can_unlink": hours_passed >= 24, "hours_left": hours_left}
+
+        return {"linked": True, "can_unlink": True, "hours_left": 0}
+    except Exception as e:
+        print(f"⚠️ get_youtube_status fallback notice for {internal_id}: {e}")
         return {"linked": False}
-
-    creds = user.get("youtube_credentials", {})
-    if creds.get("status") == "expired":
-        return {"linked": False, "expired": True, "error": "YouTube Authorization Expired. Please re-connect channel."}
-        
-    linked_at = user.get("youtube_linked_at")
-    if not linked_at:
-        return {"linked": True, "can_unlink": True, "hours_left": 0}
-        
-    if isinstance(linked_at, str):
-        try:
-            linked_at = datetime.fromisoformat(linked_at.replace("Z", "+00:00"))
-            if linked_at.tzinfo is not None:
-                linked_at = linked_at.astimezone(timezone.utc).replace(tzinfo=None)
-        except Exception:
-            linked_at = None
-
-    if not linked_at or not isinstance(linked_at, datetime):
-        return {"linked": True, "can_unlink": True, "hours_left": 0}
-
-    time_passed = datetime.utcnow() - linked_at
-    can_unlink = time_passed >= timedelta(hours=24)
-    
-    hours_left = 0
-    if not can_unlink:
-        hours_left = max(0, 24 - (time_passed.total_seconds() / 3600))
-        
-    return {
-        "linked": True,
-        "can_unlink": can_unlink,
-        "hours_left": round(hours_left, 1)
-    }
 
 @app.post("/youtube/unlink")
 async def unlink_youtube(req: UnlinkRequest):
