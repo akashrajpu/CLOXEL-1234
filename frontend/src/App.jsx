@@ -254,10 +254,23 @@ function App() {
   // Auth state
   const [userId, setUserId] = useState(() => localStorage.getItem('cloxel_user_id') || null);
 
+  const fetchWithTimeout = async (url, options = {}, timeoutMs = 6000) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      return response;
+    } catch (err) {
+      clearTimeout(timer);
+      throw err;
+    }
+  };
+
   const fetchSubscriptionStatus = async () => {
     if (!userId) return;
     try {
-      const response = await fetch(`${API_BASE}/user-subscription/${userId}`);
+      const response = await fetchWithTimeout(`${API_BASE}/user-subscription/${userId}`);
       if (response.ok) {
         const data = await response.json();
         setSubStatus(data);
@@ -270,7 +283,7 @@ function App() {
   const fetchAutoSchedule = async () => {
     if (!userId) return;
     try {
-      const res = await fetch(`${API_BASE}/get-auto-schedule/${userId}`);
+      const res = await fetchWithTimeout(`${API_BASE}/get-auto-schedule/${userId}`);
       if (res.ok) {
         const data = await res.json();
         setAutoSchedule(data);
@@ -284,7 +297,7 @@ function App() {
   const fetchHistory = async () => {
     if (!userId) return;
     try {
-      const response = await fetch(`${API_BASE}/history/${userId}`);
+      const response = await fetchWithTimeout(`${API_BASE}/history/${userId}`);
       if (response.ok) {
         const data = await response.json();
         setHistory(data.history || []);
@@ -296,7 +309,7 @@ function App() {
 
   const fetchBgMusicAndFonts = async () => {
     try {
-      const resM = await fetch(`${API_BASE}/bg-music-list`);
+      const resM = await fetchWithTimeout(`${API_BASE}/bg-music-list`);
       if (resM.ok) {
         const dataM = await resM.json();
         if (dataM.music_tracks && dataM.music_tracks.length > 0) {
@@ -561,7 +574,7 @@ function App() {
       return;
     }
     setJobId(null);
-    setJobStatus(null);
+    setJobStatus('processing');
     setCloudinaryUrl(null);
     setDownloadUrl(null);
     

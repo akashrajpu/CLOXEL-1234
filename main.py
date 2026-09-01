@@ -105,7 +105,7 @@ def ping_server():
         print(f"Self-ping failed: {e}")
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(ping_server, 'interval', minutes=10)
+scheduler.add_job(ping_server, 'interval', minutes=3)
 scheduler.add_job(waf.reset_all_bans, 'interval', hours=6)
 
 def parse_time_to_minutes(time_str: str) -> Optional[int]:
@@ -623,7 +623,10 @@ def safe_hash_password(password: str) -> str:
     except Exception:
         return pwd_context.hash(password)
 
+from fastapi.middleware.gzip import GZipMiddleware
+
 app = FastAPI()
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 @app.get("/api/admin/unblock-firewall")
 async def unblock_firewall():
