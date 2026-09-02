@@ -472,31 +472,26 @@ def create_history_spotlight_overlay(base_img: Image.Image, progress: float) -> 
     dark_bg = ImageEnhance.Brightness(dark_bg).enhance(0.28)
     
     spotlight_mask = Image.new("L", (w, h), 0)
+    # Fast High-Speed Downscaled Spotlight Mask Calculation (16x Faster Rendering!)
+    mw, mh = w // 4, h // 4
+    spotlight_mask = Image.new("L", (mw, mh), 0)
     s_draw = ImageDraw.Draw(spotlight_mask)
     
-    spotlight_cx = int(w * (0.35 + 0.30 * math.sin(progress * math.pi)))
-    spotlight_cy = int(h * (0.45 + 0.10 * math.cos(progress * math.pi)))
+    spotlight_cx = int(mw * (0.35 + 0.30 * math.sin(progress * math.pi)))
+    spotlight_cy = int(mh * (0.45 + 0.10 * math.cos(progress * math.pi)))
     
-    spotlight_radius_x = int(w * (0.34 + 0.05 * math.sin(progress * math.pi * 2)))
-    spotlight_radius_y = int(h * (0.44 + 0.05 * math.cos(progress * math.pi * 2)))
+    spotlight_radius_x = int(mw * (0.34 + 0.05 * math.sin(progress * math.pi * 2)))
+    spotlight_radius_y = int(mh * (0.44 + 0.05 * math.cos(progress * math.pi * 2)))
     
-    bbox = [
+    s_draw.ellipse([
         spotlight_cx - spotlight_radius_x,
         spotlight_cy - spotlight_radius_y,
         spotlight_cx + spotlight_radius_x,
         spotlight_cy + spotlight_radius_y
-    ]
-    s_draw.ellipse(bbox, fill=255)
-    
-    random.seed(int(progress * 100))
-    for angle in range(0, 360, 10):
-        rad = math.radians(angle)
-        jitter = random.randint(-18, 18)
-        px = int(spotlight_cx + (spotlight_radius_x + jitter) * math.cos(rad))
-        py = int(spotlight_cy + (spotlight_radius_y + jitter) * math.sin(rad))
-        s_draw.ellipse([px - 14, py - 14, px + 14, py + 14], fill=255)
+    ], fill=255)
 
-    spotlight_mask = spotlight_mask.filter(ImageFilter.GaussianBlur(radius=22))
+    spotlight_mask = spotlight_mask.filter(ImageFilter.GaussianBlur(radius=6))
+    spotlight_mask = spotlight_mask.resize((w, h), Image.BILINEAR)
     
     result_img = Image.composite(base_img.convert("RGB"), dark_bg, spotlight_mask)
     return result_img.convert("RGBA")
@@ -816,7 +811,7 @@ def merge_and_export(
             scene_output, 
             codec="libx264", 
             audio_codec="aac", 
-            fps=20, 
+            fps=15, 
             preset="ultrafast", 
             threads=2, 
             ffmpeg_params=["-crf", "26", "-pix_fmt", "yuv420p"],
