@@ -2042,10 +2042,11 @@ function App() {
                 ) : (
                   <button 
                     className="btn-hero-cta" 
-                    style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: '0 4px 20px rgba(6, 182, 212, 0.4)' }}
+                    disabled={isSavingSchedule}
+                    style={{ width: '100%', padding: '14px', fontSize: '1rem', background: isSavingSchedule ? 'rgba(255,255,255,0.15)' : 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: isSavingSchedule ? 'none' : '0 4px 20px rgba(6, 182, 212, 0.4)', opacity: isSavingSchedule ? 0.6 : 1, cursor: isSavingSchedule ? 'not-allowed' : 'pointer' }}
                     onClick={() => handleSaveAutoSchedule(true)}
                   >
-                    ⚡ Start Auto-Publishing Engine →
+                    {isSavingSchedule ? '⏳ Saving Settings to DB...' : '⚡ Start Auto-Publishing Engine →'}
                   </button>
                 )
               ) : (

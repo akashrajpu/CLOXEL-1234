@@ -1789,15 +1789,22 @@ async def get_video_history(internal_id: str):
         videos_cursor = videos_collection.find({"internal_id": internal_id}).sort("created_at", -1)
         videos_list = []
         for v in videos_cursor:
+            c_at = v.get("created_at")
+            if isinstance(c_at, datetime):
+                c_at_str = c_at.isoformat()
+            else:
+                c_at_str = str(c_at) if c_at else None
+
             videos_list.append({
                 "job_id": v.get("job_id"),
                 "topic": v.get("topic", "Unknown Topic"),
                 "cloudinary_url": v.get("cloudinary_url"),
-                "created_at": v.get("created_at").isoformat() if v.get("created_at") else None
+                "created_at": c_at_str
             })
         return {"history": videos_list}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"⚠️ get_video_history fallback: {e}")
+        return {"history": []}
 
 @app.get("/status/{job_id}")
 async def get_status(job_id: str):
@@ -1806,9 +1813,13 @@ async def get_status(job_id: str):
 @app.get("/download/{job_id}")
 async def download_video(job_id: str):
     job = jobs.get(job_id)
-    if job and job["status"] == "completed":
-        return FileResponse(job["file"], media_type="video/mp4", filename="cloxel_video.mp4")
-    return {"error": "File not ready"}
+    if job and job.get("status") == "completed":
+        file_path = job.get("file")
+        if file_path and os.path.exists(file_path):
+            return FileResponse(file_path, media_type="video/mp4", filename="cloxel_video.mp4")
+        elif job.get("cloudinary_url"):
+            return RedirectResponse(url=job.get("cloudinary_url"))
+    raise HTTPException(status_code=404, detail="Video file not found or expired on server")
 
 @app.get("/bg-music-list")
 async def get_bg_music_list():
