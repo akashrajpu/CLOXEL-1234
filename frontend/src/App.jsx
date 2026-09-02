@@ -1948,6 +1948,88 @@ function App() {
                 </div>
               )}
 
+              {/* 3. ULTRA CINEMATIC 3D MOTION SCHEDULE PROFILE (If Ultra Active) */}
+              {(subStatus.has_active_ultra_subscription || subStatus.plan_type === 'ultra') && (
+                <div style={{ background: 'rgba(236,72,153,0.08)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(236,72,153,0.3)', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <h4 style={{ color: '#f472b6', margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      🎬 Ultra Cinematic 3D Photo Motion Auto-Upload Workflow
+                    </h4>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: 'rgba(236,72,153,0.2)', padding: '4px 10px', borderRadius: '20px', border: '1px solid #ec4899' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={autoSchedule.ultra_enabled || false}
+                        onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_enabled: e.target.checked })}
+                        style={{ width: '16px', height: '16px', accentColor: '#ec4899' }}
+                      />
+                      <span style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                        {autoSchedule.ultra_enabled ? '🟢 ENABLED' : '🔴 DISABLED'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {autoSchedule.ultra_enabled && (
+                    <>
+                      <div style={{ marginBottom: '14px' }}>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px' }}>
+                          <input 
+                            type="checkbox" 
+                            id="ultra-auto-topic"
+                            checked={autoSchedule.ultra_auto_topic !== false}
+                            onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_auto_topic: e.target.checked })}
+                            style={{ width: '16px', height: '16px', accentColor: '#ec4899' }}
+                          />
+                          <label htmlFor="ultra-auto-topic" style={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                            🎲 Dynamic AI Auto-Topic (History, Ancient Warriors & Science Mysteries)
+                          </label>
+                        </div>
+
+                        {autoSchedule.ultra_auto_topic === false && (
+                          <textarea 
+                            rows="2"
+                            value={autoSchedule.ultra_topic || ''}
+                            onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_topic: e.target.value })}
+                            placeholder="Enter custom Ultra topics separated by comma (e.g. Maharana Pratap, Ancient Warriors)"
+                            style={{ width: '100%', padding: '10px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem' }}
+                          />
+                        )}
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.82rem' }}>
+                        <div>
+                          <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche:</label>
+                          <select value={autoSchedule.ultra_category || '🎲 Random / All Categories'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                            {CATEGORIES.map((cat, i) => (
+                              <option key={i} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Voice:</label>
+                          <select value={autoSchedule.ultra_voice || 'hi-IN-MadhurNeural'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_voice: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                            <option value="hi-IN-MadhurNeural">Madhur (Male, Hindi)</option>
+                            <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
+                            <option value="en-US-GuyNeural">Guy (Male, English)</option>
+                            <option value="en-US-JennyNeural">Jenny (Female, English)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Daily Upload Time (24h):</label>
+                          <input 
+                            type="time" 
+                            value={autoSchedule.ultra_time || '21:00'} 
+                            onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_time: e.target.value })}
+                            style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
               {subStatus.has_active_subscription ? (
                 autoSchedule.schedule_enabled ? (
                   <button 
