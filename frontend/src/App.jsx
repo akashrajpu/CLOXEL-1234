@@ -1348,7 +1348,7 @@ function App() {
 
                 <div style={{ textAlign: 'left', flex: 1, overflow: 'hidden' }}>
                   <h4 style={{ margin: '0 0 2px 0', fontSize: '1.05rem', color: '#ffffff', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {subStatus.name || 'Cloxel User'}
+                    {subStatus.name || 'Account Active'}
                   </h4>
                   <div style={{ fontSize: '0.78rem', color: subStatus.has_active_subscription ? '#34d399' : '#c084fc', fontWeight: 'bold' }}>
                     💎 {subStatus.has_active_subscription ? `${subStatus.plan_type.toUpperCase()} PLAN (ACTIVE)` : (subStatus.has_active_ultra_subscription ? 'ULTRA CINEMATIC (ACTIVE)' : `Free Demo (${subStatus.free_demo_count}/2)`)}

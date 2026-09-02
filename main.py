@@ -1176,11 +1176,13 @@ async def get_user_subscription(internal_id: str):
                 limit_text = "1 Ultra Cinematic Video Daily"
 
         user_name = user.get("name") or user.get("full_name") or user.get("username")
-        if not user_name or user_name == "User":
+        if not user_name:
             if user.get("email"):
-                user_name = user.get("email").split("@")[0].capitalize()
+                user_name = user.get("email").split("@")[0]
+            elif user.get("phone"):
+                user_name = f"User {user.get('phone')[-4:]}"
             else:
-                user_name = "Cloxel Creator"
+                user_name = "Account Active"
 
         return {
             "name": user_name,
@@ -1202,7 +1204,7 @@ async def get_user_subscription(internal_id: str):
         }
     except Exception as e:
         print(f"⚠️ get_user_subscription fallback notice for {internal_id}: {e}")
-        return {"name": "Cloxel User", "free_demo_count": 2, "has_active_subscription": False, "plan_type": "none"}
+        return {"name": "Account Active", "free_demo_count": 2, "has_active_subscription": False, "plan_type": "none"}
 
 @app.post("/save-auto-schedule")
 async def save_auto_schedule(req: AutoScheduleRequest):
