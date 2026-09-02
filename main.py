@@ -1115,6 +1115,25 @@ async def update_profile_pic(req: ProfilePicRequest):
     )
     return {"message": "Profile picture updated successfully!"}
 
+@app.get("/user-profile-pic/{internal_id}")
+async def get_user_profile_pic(internal_id: str):
+    if users_collection is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    try:
+        user = users_collection.find_one({"internal_id": internal_id}, {"profile_pic": 1})
+        if not user or not user.get("profile_pic"):
+            raise HTTPException(status_code=404, detail="No profile pic")
+        pic = user.get("profile_pic")
+        if pic.startswith("data:image"):
+            import base64
+            header, encoded = pic.split(",", 1)
+            mime = header.split(";")[0].split(":")[1]
+            data = base64.b64decode(encoded)
+            return Response(content=data, media_type=mime)
+        return RedirectResponse(url=pic)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="Profile pic error")
+
 @app.get("/user-subscription/{internal_id}")
 async def get_user_subscription(internal_id: str):
     if users_collection is None:
@@ -1184,12 +1203,16 @@ async def get_user_subscription(internal_id: str):
             else:
                 user_name = "Account Active"
 
+        pic_url = ""
+        if user.get("profile_pic"):
+            pic_url = f"/user-profile-pic/{internal_id}"
+
         return {
             "name": user_name,
             "email": user.get("email", ""),
             "phone": user.get("phone", ""),
             "country": user.get("country", ""),
-            "profile_pic": user.get("profile_pic", ""),
+            "profile_pic": pic_url,
             "free_demo_count": free_demo,
             "has_active_subscription": has_active_sub,
             "has_active_ultra_subscription": has_ultra,

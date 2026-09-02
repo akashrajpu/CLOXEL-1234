@@ -257,7 +257,7 @@ function App() {
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [isUploadingPic, setIsUploadingPic] = useState(false);
 
-  const fetchWithTimeout = async (url, options = {}, timeoutMs = 6000) => {
+  const fetchWithTimeout = async (url, options = {}, timeoutMs = 12000) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
