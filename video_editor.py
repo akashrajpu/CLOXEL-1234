@@ -806,7 +806,8 @@ def merge_and_export(
         scene_combined = CompositeVideoClip([v_clip, txt_clip.set_position('center')])
         
         scene_output = os.path.join(job_dir, f"temp_rendered_scene_{i}.mp4")
-        print(f"🎬 [Fast-Render] Scene {i+1}/{len(scene_list)} -> {scene_output}...")
+        step_pct = int(((i + 1) / len(scene_list)) * 100)
+        print(f"🎬 [FFMPEG RENDER {step_pct}%] Stitching & Compositing Scene {i+1}/{len(scene_list)} (Duration: {clip_duration:.1f}s) -> {scene_output}...")
         scene_combined.write_videofile(
             scene_output, 
             codec="libx264", 
@@ -826,8 +827,9 @@ def merge_and_export(
         gc.collect()
         
         temp_scene_files.append(scene_output)
+        print(f"   ✅ Scene {i+1}/{len(scene_list)} encoded successfully.")
 
-    print(f"🔗 Concatenating {len(temp_scene_files)} scenes via ffmpeg...")
+    print(f"\n🔗 [FFMPEG CONCAT] Merging all {len(temp_scene_files)} scenes + Background Music track...")
     list_path = os.path.join(job_dir, "concat_list.txt")
     with open(list_path, "w") as f:
         for tf in temp_scene_files:

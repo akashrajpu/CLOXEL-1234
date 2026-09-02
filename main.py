@@ -738,6 +738,12 @@ def full_process(req: VideoRequest, job_id: str):
         
         scenes_data = []
 
+        print(f"\n==================================================")
+        print(f"🚀 [WORKFLOW ENGINE STARTED] Job ID: {job_id}")
+        print(f"📊 Mode: {req.video_type.upper()} | User: {req.user_id} | Topic: '{req.topic}'")
+        print(f"==================================================")
+
+        print(f"📊 [PROGRESS 10%] STEP 1/6: Processing Script & Scene Breakdown...")
         if req.scenes and len(req.scenes) > 0 and any(s.text and s.text.strip() for s in req.scenes):
             scenes_data = [{"text": s.text.strip(), "keyword": s.keyword.strip() if s.keyword else "technology"} for s in req.scenes if s.text and s.text.strip()]
 
@@ -764,13 +770,24 @@ def full_process(req: VideoRequest, job_id: str):
         if not scenes_data:
             fallback_text = req.topic if req.topic else "AI Video Generation"
             scenes_data = [{"text": fallback_text, "keyword": "technology"}]
+
+        total_scenes = len(scenes_data)
+        print(f"✅ STEP 1 COMPLETE: Prepared {total_scenes} scenes for rendering.")
         
         taiyaar_scenes = []
         for i, sc in enumerate(scenes_data):
+            sc_progress = 10 + int(((i + 1) / total_scenes) * 40)
+            print(f"\n🎙️ [PROGRESS {sc_progress}%] STEP 2 & 3 ({i+1}/{total_scenes}): Synthesizing Voice & Fetching Assets for Scene {i+1}...")
+            
             a_path = os.path.join(job_dir, f"audio_{i}.mp3")
             v_path = os.path.join(job_dir, f"video_{i}.mp4")
             
-            make_audio(sc["text"], a_path, req.voice_id)
+            try:
+                make_audio(sc["text"], a_path, req.voice_id)
+                print(f"   🔊 Voice generated -> {a_path}")
+            except Exception as e_aud:
+                print(f"   ⚠️ Voice synthesis warning (Scene {i+1}): {e_aud}")
+
             is_ultra = (req.video_type == "ultra")
             orientation = "landscape" if (req.video_type in ["long", "ultra"]) else "portrait"
             
@@ -791,7 +808,7 @@ def full_process(req: VideoRequest, job_id: str):
                     bg_query = f"{main_topic} {scene_specific} landscape wallpaper photo".strip()
                     fg_query = f"{main_topic} {scene_specific} character hero portrait".strip()
                     
-                    print(f"📥 [Ultra Script Engine] Fetching Scene {i+1} Dual Assets: BG='{bg_query}', FG='{fg_query}'...")
+                    print(f"   📥 Fetching Dual HD Assets: BG='{bg_query}', FG='{fg_query}'...")
                     fetch_web_image(bg_query, bg_img_path)
                     fetch_web_image(fg_query, fg_img_path)
                     
@@ -809,7 +826,7 @@ def full_process(req: VideoRequest, job_id: str):
                             else:
                                 v_paths.append(vid_list[0])
                 except Exception as e_img:
-                    print(f"⚠️ Ultra script image fetch fallback: {e_img}")
+                    print(f"   ⚠️ Ultra script image fetch fallback: {e_img}")
                     v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random")
             else:
                 v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random")
@@ -828,20 +845,24 @@ def full_process(req: VideoRequest, job_id: str):
                     "video": v_paths, 
                     "text": sc["text"]
                 })
+                print(f"   ✅ Scene {i+1}/{total_scenes} ready for video assembly.")
 
         if taiyaar_scenes:
+            print(f"\n🎬 [PROGRESS 65%] STEP 4 & 5: Entering FFmpeg & 3D Motion Render Queue...")
             output_file = f"acoumation_video_{job_id}.mp4"
             target_size = (1280, 720) if (req.video_type in ["long", "ultra"]) else (720, 1280)
             adjusted_font_size = int(req.font_size * 0.7) if (req.video_type in ["long", "ultra"]) else req.font_size
             with render_queue_lock:
                 merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music, mode=req.video_type) 
             
+            print(f"\n☁️ [PROGRESS 90%] STEP 6/6: Uploading Completed Video to Cloudinary CDN...")
             cloudinary_url = None
             try:
                 upload_result = cloudinary.uploader.upload(output_file, resource_type="video")
                 cloudinary_url = upload_result.get("secure_url")
+                print(f"✅ Cloudinary HD CDN URL: {cloudinary_url}")
             except Exception as e:
-                print(f"Cloudinary upload failed: {e}")
+                print(f"⚠️ Cloudinary upload warning: {e}")
                 
             full_script_content = req.full_script or " ".join([sc["text"] for sc in taiyaar_scenes])
             gen_title, gen_desc = build_youtube_metadata(
@@ -876,11 +897,16 @@ def full_process(req: VideoRequest, job_id: str):
                     print(f"✅ Video history saved to MongoDB for user {req.user_id}: {gen_title}")
                 except Exception as e:
                     print(f"❌ Failed to save video history to DB: {e}")
+
+            print(f"🎉 [PROGRESS 100%] WORKFLOW COMPLETED SUCCESSFULLY FOR JOB ID: {job_id}!")
         else:
             jobs[job_id] = {"status": "failed", "error": "No scenes ready"}
+            print(f"❌ [WORKFLOW FAILED] No scenes ready for job ID {job_id}")
 
     except Exception as e:
-        print(f"❌ Error in full_process: {e}")
+        import traceback
+        print(f"❌ [WORKFLOW EXCEPTION DETECTED] Job ID {job_id} failed with error: {e}")
+        traceback.print_exc()
         jobs[job_id] = {"status": "failed", "error": str(e)}
     finally:
         try:
