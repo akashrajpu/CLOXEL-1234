@@ -188,13 +188,16 @@ function App() {
   const [cloudinaryUrl, setCloudinaryUrl] = useState(null);
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [history, setHistory] = useState(() => {
-    const savedUserId = localStorage.getItem('cloxel_user_id');
-    if (savedUserId) {
-      const cached = localStorage.getItem(`user_history_cache_${savedUserId}`);
-      if (cached) {
-        try { return JSON.parse(cached); } catch(e) {}
+    try {
+      const savedUserId = localStorage.getItem('cloxel_user_id');
+      if (savedUserId) {
+        const cached = localStorage.getItem(`user_history_cache_${savedUserId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) return parsed;
+        }
       }
-    }
+    } catch (e) {}
     return [];
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -219,14 +222,18 @@ function App() {
 
   const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
   const [subStatus, setSubStatus] = useState(() => {
-    const savedUserId = localStorage.getItem('cloxel_user_id');
-    if (savedUserId) {
-      const cached = localStorage.getItem(`user_sub_cache_${savedUserId}`);
-      if (cached) {
-        try { return JSON.parse(cached); } catch(e) {}
+    const defaultSub = { free_demo_count: 2, has_active_subscription: false, plan_type: 'none' };
+    try {
+      const savedUserId = localStorage.getItem('cloxel_user_id');
+      if (savedUserId) {
+        const cached = localStorage.getItem(`user_sub_cache_${savedUserId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed === 'object') return parsed;
+        }
       }
-    }
-    return { free_demo_count: 2, has_active_subscription: false, plan_type: 'none' };
+    } catch (e) {}
+    return defaultSub;
   });
 
   const openPricingModal = (plan = 'long') => {
@@ -894,12 +901,12 @@ function App() {
             💎 Upgrade Plan
           </button>
           <button className="profile-pill-btn" onClick={() => { setIsSidebarOpen(true); fetchSubscriptionStatus(); fetchYoutubeStatus(); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {subStatus.profile_pic ? (
+            {subStatus?.profile_pic ? (
               <img src={subStatus.profile_pic} alt="User" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
             ) : (
               <span>👤</span>
             )}
-            <span>{subStatus.name ? subStatus.name.split(' ')[0] : 'Account'}</span>
+            <span>{subStatus?.name ? subStatus.name.split(' ')[0] : 'Account'}</span>
           </button>
         </div>
       </header>
@@ -1386,11 +1393,11 @@ function App() {
             <div className="sidebar-profile" style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255,255,255,0.04)', padding: '14px', borderRadius: '16px', border: '1px solid rgba(168,85,247,0.3)', marginBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} title="Click to change profile picture">
-                  {subStatus.profile_pic ? (
+                  {subStatus?.profile_pic ? (
                     <img src={subStatus.profile_pic} alt="Profile" style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #a855f7' }} />
                   ) : (
                     <div className="profile-avatar" style={{ width: '50px', height: '50px', fontSize: '1.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #3b0764 0%, #6b21a8 100%)', borderRadius: '50%', color: '#c084fc', border: '2px solid #a855f7' }}>
-                      {subStatus.name ? subStatus.name.charAt(0).toUpperCase() : '👤'}
+                      {subStatus?.name ? subStatus.name.charAt(0).toUpperCase() : '👤'}
                     </div>
                   )}
                   <label htmlFor="profile-pic-input" style={{ position: 'absolute', bottom: '-2px', right: '-2px', background: '#a855f7', color: 'white', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', cursor: 'pointer' }}>
@@ -1401,10 +1408,10 @@ function App() {
 
                 <div style={{ textAlign: 'left', flex: 1, overflow: 'hidden' }}>
                   <h4 style={{ margin: '0 0 2px 0', fontSize: '1.05rem', color: '#ffffff', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {subStatus.name || 'Account Active'}
+                    {subStatus?.name || 'Account Active'}
                   </h4>
-                  <div style={{ fontSize: '0.78rem', color: subStatus.has_active_subscription ? '#34d399' : '#c084fc', fontWeight: 'bold' }}>
-                    💎 {subStatus.has_active_subscription ? `${subStatus.plan_type.toUpperCase()} PLAN (ACTIVE)` : (subStatus.has_active_ultra_subscription ? 'ULTRA CINEMATIC (ACTIVE)' : `Free Demo (${subStatus.free_demo_count}/2)`)}
+                  <div style={{ fontSize: '0.78rem', color: subStatus?.has_active_subscription ? '#34d399' : '#c084fc', fontWeight: 'bold' }}>
+                    💎 {subStatus?.has_active_subscription ? `${(subStatus.plan_type || 'combo').toUpperCase()} PLAN (ACTIVE)` : (subStatus?.has_active_ultra_subscription ? 'ULTRA CINEMATIC (ACTIVE)' : `Free Demo (${subStatus?.free_demo_count ?? 2}/2)`)}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: autoSchedule.schedule_enabled ? '#34d399' : '#94a3b8', fontWeight: 'bold', marginTop: '2px' }}>
                     {autoSchedule.schedule_enabled ? '🟢 Auto-Publishing: ACTIVE' : '🔴 Auto-Publishing: PAUSED'}

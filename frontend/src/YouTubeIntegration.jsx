@@ -4,12 +4,15 @@ const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:80
 
 function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onStatusChange, triggerAlert, compact = false }) {
   const [status, setStatus] = useState(() => {
-    if (userId) {
-      const cached = localStorage.getItem(`yt_status_cache_${userId}`);
-      if (cached) {
-        try { return JSON.parse(cached); } catch(e) {}
+    try {
+      if (userId) {
+        const cached = localStorage.getItem(`yt_status_cache_${userId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed === 'object') return parsed;
+        }
       }
-    }
+    } catch(e) {}
     return null;
   });
   const [isLoading, setIsLoading] = useState(() => !status);
@@ -17,15 +20,16 @@ function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onS
   const [error, setError] = useState(null);
 
   const fetchStatus = async () => {
+    if (!userId) return;
     if (!status) setIsLoading(true);
     try {
       const response = await fetch(`${API_BASE}/youtube/status/${userId}`);
-      const data = await response.json();
-      setStatus(data);
-      if (userId) {
+      if (response.ok) {
+        const data = await response.json();
+        setStatus(data);
         try { localStorage.setItem(`yt_status_cache_${userId}`, JSON.stringify(data)); } catch(e) {}
+        if (onStatusChange) onStatusChange(data);
       }
-      if (onStatusChange) onStatusChange(data);
     } catch (err) {
       setError("Failed to fetch YouTube status");
       if (!status) setStatus({ linked: false });
