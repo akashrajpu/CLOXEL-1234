@@ -187,6 +187,7 @@ function App() {
   const [jobStatus, setJobStatus] = useState(null);
   const [cloudinaryUrl, setCloudinaryUrl] = useState(null);
   const [downloadUrl, setDownloadUrl] = useState(null);
+  const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [history, setHistory] = useState(() => {
     try {
       const savedUserId = localStorage.getItem('cloxel_user_id');
