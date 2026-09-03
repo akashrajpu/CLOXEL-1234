@@ -210,7 +210,16 @@ function App() {
   };
 
   const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
-  const [subStatus, setSubStatus] = useState({ free_demo_count: 2, has_active_subscription: false, plan_type: 'none' });
+  const [subStatus, setSubStatus] = useState(() => {
+    const savedUserId = localStorage.getItem('cloxel_user_id');
+    if (savedUserId) {
+      const cached = localStorage.getItem(`user_sub_cache_${savedUserId}`);
+      if (cached) {
+        try { return JSON.parse(cached); } catch(e) {}
+      }
+    }
+    return { free_demo_count: 2, has_active_subscription: false, plan_type: 'none' };
+  });
 
   const openPricingModal = (plan = 'long') => {
     if (plan && typeof setSelectedPlan === 'function') {
@@ -273,10 +282,13 @@ function App() {
   const fetchSubscriptionStatus = async () => {
     if (!userId) return;
     try {
-      const response = await fetchWithTimeout(`${API_BASE}/user-subscription/${userId}`);
+      const response = await fetch(`${API_BASE}/user-subscription/${userId}`);
       if (response.ok) {
         const data = await response.json();
         setSubStatus(data);
+        try {
+          localStorage.setItem(`user_sub_cache_${userId}`, JSON.stringify(data));
+        } catch (e_cache) {}
       }
     } catch (e) {
       console.error("Failed to fetch subscription status:", e);
@@ -854,7 +866,7 @@ function App() {
     <div className="app-container">
       <header className="app-header">
         <div className="header-left">
-          <button className="hamburger-btn" onClick={() => setIsSidebarOpen(true)} title="Open Menu">
+          <button className="hamburger-btn" onClick={() => { setIsSidebarOpen(true); fetchSubscriptionStatus(); fetchYoutubeStatus(); }} title="Open Menu">
             ☰
           </button>
           <h1>Cloxel <span>AI Video Generator</span></h1>
@@ -869,7 +881,7 @@ function App() {
           <button className="btn-upgrade-pill" onClick={() => openPricingModal()}>
             💎 Upgrade Plan
           </button>
-          <button className="profile-pill-btn" onClick={() => setIsSidebarOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button className="profile-pill-btn" onClick={() => { setIsSidebarOpen(true); fetchSubscriptionStatus(); fetchYoutubeStatus(); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {subStatus.profile_pic ? (
               <img src={subStatus.profile_pic} alt="User" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
             ) : (
