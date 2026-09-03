@@ -275,8 +275,15 @@ function App() {
     next_scheduled_run: 'Short: Daily at 10:00 | Long: Daily at 18:00'
   });
   
-  // Auth state
-  const [userId, setUserId] = useState(() => localStorage.getItem('cloxel_user_id') || null);
+  const [userId, setUserId] = useState(() => {
+    try {
+      const stored = localStorage.getItem('cloxel_user_id');
+      if (stored && stored !== 'null' && stored !== 'undefined' && stored.trim() !== '') {
+        return stored.trim();
+      }
+    } catch(e) {}
+    return null;
+  });
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [isUploadingPic, setIsUploadingPic] = useState(false);
