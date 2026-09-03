@@ -67,6 +67,7 @@ mongo_client = None
 db = None
 users_collection = None
 videos_collection = None
+rendering_jobs = None
 
 if MONGO_URI:
     try:
@@ -83,6 +84,7 @@ if MONGO_URI:
         db = mongo_client.cloxel_db
         users_collection = db.users
         videos_collection = db.videos
+        rendering_jobs = db.rendering_jobs
 
         try:
             users_collection.create_index("internal_id", unique=True, background=True)
@@ -90,6 +92,7 @@ if MONGO_URI:
             users_collection.create_index("phone", background=True)
             videos_collection.create_index([("internal_id", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)], background=True)
             videos_collection.create_index("job_id", background=True)
+            rendering_jobs.create_index("job_id", unique=True, background=True)
             print("🚀 High-Speed MongoDB Indexes Created & Verified!")
         except Exception as idx_err:
             print(f"Index creation notice: {idx_err}")
@@ -101,8 +104,18 @@ if MONGO_URI:
         db = None
         users_collection = None
         videos_collection = None
+        rendering_jobs = None
 else:
     print("WARNING: MONGO_URI is missing in config.env! Authentication will not work properly.")
+
+def update_job_status(job_id: str, status_data: dict):
+    jobs[job_id] = status_data
+    if rendering_jobs is not None:
+        try:
+            status_copy = {k: v for k, v in status_data.items() if k not in ["file", "dir"]}
+            rendering_jobs.update_one({"job_id": job_id}, {"$set": status_copy}, upsert=True)
+        except Exception as e_db:
+            print(f"⚠️ Failed to update job status in DB: {e_db}")
 
 def ping_server():
     try:
@@ -871,7 +884,7 @@ def full_process(req: VideoRequest, job_id: str):
                 video_type=req.video_type
             )
             
-            jobs[job_id] = {
+            update_job_status(job_id, {
                 "status": "completed", 
                 "file": output_file, 
                 "dir": job_dir, 
@@ -880,7 +893,7 @@ def full_process(req: VideoRequest, job_id: str):
                 "description": gen_desc,
                 "video_type": req.video_type,
                 "topic": req.topic
-            }
+            })
             
             if videos_collection is not None and req.user_id != "anonymous":
                 try:
@@ -900,14 +913,14 @@ def full_process(req: VideoRequest, job_id: str):
 
             print(f"🎉 [PROGRESS 100%] WORKFLOW COMPLETED SUCCESSFULLY FOR JOB ID: {job_id}!")
         else:
-            jobs[job_id] = {"status": "failed", "error": "No scenes ready"}
+            update_job_status(job_id, {"status": "failed", "error": "No scenes ready"})
             print(f"❌ [WORKFLOW FAILED] No scenes ready for job ID {job_id}")
 
     except Exception as e:
         import traceback
         print(f"❌ [WORKFLOW EXCEPTION DETECTED] Job ID {job_id} failed with error: {e}")
         traceback.print_exc()
-        jobs[job_id] = {"status": "failed", "error": str(e)}
+        update_job_status(job_id, {"status": "failed", "error": str(e)})
     finally:
         try:
             if os.path.exists(job_dir):
@@ -1122,7 +1135,7 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
                 )
 
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {"status": "processing", "user_id": req.user_id}
+    update_job_status(job_id, {"status": "processing", "user_id": req.user_id})
     background_tasks.add_task(full_process, req, job_id)
     return {"job_id": job_id, "status": "Processing Started"}
 
@@ -1834,11 +1847,26 @@ async def get_video_history(internal_id: str):
 
 @app.get("/status/{job_id}")
 async def get_status(job_id: str):
-    return jobs.get(job_id, {"status": "not_found"})
+    if job_id in jobs:
+        return jobs[job_id]
+    if rendering_jobs is not None:
+        try:
+            job_doc = rendering_jobs.find_one({"job_id": job_id}, {"_id": 0})
+            if job_doc:
+                jobs[job_id] = job_doc
+                return job_doc
+        except Exception as e:
+            print(f"⚠️ DB status lookup exception for {job_id}: {e}")
+    return {"status": "not_found"}
 
 @app.get("/download/{job_id}")
 async def download_video(job_id: str):
     job = jobs.get(job_id)
+    if not job and rendering_jobs is not None:
+        try:
+            job = rendering_jobs.find_one({"job_id": job_id}, {"_id": 0})
+        except Exception:
+            pass
     if job and job.get("status") == "completed":
         file_path = job.get("file")
         if file_path and os.path.exists(file_path):

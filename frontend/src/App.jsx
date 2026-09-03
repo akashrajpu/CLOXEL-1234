@@ -588,6 +588,7 @@ function App() {
   };
 
   const handleGenerateVideo = async () => {
+    if (isGeneratingVideo) return;
     if (isLimitExhausted) {
       triggerAlert(
         "🔒 Free Demo Limit Reached!",
@@ -600,6 +601,8 @@ function App() {
       openPricingModal('long');
       return;
     }
+
+    setIsGeneratingVideo(true);
     setJobId(null);
     setJobStatus(null);
     setCloudinaryUrl(null);
@@ -633,37 +636,63 @@ function App() {
         setJobStatus('processing');
         pollStatus(data.job_id);
       } else if (data.detail) {
+        setIsGeneratingVideo(false);
         setJobStatus(null);
         triggerAlert("⚠️ Daily Limit Reached", data.detail, "⚠️", "warning");
       } else {
+        setIsGeneratingVideo(false);
         setJobStatus(null);
         triggerAlert("⚠️ Generation Error", "Failed to start video generation. Please check your account subscription or login status.", "⚠️", "warning");
       }
     } catch (error) {
+      setIsGeneratingVideo(false);
       setJobStatus(null);
       triggerAlert("⚠️ Network Error", "Failed to connect to video generator backend.", "⚠️", "warning");
     }
   };
 
   const pollStatus = async (id) => {
+    let notFoundStrikes = 0;
     const interval = setInterval(async () => {
       try {
         const response = await fetch(`${API_BASE}/status/${id}`);
+        if (!response.ok) return;
         const data = await response.json();
         
+        if (data.status === 'not_found') {
+          notFoundStrikes++;
+          if (notFoundStrikes >= 3) {
+            clearInterval(interval);
+            setJobStatus(null);
+            setIsGeneratingVideo(false);
+            triggerAlert(
+              "⚠️ Server Status Notice",
+              "Video rendering status was not found on the server. Please click Generate Video again.",
+              "⚠️",
+              "warning"
+            );
+          }
+          return;
+        }
+
+        notFoundStrikes = 0;
         setJobStatus(data.status);
         
         if (data.status === 'completed' || data.status === 'failed') {
           clearInterval(interval);
-          if (data.cloudinary_url) {
-            setCloudinaryUrl(data.cloudinary_url);
-          } else if (data.status === 'completed') {
+          setIsGeneratingVideo(false);
+
+          if (data.status === 'completed') {
+            if (data.cloudinary_url) {
+              setCloudinaryUrl(data.cloudinary_url);
+            }
             setDownloadUrl(`${API_BASE}/download/${id}`);
-          }
-          if (data.status === 'completed' && userId) {
-            fetchHistory();
-          }
-          if (data.status === 'failed') {
+            if (userId) {
+              fetchHistory();
+              fetchSubscriptionStatus();
+            }
+          } else if (data.status === 'failed') {
+            setJobStatus(null);
             triggerAlert(
               "⚠️ Generation Error",
               data.error || "Video generation encountered an error. Please try again.",
@@ -673,7 +702,7 @@ function App() {
           }
         }
       } catch (e) {
-        console.error(e);
+        console.error("Poll status error:", e);
       }
     }, 2000);
   };
