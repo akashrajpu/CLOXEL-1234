@@ -74,7 +74,7 @@ function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onS
 
   const handleUnlink = async () => {
     if (isActionPending) return;
-    if (!window.confirm("Are you sure you want to unlink your YouTube account?")) return;
+    if (!window.confirm("⚠️ Warning: Unlinking YouTube will STOP Auto-Publishing and ERASE all saved schedule settings. Are you sure you want to proceed?")) return;
     
     setIsActionPending(true);
     try {
@@ -86,13 +86,31 @@ function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onS
       
       const data = await response.json();
       if (!response.ok) {
-        alert(data.detail || "Failed to unlink");
+        if (triggerAlert) {
+          triggerAlert("Unlink Error", data.detail || "Failed to unlink YouTube account.", "⚠️", "danger");
+        } else {
+          alert(data.detail || "Failed to unlink");
+        }
       } else {
-        alert("Successfully unlinked!");
+        if (triggerAlert) {
+          triggerAlert(
+            "🛑 YouTube Unlinked & Schedule Reset",
+            "YouTube channel unlinked successfully! Auto-publishing has been STOPPED and all Short, Long, and Ultra schedule data has been WIPED OUT. Re-connect YouTube in the future to set up a new schedule.",
+            "🛑",
+            "info"
+          );
+        } else {
+          alert("YouTube account unlinked! Auto-publishing stopped and all schedule data reset.");
+        }
         fetchStatus();
+        if (onStatusChange) onStatusChange({ linked: false, unlinked_reset: true });
       }
     } catch (err) {
-      alert("Error unlinking account");
+      if (triggerAlert) {
+        triggerAlert("Error", "Error unlinking account. Is the backend running?", "⚠️", "danger");
+      } else {
+        alert("Error unlinking account");
+      }
     } finally {
       setIsActionPending(false);
     }

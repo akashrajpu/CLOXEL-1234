@@ -1427,7 +1427,12 @@ function App() {
                 userId={userId} 
                 hasActiveSubscription={subStatus.has_active_subscription} 
                 onUpgradeClick={() => openPricingModal()} 
-                onStatusChange={(statusData) => setYtStatus(statusData)}
+                onStatusChange={(statusData) => {
+                  setYtStatus(statusData);
+                  if (statusData && (statusData.linked === false || statusData.unlinked_reset)) {
+                    fetchAutoSchedule();
+                  }
+                }}
                 triggerAlert={triggerAlert}
                 compact={true}
               />

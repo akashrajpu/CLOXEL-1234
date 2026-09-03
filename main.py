@@ -2119,10 +2119,17 @@ async def unlink_youtube(req: UnlinkRequest):
             
     users_collection.update_one(
         {"internal_id": req.internal_id},
-        {"$unset": {"youtube_credentials": "", "youtube_linked_at": ""}}
+        {
+            "$unset": {
+                "youtube_credentials": "",
+                "youtube_linked_at": "",
+                "auto_schedule": "",
+                "staged_auto_videos": ""
+            }
+        }
     )
     
-    return {"message": "YouTube account unlinked successfully"}
+    return {"message": "YouTube account unlinked successfully. Auto-publishing stopped and all schedule settings reset."}
 
 
 class AIScriptRequest(BaseModel):
