@@ -434,7 +434,22 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
 
     try:
         schedule = user.get("auto_schedule", {})
-        if not schedule.get("schedule_enabled"):
+        if not schedule or not schedule.get("schedule_enabled"):
+            return
+
+        yt_creds = user.get("youtube_credentials")
+        if not yt_creds:
+            print(f"⚠️ User {internal_id} has no YouTube account linked. Clearing auto_schedule from DB...")
+            if users_collection is not None:
+                users_collection.update_one(
+                    {"internal_id": internal_id},
+                    {
+                        "$unset": {
+                            "auto_schedule": "",
+                            "staged_auto_videos": ""
+                        }
+                    }
+                )
             return
 
         subscription = user.get("subscription", {})
@@ -614,9 +629,13 @@ def check_and_run_auto_schedules():
             "subscription": 1,
             "ultra_subscription": 1,
             "auto_daily_usage": 1,
-            "staged_auto_videos": 1
+            "staged_auto_videos": 1,
+            "youtube_credentials": 1
         }
-        users = list(users_collection.find({"auto_schedule.schedule_enabled": True}, projection))
+        users = list(users_collection.find({
+            "auto_schedule.schedule_enabled": True,
+            "youtube_credentials": {"$exists": True, "$ne": None}
+        }, projection))
         for user in users:
             auto_worker_executor.submit(process_single_user_schedule, user, now_ist, today_str)
     except Exception as e:
@@ -1302,12 +1321,29 @@ async def save_auto_schedule(req: AutoScheduleRequest):
     existing_started_at = existing_schedule.get("schedule_started_at")
 
     if req.schedule_enabled:
+        yt_creds = user.get("youtube_credentials")
+        if not yt_creds:
+            raise HTTPException(
+                status_code=400,
+                detail="⚠️ YouTube Account Not Linked! Please connect your YouTube channel first before enabling Auto-Publishing."
+            )
+            
         if not existing_started_at or not existing_schedule.get("schedule_enabled"):
             schedule_started_at = datetime.utcnow()
         else:
             schedule_started_at = existing_started_at
     else:
-        schedule_started_at = None
+        users_collection.update_one(
+            {"internal_id": req.internal_id},
+            {
+                "$unset": {
+                    "auto_schedule": "",
+                    "staged_auto_videos": ""
+                }
+            }
+        )
+        print(f"🧹 Complete Data Wipe: Auto-publishing stopped and all saved schedule data erased for user {req.internal_id}")
+        return {"message": "Auto-publishing stopped and all schedule data erased from database!", "schedule": {"schedule_enabled": False}}
 
     schedule_data = {
         "schedule_enabled": req.schedule_enabled,
