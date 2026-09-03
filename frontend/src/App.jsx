@@ -1480,13 +1480,14 @@ function App() {
                 style={{ 
                   cursor: 'pointer', 
                   border: selectedPlan === 'ultra' ? '2px solid #ec4899' : (subStatus.has_active_ultra_subscription ? '2px solid #22c55e' : '1px solid rgba(255, 255, 255, 0.12)'),
-                  boxShadow: selectedPlan === 'ultra' ? '0 0 25px rgba(236, 72, 153, 0.4)' : 'none'
+                  boxShadow: selectedPlan === 'ultra' ? '0 0 25px rgba(236, 72, 153, 0.4)' : 'none',
+                  opacity: (isPaymentProcessing && selectedPlan !== 'ultra') ? 0.6 : 1
                 }}
               >
                 {subStatus.has_active_ultra_subscription ? (
                   <div className="card-tag" style={{ background: '#22c55e', color: '#ffffff', fontWeight: 'bold' }}>✅ ACTIVE ULTRA PLAN</div>
                 ) : (
-                  <div className="card-tag" style={{ background: 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' }}>SPECIAL ULTRA</div>
+                  <div className="card-tag" style={{ background: selectedPlan === 'ultra' ? 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' : 'rgba(255,255,255,0.1)' }}>SPECIAL ULTRA</div>
                 )}
                 <h3>Ultra Cinematic</h3>
                 <div className="plan-price">₹20 <span>/ month</span></div>
@@ -1498,10 +1499,15 @@ function App() {
                 </ul>
                 <button 
                   className={`btn-buy-plan ${selectedPlan === 'ultra' ? 'featured-btn' : ''}`} 
-                  style={{ background: subStatus.has_active_ultra_subscription ? '#16a34a' : 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' }}
+                  disabled={isPaymentProcessing}
+                  style={{ 
+                    background: subStatus.has_active_ultra_subscription ? '#16a34a' : (selectedPlan === 'ultra' ? 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' : 'rgba(255, 255, 255, 0.08)'),
+                    color: (selectedPlan === 'ultra' || subStatus.has_active_ultra_subscription) ? '#ffffff' : '#94a3b8',
+                    cursor: isPaymentProcessing ? 'not-allowed' : 'pointer'
+                  }}
                   onClick={(e) => { e.stopPropagation(); setSelectedPlan('ultra'); handleBuyPlan('ultra'); }}
                 >
-                  {subStatus.has_active_ultra_subscription ? '✅ Ultra Active (Stack +30 Days ₹20)' : 'Subscribe for ₹20'}
+                  {isPaymentProcessing && selectedPlan === 'ultra' ? '⏳ Connecting...' : (subStatus.has_active_ultra_subscription ? '✅ Ultra Active (Stack +30 Days ₹20)' : 'Subscribe for ₹20')}
                 </button>
               </div>
 
@@ -1512,7 +1518,8 @@ function App() {
                 style={{ 
                   cursor: 'pointer',
                   border: selectedPlan === 'short' ? '2px solid #a855f7' : (subStatus.plan_type === 'short' ? '2px solid #22c55e' : '1px solid rgba(255, 255, 255, 0.12)'),
-                  boxShadow: selectedPlan === 'short' ? '0 0 25px rgba(168, 85, 247, 0.4)' : 'none'
+                  boxShadow: selectedPlan === 'short' ? '0 0 25px rgba(168, 85, 247, 0.4)' : 'none',
+                  opacity: (isPaymentProcessing && selectedPlan !== 'short') ? 0.6 : 1
                 }}
               >
                 {subStatus.plan_type === 'short' ? (
@@ -1530,9 +1537,15 @@ function App() {
                 </ul>
                 <button 
                   className={`btn-buy-plan ${selectedPlan === 'short' ? 'featured-btn' : ''}`} 
+                  disabled={isPaymentProcessing}
+                  style={{ 
+                    background: subStatus.plan_type === 'short' ? '#16a34a' : (selectedPlan === 'short' ? 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)' : 'rgba(255, 255, 255, 0.08)'),
+                    color: (selectedPlan === 'short' || subStatus.plan_type === 'short') ? '#ffffff' : '#94a3b8',
+                    cursor: isPaymentProcessing ? 'not-allowed' : 'pointer'
+                  }}
                   onClick={(e) => { e.stopPropagation(); setSelectedPlan('short'); handleBuyPlan('short'); }}
                 >
-                  {subStatus.plan_type === 'short' ? '✅ Active (Stack +30 Days ₹50)' : 'Subscribe for ₹50'}
+                  {isPaymentProcessing && selectedPlan === 'short' ? '⏳ Connecting...' : (subStatus.plan_type === 'short' ? '✅ Active (Stack +30 Days ₹50)' : 'Subscribe for ₹50')}
                 </button>
               </div>
 
@@ -1543,7 +1556,8 @@ function App() {
                 style={{ 
                   cursor: 'pointer',
                   border: selectedPlan === 'long' ? '2px solid #a855f7' : (subStatus.plan_type === 'long' ? '2px solid #22c55e' : '1px solid rgba(255, 255, 255, 0.12)'),
-                  boxShadow: selectedPlan === 'long' ? '0 0 25px rgba(168, 85, 247, 0.4)' : 'none'
+                  boxShadow: selectedPlan === 'long' ? '0 0 25px rgba(168, 85, 247, 0.4)' : 'none',
+                  opacity: (isPaymentProcessing && selectedPlan !== 'long') ? 0.6 : 1
                 }}
               >
                 {subStatus.plan_type === 'long' ? (
@@ -1561,9 +1575,15 @@ function App() {
                 </ul>
                 <button 
                   className={`btn-buy-plan ${selectedPlan === 'long' ? 'featured-btn' : ''}`} 
+                  disabled={isPaymentProcessing}
+                  style={{ 
+                    background: subStatus.plan_type === 'long' ? '#16a34a' : (selectedPlan === 'long' ? 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)' : 'rgba(255, 255, 255, 0.08)'),
+                    color: (selectedPlan === 'long' || subStatus.plan_type === 'long') ? '#ffffff' : '#94a3b8',
+                    cursor: isPaymentProcessing ? 'not-allowed' : 'pointer'
+                  }}
                   onClick={(e) => { e.stopPropagation(); setSelectedPlan('long'); handleBuyPlan('long'); }}
                 >
-                  {subStatus.plan_type === 'long' ? '✅ Active (Stack +30 Days ₹100)' : 'Subscribe for ₹100'}
+                  {isPaymentProcessing && selectedPlan === 'long' ? '⏳ Connecting...' : (subStatus.plan_type === 'long' ? '✅ Active (Stack +30 Days ₹100)' : 'Subscribe for ₹100')}
                 </button>
               </div>
 
@@ -1574,7 +1594,8 @@ function App() {
                 style={{ 
                   cursor: 'pointer',
                   border: selectedPlan === 'combo' ? '2px solid #a855f7' : (subStatus.plan_type === 'combo' ? '2px solid #22c55e' : '1px solid rgba(255, 255, 255, 0.12)'),
-                  boxShadow: selectedPlan === 'combo' ? '0 0 25px rgba(168, 85, 247, 0.4)' : 'none'
+                  boxShadow: selectedPlan === 'combo' ? '0 0 25px rgba(168, 85, 247, 0.4)' : 'none',
+                  opacity: (isPaymentProcessing && selectedPlan !== 'combo') ? 0.6 : 1
                 }}
               >
                 {subStatus.plan_type === 'combo' ? (
@@ -1592,9 +1613,15 @@ function App() {
                 </ul>
                 <button 
                   className={`btn-buy-plan ${selectedPlan === 'combo' ? 'featured-btn' : ''}`} 
+                  disabled={isPaymentProcessing}
+                  style={{ 
+                    background: subStatus.plan_type === 'combo' ? '#16a34a' : (selectedPlan === 'combo' ? 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)' : 'rgba(255, 255, 255, 0.08)'),
+                    color: (selectedPlan === 'combo' || subStatus.plan_type === 'combo') ? '#ffffff' : '#94a3b8',
+                    cursor: isPaymentProcessing ? 'not-allowed' : 'pointer'
+                  }}
                   onClick={(e) => { e.stopPropagation(); setSelectedPlan('combo'); handleBuyPlan('combo'); }}
                 >
-                  {subStatus.plan_type === 'combo' ? '✅ Active (Stack +30 Days ₹119)' : 'Subscribe for ₹119'}
+                  {isPaymentProcessing && selectedPlan === 'combo' ? '⏳ Connecting...' : (subStatus.plan_type === 'combo' ? '✅ Active (Stack +30 Days ₹119)' : 'Subscribe for ₹119')}
                 </button>
               </div>
             </div>
