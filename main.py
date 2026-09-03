@@ -885,7 +885,7 @@ def full_process(req: VideoRequest, job_id: str):
             target_size = (1280, 720) if (req.video_type in ["long", "ultra"]) else (720, 1280)
             adjusted_font_size = int(req.font_size * 0.7) if (req.video_type in ["long", "ultra"]) else req.font_size
             with render_queue_lock:
-                merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music, mode=req.video_type) 
+                merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music, mode=req.video_type, category=req.category or "Random") 
             
             print(f"\n☁️ [PROGRESS 90%] STEP 6/6: Uploading Completed Video to Cloudinary CDN...")
             cloudinary_url = None

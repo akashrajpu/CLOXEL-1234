@@ -67,10 +67,14 @@ def create_dynamic_animated_text(
     text_color: str = "random",
     text_position: str = "random",
     fps: int = 20,
-    is_ultra_mode: bool = False
+    is_ultra_mode: bool = False,
+    category_style: str = "history"
 ) -> VideoClip:
     """
-    Generates dynamic multi-color subtitles. Ultra Mode enables keyword sizing & side alignment.
+    Generates dynamic multi-color subtitles.
+    Category Style:
+      - 'history' / 'ancient': Renders torn parchment paper box behind text (Photo #1).
+      - 'cartoon' / 'modern' / 'clean': Renders dynamic white text with highlighted keywords (Photo #2).
     """
     total_frames = int(duration * fps)
     if total_frames <= 0: total_frames = 1
@@ -156,7 +160,7 @@ def create_dynamic_animated_text(
         line1_words = current_chunk_words[:mid_point]
         line2_words = current_chunk_words[mid_point:]
 
-        if is_ultra_mode:
+        if is_ultra_mode and category_style in ["history", "ancient"]:
             chunk_str = " ".join(current_chunk_words)
             parchment_img = create_parchment_subtitle_box(chunk_str, size, font_size=user_font_size)
             px = (size[0] - parchment_img.width) // 2
@@ -722,13 +726,17 @@ def merge_and_export(
     font_size: int = 220,
     target_size: tuple = (1920, 1080),
     bg_music: str = "cool.mp3",
-    mode: str = "ultra"
+    mode: str = "ultra",
+    category: str = "Random"
 ):
     """
     Merges scene clips, audio narration, subtitles, and background music into a final MP4 video.
     Supports Multi-Character Dialogue Scenes & Selective BG Removal.
+    Category-based Subtitle Styling:
+      - 'History / Mythology' or 'ancient' theme -> Torn Parchment Paper Subtitle Box.
+      - 'Cartoon / Animated', 'Modern', 'Technology' or others -> Sleek Kinetic Clean White & Color Text Subtitles.
     """
-    print(f"\n🎬 Rendering {len(scene_list)} scenes (Mode: {mode.upper()}, Size: {target_size})...")
+    print(f"\n🎬 Rendering {len(scene_list)} scenes (Mode: {mode.upper()}, Category: {category}, Size: {target_size})...")
     
     temp_scene_files = []
     job_dir = os.path.dirname(output_name) if os.path.dirname(output_name) else "."
@@ -791,6 +799,16 @@ def merge_and_export(
         v_clip = v_clip.set_duration(clip_duration)
         v_clip = v_clip.set_audio(a_clip)
 
+        cat_lower = str(category).lower()
+        if any(k in cat_lower for k in ["history", "mythology", "ancient", "historical", "purana", "epic", "warrior"]):
+            cat_style = "history"
+        elif any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"]):
+            cat_style = "cartoon"
+        elif any(k in cat_lower for k in ["random", "all"]):
+            cat_style = random.choice(["history", "cartoon", "clean"])
+        else:
+            cat_style = "clean"
+
         clip_text_segment = scene['text']
         txt_clip = create_dynamic_animated_text(
             full_text=clip_text_segment,
@@ -800,7 +818,8 @@ def merge_and_export(
             font_size=font_size,
             text_position="random",
             text_color="random",
-            is_ultra_mode=(mode == "ultra")
+            is_ultra_mode=(mode == "ultra"),
+            category_style=cat_style
         )
         
         scene_combined = CompositeVideoClip([v_clip, txt_clip.set_position('center')])
