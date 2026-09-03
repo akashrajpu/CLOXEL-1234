@@ -1861,9 +1861,29 @@ async def get_video_history(internal_id: str):
         raise HTTPException(status_code=500, detail="Database not configured")
     
     try:
-        videos_cursor = videos_collection.find({"internal_id": internal_id}).sort("created_at", -1)
+        user_or_terms = [{"internal_id": internal_id}, {"user_id": internal_id}]
+        if users_collection is not None:
+            user = users_collection.find_one({"internal_id": internal_id})
+            if user:
+                if user.get("email"):
+                    user_or_terms.append({"internal_id": user.get("email")})
+                    user_or_terms.append({"user_id": user.get("email")})
+                if user.get("phone"):
+                    user_or_terms.append({"internal_id": user.get("phone")})
+                    user_or_terms.append({"user_id": user.get("phone")})
+                if user.get("email_or_mobile"):
+                    user_or_terms.append({"internal_id": user.get("email_or_mobile")})
+
+        videos_cursor = videos_collection.find({"$or": user_or_terms}).sort("created_at", -1)
         videos_list = []
+        seen_job_ids = set()
         for v in videos_cursor:
+            j_id = v.get("job_id")
+            if j_id and j_id in seen_job_ids:
+                continue
+            if j_id:
+                seen_job_ids.add(j_id)
+
             c_at = v.get("created_at")
             if isinstance(c_at, datetime):
                 c_at_str = c_at.isoformat()
@@ -1871,8 +1891,10 @@ async def get_video_history(internal_id: str):
                 c_at_str = str(c_at) if c_at else None
 
             videos_list.append({
-                "job_id": v.get("job_id"),
-                "topic": v.get("topic", "Unknown Topic"),
+                "job_id": j_id,
+                "topic": v.get("topic") or v.get("title") or "Unknown Topic",
+                "title": v.get("title") or v.get("topic") or "AI Video",
+                "description": v.get("description", ""),
                 "cloudinary_url": v.get("cloudinary_url"),
                 "created_at": c_at_str
             })
@@ -2119,7 +2141,9 @@ async def get_youtube_status(internal_id: str):
                 linked_at = None
                 
         if isinstance(linked_at, datetime):
-            hours_passed = (datetime.utcnow() - linked_at.replace(tzinfo=None)).total_seconds() / 3600
+            if linked_at.tzinfo is not None:
+                linked_at = linked_at.astimezone(timezone.utc).replace(tzinfo=None)
+            hours_passed = (datetime.utcnow() - linked_at).total_seconds() / 3600
             hours_left = max(0, int(24 - hours_passed))
             return {"linked": True, "can_unlink": hours_passed >= 24, "hours_left": hours_left}
 

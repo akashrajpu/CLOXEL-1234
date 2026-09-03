@@ -3,21 +3,32 @@ import React, { useState, useEffect } from 'react';
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
 function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onStatusChange, triggerAlert, compact = false }) {
-  const [status, setStatus] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [status, setStatus] = useState(() => {
+    if (userId) {
+      const cached = localStorage.getItem(`yt_status_cache_${userId}`);
+      if (cached) {
+        try { return JSON.parse(cached); } catch(e) {}
+      }
+    }
+    return null;
+  });
+  const [isLoading, setIsLoading] = useState(() => !status);
   const [isActionPending, setIsActionPending] = useState(false);
   const [error, setError] = useState(null);
 
   const fetchStatus = async () => {
-    setIsLoading(true);
+    if (!status) setIsLoading(true);
     try {
       const response = await fetch(`${API_BASE}/youtube/status/${userId}`);
       const data = await response.json();
       setStatus(data);
+      if (userId) {
+        try { localStorage.setItem(`yt_status_cache_${userId}`, JSON.stringify(data)); } catch(e) {}
+      }
       if (onStatusChange) onStatusChange(data);
     } catch (err) {
       setError("Failed to fetch YouTube status");
-      setStatus({ linked: false });
+      if (!status) setStatus({ linked: false });
     } finally {
       setIsLoading(false);
     }

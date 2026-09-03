@@ -187,8 +187,16 @@ function App() {
   const [jobStatus, setJobStatus] = useState(null);
   const [cloudinaryUrl, setCloudinaryUrl] = useState(null);
   const [downloadUrl, setDownloadUrl] = useState(null);
-  const [isGeneratingScript, setIsGeneratingScript] = useState(false);
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState(() => {
+    const savedUserId = localStorage.getItem('cloxel_user_id');
+    if (savedUserId) {
+      const cached = localStorage.getItem(`user_history_cache_${savedUserId}`);
+      if (cached) {
+        try { return JSON.parse(cached); } catch(e) {}
+      }
+    }
+    return [];
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
@@ -312,10 +320,14 @@ function App() {
   const fetchHistory = async () => {
     if (!userId) return;
     try {
-      const response = await fetchWithTimeout(`${API_BASE}/history/${userId}`);
+      const response = await fetch(`${API_BASE}/history/${userId}`);
       if (response.ok) {
         const data = await response.json();
-        setHistory(data.history || []);
+        const newHist = data.history || [];
+        setHistory(newHist);
+        try {
+          localStorage.setItem(`user_history_cache_${userId}`, JSON.stringify(newHist));
+        } catch (e_hist) {}
       }
     } catch (e) {
       console.error("Failed to fetch history:", e);
