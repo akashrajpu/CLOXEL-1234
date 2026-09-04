@@ -110,7 +110,8 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
                 break
 
     if not generated_code:
-        return None
+        print("⚠️ Gemini API offline or 503. Triggering guaranteed local 2D Cartoon Canvas Renderer...")
+        return create_pro_cartoon_canvas_mp4(user_prompt, output_mp4, duration, target_size, fps)
 
     # Code Cleaning
     clean_code = re.sub(r"^```python\n?", "", generated_code, flags=re.MULTILINE)
@@ -134,10 +135,97 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
             print(f"🎉 [Gemini Cartoon Engine] Successfully rendered AI Cartoon MP4: {output_mp4}")
             return output_mp4
         else:
-            print(f"⚠️ [Gemini Cartoon Engine] Output MP4 missing or 0 bytes: {output_mp4}")
+            print(f"⚠️ [Gemini Cartoon Engine] Output MP4 missing. Running local 2D Cartoon Canvas Renderer...")
+            return create_pro_cartoon_canvas_mp4(user_prompt, output_mp4, duration, target_size, fps)
     except Exception as exec_err:
         import traceback
-        print(f"❌ [Gemini Cartoon Engine] Execution Error: {exec_err}")
+        print(f"❌ [Gemini Cartoon Engine] Code Execution Error: {exec_err}")
         traceback.print_exc()
+        print("🎨 Fallback to local 2D Cartoon Canvas Renderer...")
+        return create_pro_cartoon_canvas_mp4(user_prompt, output_mp4, duration, target_size, fps)
+
+
+def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: float = 5.0, target_size: tuple = (1280, 720), fps: int = 15) -> str:
+    """
+    Guaranteed Local 2D Cartoon Animation Generator:
+    Generates a 2D animated cartoon scene with smooth character motions, speech bubbles,
+    and vibrant cartoon backgrounds when Gemini AI is offline or 503.
+    """
+    try:
+        w, h = target_size
+        total_frames = max(15, int(duration * fps))
+        frames = []
+
+        prompt_lower = user_prompt.lower()
+        is_night = any(k in prompt_lower for k in ["night", "space", "moon", "star", "dark"])
+        
+        bg_top = (15, 15, 45) if is_night else (100, 180, 255)
+
+        for frame_idx in range(total_frames):
+            img = Image.new('RGB', (w, h), bg_top)
+            draw = ImageDraw.Draw(img)
+
+            # Draw Ground / Hill
+            ground_y = int(h * 0.7)
+            draw.rectangle([(0, ground_y), (w, h)], fill=(40, 160, 80) if not is_night else (20, 50, 40))
+
+            # Animated Sun/Moon
+            sun_x = int(w * 0.8 - frame_idx * 1.5)
+            sun_y = int(h * 0.2)
+            draw.ellipse([(sun_x - 40, sun_y - 40), (sun_x + 40, sun_y + 40)], fill=(255, 220, 50) if not is_night else (220, 230, 255))
+
+            # Animated Character 1 (Walking Boy/Hero)
+            char1_x = int(w * 0.15 + (frame_idx / float(total_frames)) * (w * 0.4))
+            char1_y = int(ground_y - 120)
+            leg_bounce = int(math.sin(frame_idx * 0.5) * 10)
+
+            # Head
+            draw.ellipse([(char1_x, char1_y), (char1_x + 50, char1_y + 50)], fill=(255, 205, 148), outline=(0, 0, 0), width=3)
+            # Eyes & Smile
+            draw.ellipse([(char1_x + 30, char1_y + 15), (char1_x + 36, char1_y + 23)], fill=(0, 0, 0))
+            draw.arc([(char1_x + 20, char1_y + 25), (char1_x + 38, char1_y + 38)], start=0, end=180, fill=(200, 0, 0), width=3)
+            # Body (Shirt)
+            draw.rectangle([(char1_x + 10, char1_y + 50), (char1_x + 40, char1_y + 100)], fill=(255, 80, 80), outline=(0, 0, 0), width=3)
+            # Legs
+            draw.line([(char1_x + 18, char1_y + 100), (char1_x + 10 + leg_bounce, char1_y + 130)], fill=(30, 30, 150), width=6)
+            draw.line([(char1_x + 32, char1_y + 100), (char1_x + 40 - leg_bounce, char1_y + 130)], fill=(30, 30, 150), width=6)
+
+            # Animated Character 2 (Cute Puppy / Friend)
+            char2_x = char1_x + 120 + int(math.sin(frame_idx * 0.3) * 15)
+            char2_y = ground_y - 60
+            # Body
+            draw.ellipse([(char2_x, char2_y), (char2_x + 60, char2_y + 40)], fill=(210, 140, 70), outline=(0, 0, 0), width=3)
+            # Head
+            draw.ellipse([(char2_x - 15, char2_y - 20), (char2_x + 25, char2_y + 20)], fill=(210, 140, 70), outline=(0, 0, 0), width=3)
+            # Ear
+            draw.ellipse([(char2_x - 10, char2_y - 25), (char2_x + 5, char2_y - 5)], fill=(120, 70, 30))
+            # Tail (Wagging)
+            tail_swing = int(math.sin(frame_idx * 0.8) * 15)
+            draw.line([(char2_x + 55, char2_y + 10), (char2_x + 75, char2_y - 10 + tail_swing)], fill=(210, 140, 70), width=5)
+
+            # Speech Bubble
+            bubble_x = max(10, char1_x - 20)
+            bubble_y = max(10, char1_y - 60)
+            draw.ellipse([(bubble_x, bubble_y), (bubble_x + 160, bubble_y + 45)], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
+            
+            try:
+                fnt = ImageFont.truetype("./fonts/Arial.ttf", 16)
+            except Exception:
+                fnt = ImageFont.load_default()
+            short_text = user_prompt[:20] + "..." if len(user_prompt) > 20 else user_prompt
+            draw.text((bubble_x + 12, bubble_y + 12), short_text, fill=(0, 0, 0), font=fnt)
+
+            frames.append(img)
+
+        writer = imageio.get_writer(output_mp4, fps=fps)
+        for frame_img in frames:
+            writer.append_data(np.array(frame_img.convert('RGB')))
+        writer.close()
+        
+        if os.path.exists(output_mp4) and os.path.getsize(output_mp4) > 1000:
+            print(f"🎨 [Local 2D Cartoon Engine] Successfully rendered 2D Cartoon MP4: {output_mp4}")
+            return output_mp4
+    except Exception as e_canvas:
+        print(f"⚠️ Canvas Cartoon generator error: {e_canvas}")
 
     return None
