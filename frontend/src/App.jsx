@@ -627,7 +627,7 @@ function App() {
   };
 
   const handleGenerateVideo = async () => {
-    if (isGeneratingVideo) return;
+    if (isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing') return;
     if (isLimitExhausted) {
       triggerAlert(
         "🔒 Free Demo Limit Reached!",
@@ -642,8 +642,8 @@ function App() {
     }
 
     setIsGeneratingVideo(true);
+    setJobStatus('initializing');
     setJobId(null);
-    setJobStatus(null);
     setCloudinaryUrl(null);
     setDownloadUrl(null);
     
@@ -1321,23 +1321,26 @@ function App() {
             type="button" 
             className="btn-primary" 
             onClick={handleGenerateVideo}
-            disabled={jobStatus === 'processing'}
+            disabled={isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing'}
             style={{ 
               marginTop: '2rem',
-              background: isLimitExhausted ? 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)' : 'linear-gradient(135deg, #a855f7 0%, #c084fc 50%, #06b6d4 100%)',
+              background: (isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing')
+                ? 'linear-gradient(135deg, #4b5563 0%, #374151 100%)'
+                : (isLimitExhausted ? 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)' : 'linear-gradient(135deg, #a855f7 0%, #c084fc 50%, #06b6d4 100%)'),
               color: '#ffffff',
               border: 'none',
               borderRadius: '16px',
               padding: '14px 24px',
               fontSize: '1.05rem',
               fontWeight: '900',
-              boxShadow: isLimitExhausted ? '0 8px 30px rgba(239, 68, 68, 0.6)' : '0 8px 30px rgba(168, 85, 247, 0.55)',
+              boxShadow: (isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing') ? 'none' : (isLimitExhausted ? '0 8px 30px rgba(239, 68, 68, 0.6)' : '0 8px 30px rgba(168, 85, 247, 0.55)'),
               textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-              cursor: 'pointer'
+              cursor: (isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing') ? 'not-allowed' : 'pointer',
+              opacity: (isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing') ? 0.75 : 1
             }}
           >
-            {jobStatus === 'processing' 
-              ? '⏳ Rendering Video in Background...' 
+            {(isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing')
+              ? '⏳ Starting Video Generation (Locked 🔒)...' 
               : (isLimitExhausted ? '🔒 Free 2 Video Limit Reached - Unlock Premium' : '🚀 Generate Video')}
           </button>
 
