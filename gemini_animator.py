@@ -2,8 +2,13 @@ import os
 import re
 import time
 import imageio
+import warnings
+import logging
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+
+warnings.filterwarnings("ignore")
+logging.getLogger("google_genai").setLevel(logging.ERROR)
 
 def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duration: float = 5.0, target_size: tuple = (1280, 720), fps: int = 20) -> str:
     """
