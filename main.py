@@ -823,7 +823,13 @@ def full_process(req: VideoRequest, job_id: str):
             is_ultra = (req.video_type == "ultra")
             orientation = "landscape" if (req.video_type in ["long", "ultra"]) else "portrait"
             
-            if is_ultra and fetch_web_image:
+            cat_lower_req = str(req.category).lower()
+            is_cartoon_req = any(k in cat_lower_req for k in ["cartoon", "anime", "animation", "character", "comic"])
+
+            if is_ultra and is_cartoon_req:
+                print(f"🎨 [Ultra Cartoon Scene {i+1}] Pure AI Cartoon Mode. Skipping web photo downloads; Gemini AI Director will generate 2D Cartoon scene from script!")
+                v_paths = []
+            elif is_ultra and fetch_web_image:
                 try:
                     bg_img_path = os.path.join(job_dir, f"bg_photo_{i}.jpg")
                     fg_img_path = os.path.join(job_dir, f"fg_photo_{i}.jpg")
