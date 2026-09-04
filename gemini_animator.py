@@ -60,38 +60,47 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
     for attempt in range(max_retries):
         try:
             print(f"   🤖 Calling Gemini API (attempt {attempt+1}/{max_retries})...")
-            # Try new google-genai SDK first
-            try:
-                from google import genai
-                client = genai.Client(api_key=api_key)
-                response = client.models.generate_content(
-                    model='gemini-1.5-flash',
-                    contents=system_instruction,
-                )
-                generated_code = response.text
-            except Exception as e_new_sdk:
-                # Try legacy google.generativeai SDK second
+            models_to_try = ['gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.5-flash']
+            for m_name in models_to_try:
                 try:
-                    import google.generativeai as legacy_genai
-                    legacy_genai.configure(api_key=api_key)
-                    g_model = legacy_genai.GenerativeModel('gemini-1.5-flash')
-                    res_legacy = g_model.generate_content(system_instruction)
-                    generated_code = res_legacy.text
-                except Exception as e_leg_sdk:
-                    # Direct REST API fallback third (100% dependency-free)
-                    import requests
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-                    payload = {"contents": [{"parts": [{"text": system_instruction}]}]}
-                    r_rest = requests.post(url, json=payload, timeout=30)
-                    r_data = r_rest.json()
-                    candidates = r_data.get("candidates", [])
-                    if candidates and "content" in candidates[0]:
-                        parts = candidates[0]["content"].get("parts", [])
-                        if parts:
-                            generated_code = parts[0].get("text", "")
+                    # Try new google-genai SDK first
+                    from google import genai
+                    client = genai.Client(api_key=api_key)
+                    response = client.models.generate_content(
+                        model=m_name,
+                        contents=system_instruction,
+                    )
+                    generated_code = response.text
+                    if generated_code: break
+                except Exception as e_new_sdk:
+                    # Try legacy google.generativeai SDK second
+                    try:
+                        import google.generativeai as legacy_genai
+                        legacy_genai.configure(api_key=api_key)
+                        g_model = legacy_genai.GenerativeModel(m_name)
+                        res_legacy = g_model.generate_content(system_instruction)
+                        generated_code = res_legacy.text
+                        if generated_code: break
+                    except Exception as e_leg_sdk:
+                        # Direct REST API fallback third (100% dependency-free)
+                        try:
+                            import requests
+                            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m_name}:generateContent?key={api_key}"
+                            payload = {"contents": [{"parts": [{"text": system_instruction}]}]}
+                            r_rest = requests.post(url, json=payload, timeout=25)
+                            if r_rest.status_code == 200:
+                                r_data = r_rest.json()
+                                candidates = r_data.get("candidates", [])
+                                if candidates and "content" in candidates[0]:
+                                    parts = candidates[0]["content"].get("parts", [])
+                                    if parts:
+                                        generated_code = parts[0].get("text", "")
+                                        if generated_code: break
+                        except Exception:
+                            pass
 
             if generated_code:
-                print(f"   ✅ Gemini API returned code ({len(generated_code)} chars)")
+                print(f"   ✅ Gemini API returned animation code ({len(generated_code)} chars)")
                 break
         except Exception as api_err:
             print(f"⚠️ Gemini Animation API attempt {attempt+1}/{max_retries} warning: {api_err}")
