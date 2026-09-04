@@ -24,7 +24,7 @@ except Exception:
     generate_gemini_cartoon_animation = None
 
 try:
-    from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip, ColorClip, CompositeVideoClip, VideoClip, concatenate_audioclips, CompositeAudioClip
+    from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip, ColorClip, CompositeVideoClip, VideoClip, concatenate_audioclips, concatenate_videoclips, CompositeAudioClip
     from moviepy.audio.fx.all import audio_loop
 except ImportError:
     try:
@@ -32,11 +32,13 @@ except ImportError:
         from moviepy.audio.io.AudioFileClip import AudioFileClip
         from moviepy.video.VideoClip import ImageClip, ColorClip, VideoClip
         from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
+        from moviepy.video.compositing.concatenate import concatenate_videoclips
         from moviepy.audio.audio_clip import concatenate_audioclips, CompositeAudioClip
         from moviepy.audio.fx.audio_loop import audio_loop
     except ImportError:
         from moviepy import VideoFileClip, AudioFileClip, ImageClip, ColorClip, CompositeVideoClip, VideoClip
         concatenate_audioclips = None
+        concatenate_videoclips = None
         CompositeAudioClip = None
         audio_loop = None
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance, ImageOps
@@ -94,13 +96,13 @@ def create_dynamic_animated_text(
     full_text = full_text.strip()
     words = full_text.split()
     
-    target_width = int(size[0] * 0.72)
+    target_width = int(size[0] * 0.78)
     max_font_size = int(size[1] * 0.075) if size[0] > size[1] else int(size[0] * 0.08)
     user_font_size = min(font_size, max_font_size) if font_size > 50 else max_font_size
 
     highlight_color = random.choice(COLOR_PALETTES) if text_color == "random" else text_color
     chosen_pos = random.choice(POSITIONS) if text_position == "random" else text_position
-    ultra_side_mode = random.choice(["side_left", "side_right", "center"]) if is_ultra_mode else "center"
+    ultra_side_mode = "center"
 
     def load_font(fs):
         devanagari_font_candidates = [
@@ -166,10 +168,6 @@ def create_dynamic_animated_text(
             target_local_idx = max(0, word_idx - half_word_count)
             
         active_font = load_font(user_font_size)
-        
-        mid_point = max(1, (len(current_chunk_words) + 1) // 2)
-        line1_words = current_chunk_words[:mid_point]
-        line2_words = current_chunk_words[mid_point:]
 
         if is_ultra_mode and category_style in ["history", "ancient"]:
             chunk_str = " ".join(current_chunk_words)
@@ -181,9 +179,11 @@ def create_dynamic_animated_text(
             cache['img'] = img
             return img
         
-        lines = [line1_words]
-        if line2_words:
-            lines.append(line2_words)
+        if len(current_chunk_words) <= 3:
+            lines = [current_chunk_words]
+        else:
+            mid_point = max(1, (len(current_chunk_words) + 1) // 2)
+            lines = [current_chunk_words[:mid_point], current_chunk_words[mid_point:]]
 
         line_spacing = int(active_font.size * 1.25)
         total_h = len(lines) * line_spacing
@@ -196,75 +196,68 @@ def create_dynamic_animated_text(
             y_text = (size[1] - total_h) / 2
         
         scene_theme_color = highlight_color if (highlight_color and highlight_color != "random") else "#FFD700"
-        
-        slide_progress = min(1.0, t * 5.0) # 0.2s completion
-        slide_x_offset = int((1.0 - math.pow(slide_progress, 2)) * size[0] * 0.08)
-        
         local_word_count = 0
-        shadow_offset = max(3, int(active_font.size * 0.05))
-        stop_words = {"in", "on", "at", "to", "for", "of", "and", "or", "an", "a", "the", "with", "by", "from", "up", "about", "into", "over", "after", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "but", "by", "if", "or", "because", "as", "until", "while", "ka", "ki", "ke", "ko", "se", "me", "par", "aur", "ya", "ha", "thi", "tha", "the"}
-        
+
         for line_idx, line_words in enumerate(lines):
-            space_bbox = draw.textbbox((0, 0), " ", font=active_font)
-            space_w = space_bbox[2] - space_bbox[0]
-            
             line_total_w = 0
+            word_measurements = []
+            
             for word_pos_in_line, w in enumerate(line_words):
                 if is_ultra_mode:
                     if line_idx == 0:
                         is_bold_kw = (word_pos_in_line == 0) or (local_word_count == target_local_idx)
                     else:
                         is_bold_kw = (word_pos_in_line == len(line_words) - 1) or (local_word_count == target_local_idx)
-                    w_f = load_font(int(user_font_size * 1.30)) if is_bold_kw else load_font(int(user_font_size * 0.85))
+                    base_sz = int(user_font_size * (1.25 if is_bold_kw else 0.85))
                 else:
-                    w_f = active_font
+                    is_bold_kw = False
+                    base_sz = user_font_size
                     
+                w_f = load_font(base_sz)
                 wb = draw.textbbox((0, 0), w, font=w_f)
-                line_total_w += (wb[2] - wb[0]) + space_w
-            line_total_w -= space_w
+                word_w = wb[2] - wb[0]
+                sb = draw.textbbox((0, 0), " ", font=w_f)
+                space_w = sb[2] - sb[0]
+                
+                word_measurements.append((w, base_sz, word_w, space_w, is_bold_kw))
+                line_total_w += word_w + space_w
+            
+            if word_measurements:
+                line_total_w -= word_measurements[-1][3]
             
             scale_down = 1.0
-            if line_total_w > target_width:
-                scale_down = max(0.55, target_width / float(line_total_w))
-                line_total_w = int(line_total_w * scale_down)
+            if line_total_w > target_width and line_total_w > 0:
+                scale_down = target_width / float(line_total_w)
 
-            if is_ultra_mode and ultra_side_mode == "side_left":
-                calc_x = int(size[0] * 0.08) - slide_x_offset
-            elif is_ultra_mode and ultra_side_mode == "side_right":
-                calc_x = int(size[0] * 0.92) - line_total_w + slide_x_offset
-            else:
-                calc_x = (size[0] - line_total_w) // 2
+            actual_line_w = int(line_total_w * scale_down)
+            current_x = (size[0] - actual_line_w) // 2
+            min_x_margin = int(size[0] * 0.11)
+            current_x = max(min_x_margin, current_x)
+
+            for w, base_sz, _, _, is_bold_keyword in word_measurements:
+                scaled_fsz = max(14, int(base_sz * scale_down))
+                w_font = load_font(scaled_fsz)
                 
-            min_x_margin = int(size[0] * 0.06)
-            max_x_margin = size[0] - line_total_w - int(size[0] * 0.06)
-            current_x = max(min_x_margin, min(max_x_margin, calc_x)) if max_x_margin > min_x_margin else min_x_margin
-            
-            for word_pos_in_line, w in enumerate(line_words):
                 if is_ultra_mode:
-                    if line_idx == 0:
-                        is_bold_keyword = (word_pos_in_line == 0) or (local_word_count == target_local_idx)
-                    else:
-                        is_bold_keyword = (word_pos_in_line == len(line_words) - 1) or (local_word_count == target_local_idx)
-                        
-                    curr_kw_size = int(user_font_size * 1.30 * scale_down) if is_bold_keyword else int(user_font_size * 0.85 * scale_down)
-                    w_font = load_font(curr_kw_size)
-                    
                     if local_word_count == target_local_idx:
                         color = scene_theme_color
                     elif is_bold_keyword:
-                        color = "#FFFFFF" # Clean White for keywords (matching Photo #2)
+                        color = "#FFFFFF"
                     else:
-                        color = "#E0E0E0" # Light Silver for normal words
+                        color = "#E0E0E0"
                 else:
-                    w_font = active_font
-                    color = highlight_color if local_word_count <= target_local_idx else "white"
-                
-                draw.text((current_x + shadow_offset, y_text + shadow_offset), w, font=w_font, fill=(0, 0, 0, 240))
-                draw.text((current_x, y_text), w, font=w_font, fill=color)
-                
+                    color = highlight_color if local_word_count <= target_local_idx else "#FFFFFF"
+
                 w_bbox = draw.textbbox((0, 0), w, font=w_font)
                 w_w = w_bbox[2] - w_bbox[0]
-                current_x += w_w + space_w
+                sp_bbox = draw.textbbox((0, 0), " ", font=w_font)
+                curr_space_w = sp_bbox[2] - sp_bbox[0]
+
+                shadow_offset = max(2, int(w_font.size * 0.05))
+                draw.text((current_x + shadow_offset, y_text + shadow_offset), w, font=w_font, fill=(0, 0, 0, 240))
+                draw.text((current_x, y_text), w, font=w_font, fill=color)
+
+                current_x += w_w + curr_space_w
                 local_word_count += 1
                 
             y_text += line_spacing
@@ -750,15 +743,22 @@ def merge_and_export(
 
         total_audio_duration = 0.0
         audio_clips = []
+        scene_durations = []
         for sc in scene_list:
             a_path = sc.get('audio')
+            sc_dur = 0.0
             if a_path and os.path.exists(a_path) and os.path.getsize(a_path) > 1000:
                 try:
                     ac = AudioFileClip(a_path)
-                    total_audio_duration += ac.duration
+                    sc_dur = ac.duration
                     audio_clips.append(ac)
                 except Exception:
                     pass
+            if sc_dur <= 0.5:
+                sc_dur = 5.0
+            scene_durations.append(sc_dur)
+            total_audio_duration += sc_dur
+            
         if total_audio_duration <= 0.5: total_audio_duration = max(5.0, len(scene_list) * 5.0)
 
         full_anim_mp4 = os.path.join(job_dir, "gemini_full_cartoon_video.mp4")
@@ -799,17 +799,54 @@ def merge_and_export(
         if final_narration:
             anim_vclip = anim_vclip.set_audio(final_narration)
 
-        full_sub_clip = create_dynamic_animated_text(
-            full_text=full_script_story,
-            size=target_size,
-            duration=total_audio_duration,
-            font_path=font_path,
-            font_size=font_size,
-            text_position="bottom",
-            text_color="random",
-            is_ultra_mode=True,
-            category_style="cartoon"
-        )
+        # Build 1-to-1 sync subtitle clips matching exact scene audio durations
+        scene_sub_clips = []
+        for sc_idx, sc in enumerate(scene_list):
+            sc_text = sc.get("text", "").strip()
+            if not sc_text:
+                continue
+            sc_dur = scene_durations[sc_idx] if sc_idx < len(scene_durations) else (total_audio_duration / max(1, len(scene_list)))
+            sc_sub = create_dynamic_animated_text(
+                full_text=sc_text,
+                size=target_size,
+                duration=sc_dur,
+                font_path=font_path,
+                font_size=font_size,
+                text_position="bottom",
+                text_color="random",
+                is_ultra_mode=True,
+                category_style="cartoon"
+            )
+            scene_sub_clips.append(sc_sub)
+
+        if scene_sub_clips and concatenate_videoclips:
+            try:
+                full_sub_clip = concatenate_videoclips(scene_sub_clips)
+            except Exception as e_sc:
+                print(f"⚠️ Subtitle clip concatenation error: {e_sc}, falling back to single text clip...")
+                full_sub_clip = create_dynamic_animated_text(
+                    full_text=full_script_story,
+                    size=target_size,
+                    duration=total_audio_duration,
+                    font_path=font_path,
+                    font_size=font_size,
+                    text_position="bottom",
+                    text_color="random",
+                    is_ultra_mode=True,
+                    category_style="cartoon"
+                )
+        else:
+            full_sub_clip = create_dynamic_animated_text(
+                full_text=full_script_story,
+                size=target_size,
+                duration=total_audio_duration,
+                font_path=font_path,
+                font_size=font_size,
+                text_position="bottom",
+                text_color="random",
+                is_ultra_mode=True,
+                category_style="cartoon"
+            )
 
         final_cartoon_composite = CompositeVideoClip([anim_vclip, full_sub_clip.set_position('center')])
 
@@ -844,6 +881,9 @@ def merge_and_export(
             final_cartoon_composite.close()
             anim_vclip.close()
             full_sub_clip.close()
+            for sc_sub in scene_sub_clips:
+                try: sc_sub.close()
+                except Exception: pass
             if final_narration: final_narration.close()
             for ac in audio_clips: ac.close()
         except Exception:
