@@ -14,13 +14,6 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
     if not api_key:
         print("⚠️ GEMINI_API_KEY / GOOGLE_API_KEY environment variable not set. Skipping AI animation generation.")
         return None
-    
-    try:
-        from google import genai
-        client = genai.Client(api_key=api_key)
-    except Exception as e_client:
-        print(f"⚠️ Failed to initialize Gemini genai client: {e_client}")
-        return None
 
     w, h = target_size
     total_frames = max(20, int(duration * fps))
@@ -66,14 +59,40 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            print(f"   🤖 Calling Gemini API (model: gemini-1.5-flash, attempt {attempt+1}/{max_retries})...")
-            response = client.models.generate_content(
-                model='gemini-1.5-flash',
-                contents=system_instruction,
-            )
-            generated_code = response.text
-            print(f"   ✅ Gemini API returned code ({len(generated_code)} chars)")
-            break
+            print(f"   🤖 Calling Gemini API (attempt {attempt+1}/{max_retries})...")
+            # Try new google-genai SDK first
+            try:
+                from google import genai
+                client = genai.Client(api_key=api_key)
+                response = client.models.generate_content(
+                    model='gemini-1.5-flash',
+                    contents=system_instruction,
+                )
+                generated_code = response.text
+            except Exception as e_new_sdk:
+                # Try legacy google.generativeai SDK second
+                try:
+                    import google.generativeai as legacy_genai
+                    legacy_genai.configure(api_key=api_key)
+                    g_model = legacy_genai.GenerativeModel('gemini-1.5-flash')
+                    res_legacy = g_model.generate_content(system_instruction)
+                    generated_code = res_legacy.text
+                except Exception as e_leg_sdk:
+                    # Direct REST API fallback third (100% dependency-free)
+                    import requests
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                    payload = {"contents": [{"parts": [{"text": system_instruction}]}]}
+                    r_rest = requests.post(url, json=payload, timeout=30)
+                    r_data = r_rest.json()
+                    candidates = r_data.get("candidates", [])
+                    if candidates and "content" in candidates[0]:
+                        parts = candidates[0]["content"].get("parts", [])
+                        if parts:
+                            generated_code = parts[0].get("text", "")
+
+            if generated_code:
+                print(f"   ✅ Gemini API returned code ({len(generated_code)} chars)")
+                break
         except Exception as api_err:
             print(f"⚠️ Gemini Animation API attempt {attempt+1}/{max_retries} warning: {api_err}")
             if "503" in str(api_err) or "429" in str(api_err):
