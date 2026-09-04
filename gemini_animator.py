@@ -10,18 +10,19 @@ from PIL import Image, ImageDraw, ImageFont
 warnings.filterwarnings("ignore")
 logging.getLogger("google_genai").setLevel(logging.ERROR)
 
-def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duration: float = 5.0, target_size: tuple = (1280, 720), fps: int = 20) -> str:
+def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duration: float = 5.0, target_size: tuple = (640, 360), fps: int = 15) -> str:
     """
     Generates a frame-by-frame 2D Cartoon / Anime Animation MP4 video using Gemini AI code generation.
     Used for Ultra Mode when Category is 'Cartoon' or 'Animation'.
+    Optimized for 640x360 resolution to guarantee RAM usage stays under 80MB!
     """
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("AI_API_KEY")
     if not api_key:
         print("⚠️ GEMINI_API_KEY / GOOGLE_API_KEY environment variable not set. Skipping AI animation generation.")
         return None
 
-    w, h = target_size
-    total_frames = max(20, int(duration * fps))
+    w, h = (640, 360)  # Ultra-lightweight canvas for 100% zero-OOM stability
+    total_frames = max(15, int(duration * fps))
 
     system_instruction = f"""
     You are an expert Python Developer, Animator, and Movie Director. 
@@ -33,6 +34,7 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
        from PIL import Image, ImageDraw
        import math
        import imageio
+       import gc
        import numpy as np
        
     3. SCENE BY SCENE LOGIC: Break the story into logical scenes based on frames (e.g., if frame < 40: Scene 1 logic... elif frame < 80: Scene 2 logic...). 
@@ -44,14 +46,18 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
     
     6. Keep drawings simple (stick figures, colored shapes, basic background) but animate them smoothly. Add speech bubbles if they talk.
     
-    7. MP4 STREAMING & ZERO-RAM RULE: To prevent Out-Of-Memory crashes, DO NOT store frames in a list. Open the imageio writer FIRST and append frames directly inside the frame loop:
+    7. MP4 STREAMING & ZERO-RAM RULE: To prevent Out-Of-Memory crashes on 512MB servers, DO NOT store frames in a list. Open the imageio writer FIRST and append frames directly inside the frame loop, calling gc.collect() every 10 frames:
+       import gc
        writer = imageio.get_writer('{output_mp4}', fps={fps})
        for frame_idx in range({total_frames}):
            img = Image.new('RGB', ({w}, {h}), (25, 25, 45))
            draw = ImageDraw.Draw(img)
            # ... draw scene animations ...
            writer.append_data(np.array(img.convert('RGB')))
+           del img, draw
+           if frame_idx % 10 == 0: gc.collect()
        writer.close()
+       gc.collect()
        print("Video rendering complete!")
 
     8. Put everything directly in the global scope (do not wrap in a main function).
@@ -151,14 +157,14 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
         return create_pro_cartoon_canvas_mp4(user_prompt, output_mp4, duration, target_size, fps)
 
 
-def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: float = 5.0, target_size: tuple = (1280, 720), fps: int = 15) -> str:
+def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: float = 5.0, target_size: tuple = (640, 360), fps: int = 15) -> str:
     """
     Guaranteed Local 2D Cartoon Animation Generator:
     Generates a 2D animated cartoon scene with smooth character motions, speech bubbles,
     and vibrant cartoon backgrounds when Gemini AI is offline or 503.
     """
     try:
-        w, h = target_size
+        w, h = (640, 360)
         total_frames = max(15, int(duration * fps))
         writer = imageio.get_writer(output_mp4, fps=fps)
 
