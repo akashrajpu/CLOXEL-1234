@@ -147,7 +147,6 @@ def create_dynamic_animated_text(
         if cache['t'] == t:
             return cache['img']
             
-        i = int(t * fps)
         img = Image.new('RGBA', size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         
@@ -156,21 +155,20 @@ def create_dynamic_animated_text(
             cache['img'] = img
             return img
             
-        word_idx = int((i / total_frames) * len(words))
-        if word_idx >= len(words): word_idx = len(words) - 1
+        words_per_chunk = 3
+        total_chunks = max(1, (len(words) + words_per_chunk - 1) // words_per_chunk)
         
-        half_word_count = max(1, (len(words) + 1) // 2)
-        if t < (duration / 2.0):
-            current_chunk_words = words[:half_word_count]
-            target_local_idx = word_idx
-        else:
-            current_chunk_words = words[half_word_count:]
-            target_local_idx = max(0, word_idx - half_word_count)
+        progress = min(0.999, max(0.0, t / float(duration))) if duration > 0 else 0.0
+        chunk_idx = min(total_chunks - 1, int(progress * total_chunks))
+        chunk_words = words[chunk_idx * words_per_chunk : (chunk_idx + 1) * words_per_chunk]
+        
+        rel_t = (progress * total_chunks) - chunk_idx
+        word_in_chunk_idx = min(len(chunk_words) - 1, max(0, int(rel_t * len(chunk_words))))
             
         active_font = load_font(user_font_size)
 
         if is_ultra_mode and category_style in ["history", "ancient"]:
-            chunk_str = " ".join(current_chunk_words)
+            chunk_str = " ".join(chunk_words)
             parchment_img = create_parchment_subtitle_box(chunk_str, size, font_size=user_font_size)
             px = (size[0] - parchment_img.width) // 2
             py = size[1] - parchment_img.height - int(size[1] * 0.06)
@@ -178,89 +176,90 @@ def create_dynamic_animated_text(
             cache['t'] = t
             cache['img'] = img
             return img
-        
-        if len(current_chunk_words) <= 3:
-            lines = [current_chunk_words]
-        else:
-            mid_point = max(1, (len(current_chunk_words) + 1) // 2)
-            lines = [current_chunk_words[:mid_point], current_chunk_words[mid_point:]]
+
+        scene_theme_color = highlight_color if (highlight_color and highlight_color != "random") else "#FFD700"
+
+        line_total_w = 0
+        word_font_data = []
+        for w_i, w in enumerate(chunk_words):
+            is_active = (w_i == word_in_chunk_idx)
+            if is_ultra_mode:
+                base_sz = int(user_font_size * (1.20 if is_active else 0.85))
+            else:
+                base_sz = user_font_size
+            w_f = load_font(base_sz)
+            wb = draw.textbbox((0, 0), w, font=w_f)
+            word_w = wb[2] - wb[0]
+            sb = draw.textbbox((0, 0), " ", font=w_f)
+            space_w = sb[2] - sb[0]
+            word_font_data.append((w, base_sz, word_w, space_w, is_active))
+            line_total_w += word_w + space_w
+
+        if word_font_data:
+            line_total_w -= word_font_data[-1][3]
+
+        scale_down = 1.0
+        if line_total_w > target_width and line_total_w > 0:
+            scale_down = target_width / float(line_total_w)
+
+        actual_line_w = 0
+        final_render_data = []
+        for w, base_sz, _, _, is_active in word_font_data:
+            scaled_sz = max(14, int(base_sz * scale_down))
+            w_font = load_font(scaled_sz)
+            wb = draw.textbbox((0, 0), w, font=w_font)
+            word_w = wb[2] - wb[0]
+            sb = draw.textbbox((0, 0), " ", font=w_font)
+            space_w = sb[2] - sb[0]
+            final_render_data.append((w, w_font, word_w, space_w, is_active))
+            actual_line_w += word_w + space_w
+
+        if final_render_data:
+            actual_line_w -= final_render_data[-1][3]
+
+        if actual_line_w > target_width and actual_line_w > 0:
+            adj = target_width / float(actual_line_w)
+            actual_line_w = 0
+            adjusted_render_data = []
+            for w, w_font, _, _, is_active in final_render_data:
+                adj_sz = max(12, int(w_font.size * adj))
+                w_font_adj = load_font(adj_sz)
+                wb = draw.textbbox((0, 0), w, font=w_font_adj)
+                word_w = wb[2] - wb[0]
+                sb = draw.textbbox((0, 0), " ", font=w_font_adj)
+                space_w = sb[2] - sb[0]
+                adjusted_render_data.append((w, w_font_adj, word_w, space_w, is_active))
+                actual_line_w += word_w + space_w
+            if adjusted_render_data:
+                actual_line_w -= adjusted_render_data[-1][3]
+            final_render_data = adjusted_render_data
 
         line_spacing = int(active_font.size * 1.25)
-        total_h = len(lines) * line_spacing
-        
         if chosen_pos == "top":
             y_text = int(size[1] * 0.12)
         elif chosen_pos == "bottom":
-            y_text = size[1] - total_h - int(size[1] * 0.14)
-        else: # center
-            y_text = (size[1] - total_h) / 2
-        
-        scene_theme_color = highlight_color if (highlight_color and highlight_color != "random") else "#FFD700"
-        local_word_count = 0
+            y_text = size[1] - line_spacing - int(size[1] * 0.12)
+        else:
+            y_text = (size[1] - line_spacing) // 2
 
-        for line_idx, line_words in enumerate(lines):
-            line_total_w = 0
-            word_measurements = []
-            
-            for word_pos_in_line, w in enumerate(line_words):
-                if is_ultra_mode:
-                    if line_idx == 0:
-                        is_bold_kw = (word_pos_in_line == 0) or (local_word_count == target_local_idx)
-                    else:
-                        is_bold_kw = (word_pos_in_line == len(line_words) - 1) or (local_word_count == target_local_idx)
-                    base_sz = int(user_font_size * (1.25 if is_bold_kw else 0.85))
+        current_x = (size[0] - actual_line_w) // 2
+        min_x_margin = int(size[0] * 0.12)
+        current_x = max(min_x_margin, current_x)
+
+        for w, w_font, word_w, curr_space_w, is_active in final_render_data:
+            if is_ultra_mode:
+                if is_active:
+                    color = scene_theme_color
                 else:
-                    is_bold_kw = False
-                    base_sz = user_font_size
-                    
-                w_f = load_font(base_sz)
-                wb = draw.textbbox((0, 0), w, font=w_f)
-                word_w = wb[2] - wb[0]
-                sb = draw.textbbox((0, 0), " ", font=w_f)
-                space_w = sb[2] - sb[0]
-                
-                word_measurements.append((w, base_sz, word_w, space_w, is_bold_kw))
-                line_total_w += word_w + space_w
-            
-            if word_measurements:
-                line_total_w -= word_measurements[-1][3]
-            
-            scale_down = 1.0
-            if line_total_w > target_width and line_total_w > 0:
-                scale_down = target_width / float(line_total_w)
+                    color = "#FFFFFF"
+            else:
+                color = highlight_color if is_active else "#FFFFFF"
 
-            actual_line_w = int(line_total_w * scale_down)
-            current_x = (size[0] - actual_line_w) // 2
-            min_x_margin = int(size[0] * 0.11)
-            current_x = max(min_x_margin, current_x)
+            shadow_offset = max(2, int(w_font.size * 0.05))
+            draw.text((current_x + shadow_offset, y_text + shadow_offset), w, font=w_font, fill=(0, 0, 0, 240))
+            draw.text((current_x, y_text), w, font=w_font, fill=color)
 
-            for w, base_sz, _, _, is_bold_keyword in word_measurements:
-                scaled_fsz = max(14, int(base_sz * scale_down))
-                w_font = load_font(scaled_fsz)
-                
-                if is_ultra_mode:
-                    if local_word_count == target_local_idx:
-                        color = scene_theme_color
-                    elif is_bold_keyword:
-                        color = "#FFFFFF"
-                    else:
-                        color = "#E0E0E0"
-                else:
-                    color = highlight_color if local_word_count <= target_local_idx else "#FFFFFF"
-
-                w_bbox = draw.textbbox((0, 0), w, font=w_font)
-                w_w = w_bbox[2] - w_bbox[0]
-                sp_bbox = draw.textbbox((0, 0), " ", font=w_font)
-                curr_space_w = sp_bbox[2] - sp_bbox[0]
-
-                shadow_offset = max(2, int(w_font.size * 0.05))
-                draw.text((current_x + shadow_offset, y_text + shadow_offset), w, font=w_font, fill=(0, 0, 0, 240))
-                draw.text((current_x, y_text), w, font=w_font, fill=color)
-
-                current_x += w_w + curr_space_w
-                local_word_count += 1
-                
-            y_text += line_spacing
+            current_x += word_w + curr_space_w
             
         cache['t'] = t
         cache['img'] = img
