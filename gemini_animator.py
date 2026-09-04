@@ -19,38 +19,35 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
     total_frames = max(20, int(duration * fps))
 
     system_instruction = f"""
-    You are an expert Python Developer, Animator, and Cartoon Director. 
-    Read the following scene story and generate a COMPLETE, ERROR-FREE Python script to create a 2D Cartoon/Animation video.
+    You are an expert Python Developer, Animator, and Movie Director. 
+    Read the following Hinglish user prompt and generate a COMPLETE, ERROR-FREE Python script to create an MP4 animation video.
     
     STRICT RULES FOR YOUR CODE:
     1. Output ONLY raw, runnable Python code. DO NOT wrap it in markdown block quotes like ```python ... ```. Do not add any text explanations.
     2. IMPORT THESE EXACT MODULES:
-       from PIL import Image, ImageDraw, ImageFont
+       from PIL import Image, ImageDraw
        import math
        import imageio
        import numpy as np
        
-    3. SCENE & CHARACTER ANIMATION:
-       - Canvas size MUST be {w}x{h}. Total frames to generate: {total_frames}.
-       - Create a list named `frames = []`.
-       - Loop through frame index `for frame_idx in range({total_frames}):`
-       - For each frame, create a PIL Image: `img = Image.new('RGB', ({w}, {h}), (25, 25, 45))`
-       - Draw colorful cartoon backgrounds, landscapes, sky/nature, or indoor rooms.
-       - Draw expressively animated cartoon characters, stick figures, animals, or objects that move smoothly across frames.
-       - Calculate dynamic movement using `frame_idx` (e.g. `pos_x = int(50 + frame_idx * 5)`).
+    3. SCENE BY SCENE LOGIC: Break the story into logical scenes based on frames (e.g., if frame < 40: Scene 1 logic... elif frame < 80: Scene 2 logic...). 
+       - Dynamically change background colors (night to day), object positions, and character actions ('walk', 'run', 'shoot', 'idle') based on the scene.
        
-    4. VERY IMPORTANT MATH RULE: All coordinates (x, y) passed to ImageDraw functions MUST be integers using int(). No floats.
-       e.g., draw.ellipse((int(x), int(y), int(x+40), int(y+40)), fill=(255, 200, 100))
+    4. SIZE & FRAMES: Canvas size MUST be {w}x{h}. Generate {total_frames} frames depending on the story length.
     
-    5. MP4 SAVING RULE: Store all generated PIL Images in `frames`. At the end of the script, save them as an MP4 exactly like this:
+    5. VERY IMPORTANT MATH RULE: All coordinates (x, y) passed to ImageDraw functions MUST be integers using int(). No floats. (e.g., draw.ellipse((int(x), int(y), int(x+20), int(y+20))))
+    
+    6. Keep drawings simple (stick figures, colored shapes, basic background) but animate them smoothly. Add speech bubbles if they talk.
+    
+    7. MP4 SAVING RULE: Store all generated PIL Images in a list called `frames`. At the end of the script, save them as an MP4 exactly like this:
        writer = imageio.get_writer('{output_mp4}', fps={fps})
        for img in frames:
            writer.append_data(np.array(img.convert('RGB')))
        writer.close()
 
-    6. Put everything directly in the global scope (do not wrap in a main function).
+    8. Put everything directly in the global scope (do not wrap in a main function).
     
-    Scene Story: "{user_prompt}"
+    User Prompt (Hinglish Story): "{user_prompt}"
     """
 
     print(f"🎬 [Gemini Cartoon Engine] Generating AI Animation Code for scene: '{user_prompt[:60]}...' ({total_frames} frames)...")
