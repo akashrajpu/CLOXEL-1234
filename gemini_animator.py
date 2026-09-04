@@ -66,11 +66,13 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
     max_retries = 3
     for attempt in range(max_retries):
         try:
+            print(f"   🤖 Calling Gemini API (model: gemini-1.5-flash, attempt {attempt+1}/{max_retries})...")
             response = client.models.generate_content(
-                model='gemini-2.5-flash',
+                model='gemini-1.5-flash',
                 contents=system_instruction,
             )
             generated_code = response.text
+            print(f"   ✅ Gemini API returned code ({len(generated_code)} chars)")
             break
         except Exception as api_err:
             print(f"⚠️ Gemini Animation API attempt {attempt+1}/{max_retries} warning: {api_err}")
@@ -98,11 +100,16 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
     }
 
     try:
+        print(f"   ⚙️ Executing Gemini generated Python animation code...")
         exec(clean_code, exec_globals)
         if os.path.exists(output_mp4) and os.path.getsize(output_mp4) > 1000:
             print(f"🎉 [Gemini Cartoon Engine] Successfully rendered AI Cartoon MP4: {output_mp4}")
             return output_mp4
+        else:
+            print(f"⚠️ [Gemini Cartoon Engine] Output MP4 missing or 0 bytes: {output_mp4}")
     except Exception as exec_err:
-        print(f"⚠️ Gemini animation code execution notice: {exec_err}")
+        import traceback
+        print(f"❌ [Gemini Cartoon Engine] Execution Error: {exec_err}")
+        traceback.print_exc()
 
     return None

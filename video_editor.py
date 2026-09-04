@@ -586,7 +586,7 @@ def create_ultra_photo_motion_clip(
     filter_style: str = "warm_epic",
     cutout_pos: str = "left",
     motion_type: str = "zoom_in",
-    fps: int = 20
+    fps: int = 15
 ) -> VideoClip:
     """Creates an Ultra Photo Motion Video Clip with Ink Brush Mask Edges, Smoke Haze, Particles, & Dynamic Zoom/Pan."""
     w, h = size
