@@ -19,6 +19,11 @@ import numpy as np
 import textwrap
 import subprocess
 try:
+    from gemini_animator import generate_gemini_cartoon_animation
+except Exception:
+    generate_gemini_cartoon_animation = None
+
+try:
     from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip, ColorClip, CompositeVideoClip, VideoClip
 except ImportError:
     try:
@@ -727,7 +732,8 @@ def merge_and_export(
     target_size: tuple = (1920, 1080),
     bg_music: str = "cool.mp3",
     mode: str = "ultra",
-    category: str = "Random"
+    category: str = "Random",
+    log_callback: callable = None
 ):
     """
     Merges scene clips, audio narration, subtitles, and background music into a final MP4 video.
@@ -756,10 +762,30 @@ def merge_and_export(
         a_clip = AudioFileClip(audio_path)
         clip_duration = a_clip.duration
         
+        cat_lower = str(category).lower()
+        is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
+
         if mode == "ultra":
             if "characters" in scene:
                 print(f"🎭 Scene {i+1}: Generating Multi-Character Dialogue Ultra Clip...")
                 v_clip = create_multi_character_ultra_clip(scene, clip_duration, size=target_size)
+            elif is_cartoon_cat and generate_gemini_cartoon_animation:
+                print(f"🎨 Scene {i+1}: Ultra Cartoon Mode detected. Triggering Gemini AI Cartoon Animation Engine...")
+                ai_mp4_path = os.path.join(job_dir, f"gemini_cartoon_scene_{i}.mp4")
+                anim_result = generate_gemini_cartoon_animation(
+                    user_prompt=scene.get("text", "Cartoon animation scene"),
+                    output_mp4=ai_mp4_path,
+                    duration=clip_duration,
+                    target_size=target_size,
+                    fps=20
+                )
+                if anim_result and os.path.exists(anim_result):
+                    v_clip = VideoFileClip(anim_result)
+                else:
+                    video_paths = scene['video'] if isinstance(scene['video'], list) else [scene['video']]
+                    bg_path = video_paths[0]
+                    fg_path = video_paths[1] if (len(video_paths) > 1) else None
+                    v_clip = create_ultra_photo_motion_clip(bg_path, fg_photo_path=fg_path, duration=clip_duration, size=target_size, filter_style="neon_cyberpunk", cutout_pos="left", motion_type="zoom_in")
             else:
                 video_paths = scene['video'] if isinstance(scene['video'], list) else [scene['video']]
                 bg_path = video_paths[0]
@@ -826,15 +852,15 @@ def merge_and_export(
         
         scene_output = os.path.join(job_dir, f"temp_rendered_scene_{i}.mp4")
         step_pct = int(((i + 1) / len(scene_list)) * 100)
-        print(f"🎬 [FFMPEG RENDER {step_pct}%] Stitching & Compositing Scene {i+1}/{len(scene_list)} (Duration: {clip_duration:.1f}s) -> {scene_output}...")
+        print(f"🎬 [FFMPEG RENDER {step_pct}%] Stitching Scene {i+1}/{len(scene_list)} (Duration: {clip_duration:.1f}s) -> {scene_output}...")
         scene_combined.write_videofile(
             scene_output, 
             codec="libx264", 
             audio_codec="aac", 
             fps=15, 
             preset="ultrafast", 
-            threads=2, 
-            ffmpeg_params=["-crf", "26", "-pix_fmt", "yuv420p"],
+            threads=4, 
+            ffmpeg_params=["-crf", "28", "-pix_fmt", "yuv420p"],
             logger=None
         )
         
@@ -846,13 +872,17 @@ def merge_and_export(
         gc.collect()
         
         temp_scene_files.append(scene_output)
-        print(f"   ✅ Scene {i+1}/{len(scene_list)} encoded successfully.")
+        msg = f"✅ [Scene {i+1}/{len(scene_list)}] Encoded HD scene clip successfully!"
+        print(f"   {msg}")
+        if log_callback:
+            pct = 75 + int(((i + 1) / len(scene_list)) * 20)
+            log_callback(msg, pct)
 
     print(f"\n🔗 [FFMPEG CONCAT] Merging all {len(temp_scene_files)} scenes + Background Music track...")
     list_path = os.path.join(job_dir, "concat_list.txt")
     with open(list_path, "w") as f:
         for tf in temp_scene_files:
-            f.write(f"file '{tf}'\n")
+            f.write(f"file '{os.path.abspath(tf)}'\n")
             
     temp_merged = os.path.join(job_dir, "temp_merged_final.mp4")
     subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", temp_merged], check=True)
