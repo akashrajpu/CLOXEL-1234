@@ -769,23 +769,29 @@ def merge_and_export(
             if "characters" in scene:
                 print(f"🎭 Scene {i+1}: Generating Multi-Character Dialogue Ultra Clip...")
                 v_clip = create_multi_character_ultra_clip(scene, clip_duration, size=target_size)
-            elif is_cartoon_cat and generate_gemini_cartoon_animation:
-                print(f"🎨 Scene {i+1}: Ultra Cartoon Mode detected. Triggering Gemini AI Cartoon Animation Engine...")
+            elif is_cartoon_cat:
+                print(f"🎨 Scene {i+1}: Ultra Cartoon Mode detected. Triggering Gemini AI Cartoon Animation Engine STRICTLY...")
                 ai_mp4_path = os.path.join(job_dir, f"gemini_cartoon_scene_{i}.mp4")
-                anim_result = generate_gemini_cartoon_animation(
-                    user_prompt=scene.get("text", "Cartoon animation scene"),
-                    output_mp4=ai_mp4_path,
-                    duration=clip_duration,
-                    target_size=target_size,
-                    fps=20
-                )
-                if anim_result and os.path.exists(anim_result):
-                    v_clip = VideoFileClip(anim_result)
-                else:
-                    video_paths = scene['video'] if isinstance(scene['video'], list) else [scene['video']]
-                    bg_path = video_paths[0]
-                    fg_path = video_paths[1] if (len(video_paths) > 1) else None
-                    v_clip = create_ultra_photo_motion_clip(bg_path, fg_photo_path=fg_path, duration=clip_duration, size=target_size, filter_style="neon_cyberpunk", cutout_pos="left", motion_type="zoom_in")
+                anim_result = None
+                if generate_gemini_cartoon_animation:
+                    anim_result = generate_gemini_cartoon_animation(
+                        user_prompt=scene.get("text", "Cartoon animation scene"),
+                        output_mp4=ai_mp4_path,
+                        duration=clip_duration,
+                        target_size=target_size,
+                        fps=15
+                    )
+                if not anim_result or not os.path.exists(anim_result):
+                    print(f"🎨 Scene {i+1}: Running Guaranteed Local 2D Cartoon Canvas Renderer...")
+                    from gemini_animator import create_pro_cartoon_canvas_mp4
+                    anim_result = create_pro_cartoon_canvas_mp4(
+                        user_prompt=scene.get("text", "Cartoon animation scene"),
+                        output_mp4=ai_mp4_path,
+                        duration=clip_duration,
+                        target_size=target_size,
+                        fps=15
+                    )
+                v_clip = VideoFileClip(anim_result)
             else:
                 video_paths = scene['video'] if isinstance(scene['video'], list) else [scene['video']]
                 bg_path = video_paths[0]
