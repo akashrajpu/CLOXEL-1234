@@ -24,15 +24,21 @@ except Exception:
     generate_gemini_cartoon_animation = None
 
 try:
-    from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip, ColorClip, CompositeVideoClip, VideoClip
+    from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip, ColorClip, CompositeVideoClip, VideoClip, concatenate_audioclips, CompositeAudioClip
+    from moviepy.audio.fx.all import audio_loop
 except ImportError:
     try:
         from moviepy.video.io.VideoFileClip import VideoFileClip
         from moviepy.audio.io.AudioFileClip import AudioFileClip
         from moviepy.video.VideoClip import ImageClip, ColorClip, VideoClip
         from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
+        from moviepy.audio.audio_clip import concatenate_audioclips, CompositeAudioClip
+        from moviepy.audio.fx.audio_loop import audio_loop
     except ImportError:
         from moviepy import VideoFileClip, AudioFileClip, ImageClip, ColorClip, CompositeVideoClip, VideoClip
+        concatenate_audioclips = None
+        CompositeAudioClip = None
+        audio_loop = None
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance, ImageOps
 
 warnings.filterwarnings("ignore")
@@ -733,6 +739,118 @@ def merge_and_export(
     
     temp_scene_files = []
     job_dir = os.path.dirname(output_name) if os.path.dirname(output_name) else "."
+
+    cat_lower = str(category).lower()
+    is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
+
+    if mode == "ultra" and is_cartoon_cat:
+        print(f"\n🎬 [Ultra Cartoon Single-Pass Engine] Generating 1 SINGLE AI Animation MP4 for FULL VIDEO ({len(scene_list)} scenes)...")
+        full_script_story = " ".join([sc.get("text", "") for sc in scene_list if sc.get("text")])
+        if not full_script_story: full_script_story = "Cartoon animation story"
+
+        total_audio_duration = 0.0
+        audio_clips = []
+        for sc in scene_list:
+            a_path = sc.get('audio')
+            if a_path and os.path.exists(a_path) and os.path.getsize(a_path) > 1000:
+                try:
+                    ac = AudioFileClip(a_path)
+                    total_audio_duration += ac.duration
+                    audio_clips.append(ac)
+                except Exception:
+                    pass
+        if total_audio_duration <= 0.5: total_audio_duration = max(5.0, len(scene_list) * 5.0)
+
+        full_anim_mp4 = os.path.join(job_dir, "gemini_full_cartoon_video.mp4")
+        anim_result = None
+
+        if generate_gemini_cartoon_animation:
+            print(f"🤖 [Single Gemini API Call] Requesting 1 full 2D Cartoon Animation MP4 ({total_audio_duration:.1f}s, {len(full_script_story)} chars)...")
+            anim_result = generate_gemini_cartoon_animation(
+                user_prompt=full_script_story,
+                output_mp4=full_anim_mp4,
+                duration=total_audio_duration,
+                target_size=target_size,
+                fps=15
+            )
+
+        if not anim_result or not os.path.exists(anim_result):
+            print(f"🎨 [Local 2D Cartoon Engine] Generating 1 single-pass 2D Cartoon Canvas MP4 ({total_audio_duration:.1f}s)...")
+            from gemini_animator import create_pro_cartoon_canvas_mp4
+            anim_result = create_pro_cartoon_canvas_mp4(
+                user_prompt=full_script_story,
+                output_mp4=full_anim_mp4,
+                duration=total_audio_duration,
+                target_size=target_size,
+                fps=15
+            )
+
+        if audio_clips and concatenate_audioclips:
+            try:
+                final_narration = concatenate_audioclips(audio_clips)
+            except Exception:
+                final_narration = None
+        elif audio_clips:
+            final_narration = audio_clips[0]
+        else:
+            final_narration = None
+
+        anim_vclip = VideoFileClip(anim_result).set_duration(total_audio_duration)
+        if final_narration:
+            anim_vclip = anim_vclip.set_audio(final_narration)
+
+        full_sub_clip = create_dynamic_animated_text(
+            full_text=full_script_story,
+            size=target_size,
+            duration=total_audio_duration,
+            font_path=font_path,
+            font_size=font_size,
+            text_position="bottom",
+            text_color="random",
+            is_ultra_mode=True,
+            category_style="cartoon"
+        )
+
+        final_cartoon_composite = CompositeVideoClip([anim_vclip, full_sub_clip.set_position('center')])
+
+        if bg_music and str(bg_music).lower() != "none":
+            bg_music_file = bg_music if os.path.exists(bg_music) else (os.path.join(".", bg_music) if os.path.exists(os.path.join(".", bg_music)) else None)
+            if bg_music_file:
+                try:
+                    m_clip = AudioFileClip(bg_music_file).volumex(0.15)
+                    if m_clip.duration < total_audio_duration and audio_loop:
+                        m_clip = audio_loop(m_clip, duration=total_audio_duration)
+                    else:
+                        m_clip = m_clip.subclip(0, min(m_clip.duration, total_audio_duration))
+                    if final_cartoon_composite.audio and CompositeAudioClip:
+                        final_audio = CompositeAudioClip([final_cartoon_composite.audio, m_clip])
+                        final_cartoon_composite = final_cartoon_composite.set_audio(final_audio)
+                except Exception as e_m:
+                    print(f"⚠️ Music mix warning: {e_m}")
+
+        print(f"🎬 [FFMPEG EXPORT] Exporting Single-Pass Ultra Cartoon Video -> {output_name}...")
+        final_cartoon_composite.write_videofile(
+            output_name,
+            codec="libx264",
+            audio_codec="aac",
+            fps=15,
+            preset="ultrafast",
+            threads=4,
+            ffmpeg_params=["-crf", "26", "-pix_fmt", "yuv420p"],
+            logger=None
+        )
+
+        try:
+            final_cartoon_composite.close()
+            anim_vclip.close()
+            full_sub_clip.close()
+            if final_narration: final_narration.close()
+            for ac in audio_clips: ac.close()
+        except Exception:
+            pass
+        gc.collect()
+        print(f"🎉 SUCCESS! Ultra Cartoon Single-Pass Video Completed: {output_name}")
+        return output_name
 
     for i, scene in enumerate(scene_list):
         audio_path = scene['audio']
