@@ -48,7 +48,7 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
     
     7. MP4 STREAMING & ZERO-RAM RULE: To prevent Out-Of-Memory crashes on 512MB servers, DO NOT store frames in a list. Open the imageio writer FIRST and append frames directly inside the frame loop, calling gc.collect() every 10 frames:
        import gc
-       writer = imageio.get_writer('{output_mp4}', fps={fps})
+       writer = imageio.get_writer('{output_mp4}', fps={fps}, macro_block_size=1)
        for frame_idx in range({total_frames}):
            img = Image.new('RGB', ({w}, {h}), (25, 25, 45))
            draw = ImageDraw.Draw(img)
@@ -166,7 +166,7 @@ def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: f
     try:
         w, h = (640, 360)
         total_frames = max(15, int(duration * fps))
-        writer = imageio.get_writer(output_mp4, fps=fps)
+        writer = imageio.get_writer(output_mp4, fps=fps, macro_block_size=1)
 
         prompt_lower = user_prompt.lower()
         is_night = any(k in prompt_lower for k in ["night", "space", "moon", "star", "dark"])
