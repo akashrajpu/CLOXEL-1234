@@ -657,58 +657,45 @@ def create_ultra_photo_motion_clip(
             print(f"⚠️ Character cutout extraction skip: {e_cut}")
             has_cutout = False
 
+    bg_base_scaled = bg_pil.resize((int(bg_w_fit * 1.25), int(bg_h_fit * 1.25)), Image.LANCZOS)
+    bg_w_scaled, bg_h_scaled = bg_base_scaled.size
+
     def get_frame(t):
         progress = t / duration if duration > 0 else 0
         
         if motion_type == "zoom_in":
-            bg_scale = 1.0 + (0.22 * progress)
             pan_x_factor = 0.5
             pan_y_factor = 0.5
         elif motion_type == "zoom_out":
-            bg_scale = 1.25 - (0.20 * progress)
             pan_x_factor = 0.5
             pan_y_factor = 0.5
         elif motion_type == "pan_right":
-            bg_scale = 1.18
-            pan_x_factor = 0.25 + (0.50 * progress)
+            pan_x_factor = 0.20 + (0.60 * progress)
             pan_y_factor = 0.5
         elif motion_type == "pan_left":
-            bg_scale = 1.18
-            pan_x_factor = 0.75 - (0.50 * progress)
+            pan_x_factor = 0.80 - (0.60 * progress)
             pan_y_factor = 0.5
         elif motion_type == "diagonal_fast":
-            bg_scale = 1.0 + (0.25 * progress)
-            pan_x_factor = 0.30 + (0.40 * progress)
-            pan_y_factor = 0.30 + (0.40 * progress)
+            pan_x_factor = 0.20 + (0.60 * progress)
+            pan_y_factor = 0.20 + (0.60 * progress)
         else: # spiral_zoom
-            bg_scale = 1.05 + (0.18 * math.sin(progress * math.pi))
-            pan_x_factor = 0.5 + 0.15 * math.sin(progress * math.pi * 2)
-            pan_y_factor = 0.5 + 0.15 * math.cos(progress * math.pi * 2)
+            pan_x_factor = 0.5 + 0.20 * math.sin(progress * math.pi * 2)
+            pan_y_factor = 0.5 + 0.20 * math.cos(progress * math.pi * 2)
             
-        bg_w_scaled = int(bg_w_fit * bg_scale)
-        bg_h_scaled = int(bg_h_fit * bg_scale)
-        bg_scaled = bg_pil.resize((bg_w_scaled, bg_h_scaled), Image.BILINEAR)
-        
         crop_x = int((bg_w_scaled - w) * pan_x_factor)
         crop_y = int((bg_h_scaled - h) * pan_y_factor)
         crop_x = max(0, min(bg_w_scaled - w, crop_x))
         crop_y = max(0, min(bg_h_scaled - h, crop_y))
         
-        frame_canvas = bg_scaled.crop((crop_x, crop_y, crop_x + w, crop_y + h)).convert("RGBA")
-        
-        light_pulse = 1.0 + (0.09 * math.sin(progress * math.pi * 2))
-        frame_canvas = ImageEnhance.Brightness(frame_canvas.convert("RGB")).enhance(light_pulse).convert("RGBA")
+        frame_canvas = bg_base_scaled.crop((crop_x, crop_y, crop_x + w, crop_y + h)).convert("RGBA")
         
         if filter_style in ["warm_epic", "vintage_parchment", "history", "dramatic_cinematic"]:
             frame_canvas = create_history_spotlight_overlay(frame_canvas, progress)
         
         if has_cutout and fg_resized:
-            fg_scale = 1.0 + (0.03 * math.sin(progress * math.pi))
-            cur_fg_w = int(fg_resized.width * fg_scale)
-            cur_fg_h = int(fg_resized.height * fg_scale)
-            fg_cur = fg_resized.resize((cur_fg_w, cur_fg_h), Image.BILINEAR)
-            
-            entrance_factor = min(1.0, progress * 4.0) # Fast 0.25s completion
+            cur_fg_w = fg_resized.width
+            cur_fg_h = fg_resized.height
+            entrance_factor = min(1.0, progress * 4.0)
             slide_offset = int((1.0 - math.pow(entrance_factor, 2)) * w * 0.25)
             
             if cutout_pos == "right":
@@ -716,8 +703,8 @@ def create_ultra_photo_motion_clip(
             else: # left
                 fg_x = 0 - slide_offset
                 
-            fg_y = h - cur_fg_h # 100% Flush Bottom Alignment
-            frame_canvas.paste(fg_cur, (fg_x, fg_y), mask=fg_cur)
+            fg_y = h - cur_fg_h
+            frame_canvas.paste(fg_resized, (fg_x, fg_y), mask=fg_resized)
             
         return np.array(frame_canvas.convert("RGB"))
 
