@@ -39,11 +39,15 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
     
     6. Keep drawings simple (stick figures, colored shapes, basic background) but animate them smoothly. Add speech bubbles if they talk.
     
-    7. MP4 SAVING RULE: Store all generated PIL Images in a list called `frames`. At the end of the script, save them as an MP4 exactly like this:
+    7. MP4 STREAMING & ZERO-RAM RULE: To prevent Out-Of-Memory crashes, DO NOT store frames in a list. Open the imageio writer FIRST and append frames directly inside the frame loop:
        writer = imageio.get_writer('{output_mp4}', fps={fps})
-       for img in frames:
+       for frame_idx in range({total_frames}):
+           img = Image.new('RGB', ({w}, {h}), (25, 25, 45))
+           draw = ImageDraw.Draw(img)
+           # ... draw scene animations ...
            writer.append_data(np.array(img.convert('RGB')))
        writer.close()
+       print("Video rendering complete!")
 
     8. Put everything directly in the global scope (do not wrap in a main function).
     
@@ -151,7 +155,7 @@ def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: f
     try:
         w, h = target_size
         total_frames = max(15, int(duration * fps))
-        frames = []
+        writer = imageio.get_writer(output_mp4, fps=fps)
 
         prompt_lower = user_prompt.lower()
         is_night = any(k in prompt_lower for k in ["night", "space", "moon", "star", "dark"])
@@ -212,11 +216,8 @@ def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: f
             short_text = user_prompt[:20] + "..." if len(user_prompt) > 20 else user_prompt
             draw.text((bubble_x + 12, bubble_y + 12), short_text, fill=(0, 0, 0), font=fnt)
 
-            frames.append(img)
+            writer.append_data(np.array(img.convert('RGB')))
 
-        writer = imageio.get_writer(output_mp4, fps=fps)
-        for frame_img in frames:
-            writer.append_data(np.array(frame_img.convert('RGB')))
         writer.close()
         
         if os.path.exists(output_mp4) and os.path.getsize(output_mp4) > 1000:
