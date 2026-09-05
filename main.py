@@ -2268,21 +2268,34 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
             except Exception as e_inner:
                 continue
 
+    cat_lower = str(category).lower()
+    is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
+
     gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if gemini_key:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-            ultra_special_prompt = (
-                f"\nSPECIAL ULTRA MODE REQUIREMENT:\n"
-                f"This is an ULTRA premium documentary video. Write a rich, deeply informative, and complete narrative script.\n"
-                f"Do NOT output short title fragments or half-baked sentences.\n"
-                f"Each scene text MUST contain 2-3 complete, highly engaging, informative spoken sentences explaining the history, key achievements, and full story of '{topic}'.\n"
-            ) if (video_type == "ultra") else ""
+            if video_type == "ultra" and is_cartoon_cat:
+                ultra_special_prompt = (
+                    f"\nSPECIAL ULTRA CARTOON KAHANI (STORY) MODE REQUIREMENT:\n"
+                    f"This is an ULTRA Cartoon & Animation video. Write an entertaining, creative, dramatic, and fun ANIMATED STORY (KAHANI) script about '{topic}'.\n"
+                    f"The script MUST be structured like an engaging 2D cartoon story (Kahani) with relatable animated characters, fun dialogues/actions, plot twist/adventure, and a satisfying moral or funny story conclusion.\n"
+                    f"Do NOT write a factual documentary or boring facts. Make it a complete, entertaining 2D cartoon story script (Kahani) with rich character storytelling.\n"
+                )
+            elif video_type == "ultra":
+                ultra_special_prompt = (
+                    f"\nSPECIAL ULTRA MODE REQUIREMENT:\n"
+                    f"This is an ULTRA premium documentary video. Write a rich, deeply informative, and complete narrative script.\n"
+                    f"Do NOT output short title fragments or half-baked sentences.\n"
+                    f"Each scene text MUST contain 2-3 complete, highly engaging, informative spoken sentences explaining the history, key achievements, and full story of '{topic}'.\n"
+                )
+            else:
+                ultra_special_prompt = ""
 
             prompt = (
                 f"You are a master viral video scriptwriter. Write a COMPLETE, fully-resolved video script about '{topic}' "
                 f"in {language} language. Video type: {video_type.upper()} ({duration} seconds, approx {word_count} spoken words).\n"
-                f"CRITICAL REQUIREMENT: The script MUST be 100% complete with a clear Hook, Full Core Information, and a Satisfying Conclusion. "
+                f"CRITICAL REQUIREMENT: The script MUST be 100% complete with a clear Hook, Full Story/Information, and a Satisfying Conclusion. "
                 f"Do NOT leave the explanation half-done or cut off mid-sentence.{ultra_special_prompt}\n"
                 f"Format requirement: Return ONLY a valid JSON object with:\n"
                 f"1. 'full_script': The complete spoken voiceover text covering the full story from hook to conclusion.\n"
@@ -2325,7 +2338,21 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     keywords = [w.lower() for w in topic.split() if w.isalpha() and w.lower() not in stop_words]
     main_kw = keywords[0] if keywords else topic
 
-    if video_type == "ultra":
+    if video_type == "ultra" and is_cartoon_cat:
+        intro_templates = [
+            f"Ek samay ki baat hai, {topic} ki cartoon duniya mein ek bahut hi dilchasp aur mazedar kahani shuru hui.",
+            f"Chhote se cartoon gaon mein {topic} ke characters ke beech ek anokhi kahani ghati, aaiye is mazedar kahani ko jaante hain."
+        ]
+        body_templates = [
+            f"Kahani mein mukhya cartoon character ne apni samajhdaari aur chalaki se ek badi chunauti ka samna kiya aur dosto ko chaunkaya.",
+            f"Dekhte hi dekhte kahani mein ek mazedar twist aaya jahan sabhi cartoon dosto ne milkar ek anokha hal nikala.",
+            f"Is thrilling cartoon mod par sabhi characters ne ek doosre ki madad ki aur har mushkil ko aasan bana diya."
+        ]
+        outro_templates = [
+            f"Aakhirkar, ye pyaari kahani hume sikhaati hai ki mehnat aur dosti se har mushkil aasan ho jaati hai. Kahani pasand aayi toh video ko like aur follow karein!",
+            f"Aur is tarah {topic} ki ye mazedar cartoon kahani ek khushgawar ant ke sath poori hui. Channel ko subscribe karein!"
+        ]
+    elif video_type == "ultra":
         intro_templates = [
             f"Itihas aur gathaon mein {topic} ka naam swabhiman aur veerta ka prateek mana jata hai. Iski poori kahani aapko aashcharya mein daal degi.",
             f"Kya aap jante hain {topic} se judi wo aitihasik baatein jo aaj bhi har bhartiya ke dil mein garv bhar deti hain? Aaiye vistaar se jaante hain."
