@@ -814,19 +814,8 @@ def merge_and_export(
             sub_vclip = full_vclip.subclip(min(sc_start_t, max(0, full_vclip.duration - 0.1)), min(sc_end_t, full_vclip.duration))
             sub_vclip = sub_vclip.set_duration(actual_a_dur).set_audio(a_clip)
 
-            txt_clip = create_dynamic_animated_text(
-                full_text=scene.get('text', ''),
-                size=target_size,
-                duration=actual_a_dur,
-                font_path=font_path,
-                font_size=font_size,
-                text_position="bottom",
-                text_color="random",
-                is_ultra_mode=True,
-                category_style="cartoon"
-            )
-
-            scene_combined = CompositeVideoClip([sub_vclip, txt_clip.set_position('center')])
+            # Clean Ultra Cartoon animation without font/text overlay
+            scene_combined = sub_vclip
             scene_output = os.path.join(job_dir, f"temp_rendered_scene_{i}.mp4")
 
             print(f"🎬 [FFMPEG RENDER] Stitching Ultra Cartoon Scene {i+1}/{len(scene_list)} (1-to-1 Sync Duration: {actual_a_dur:.1f}s)...")
@@ -993,7 +982,10 @@ def merge_and_export(
             category_style=cat_style
         )
         
-        scene_combined = CompositeVideoClip([v_clip, txt_clip.set_position('center')])
+        if mode == "ultra" and is_cartoon_cat:
+            scene_combined = v_clip
+        else:
+            scene_combined = CompositeVideoClip([v_clip, txt_clip.set_position('center')])
         
         scene_output = os.path.join(job_dir, f"temp_rendered_scene_{i}.mp4")
         step_pct = int(((i + 1) / len(scene_list)) * 100)
