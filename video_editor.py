@@ -735,7 +735,156 @@ def merge_and_export(
     cat_lower = str(category).lower()
     is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
 
-    # Ultra Cartoon Mode renders per-scene matching exact audio narration duration for 1-to-1 perfect sync
+    if mode == "ultra" and is_cartoon_cat:
+        print(f"\n🎬 [Ultra Cartoon Single-API Engine] Triggering 1 SINGLE Gemini API Call for full video ({len(scene_list)} scenes)...")
+        scene_durations = []
+        start_frames = []
+        end_frames = []
+        audio_paths = []
+        current_frame = 0
+        total_audio_duration = 0.0
+        prompt_lines = []
+
+        for idx, sc in enumerate(scene_list):
+            a_path = sc.get('audio')
+            sc_dur = 5.0
+            if a_path and os.path.exists(a_path) and os.path.getsize(a_path) > 1000:
+                try:
+                    ac = AudioFileClip(a_path)
+                    sc_dur = ac.duration
+                    ac.close()
+                except Exception:
+                    pass
+            sc_dur = max(3.0, sc_dur)
+            sc_frames = int(sc_dur * 15)
+            start_frames.append(current_frame)
+            current_frame += sc_frames
+            end_frames.append(current_frame)
+            scene_durations.append(sc_dur)
+            total_audio_duration += sc_dur
+            audio_paths.append(a_path)
+
+            sc_text = sc.get('text', '')
+            prompt_lines.append(f"Scene {idx+1} (Frames {start_frames[-1]} to {end_frames[-1]}, Duration {sc_dur:.1f}s): Dialogue & Action: '{sc_text}'")
+
+        full_prompt_story = "\n".join(prompt_lines)
+        full_anim_mp4 = os.path.join(job_dir, "gemini_full_cartoon_video.mp4")
+        anim_result = None
+
+        if generate_gemini_cartoon_animation:
+            print(f"🤖 [Single Gemini API Call] Requesting 1 full 2D Cartoon Animation MP4 ({total_audio_duration:.1f}s total)...")
+            anim_result = generate_gemini_cartoon_animation(
+                user_prompt=full_prompt_story,
+                output_mp4=full_anim_mp4,
+                duration=total_audio_duration,
+                target_size=target_size,
+                fps=15
+            )
+
+        if not anim_result or not os.path.exists(anim_result):
+            print(f"🎨 [Local 2D Cartoon Engine] Generating 1 single-pass 2D Cartoon Canvas MP4 ({total_audio_duration:.1f}s)...")
+            from gemini_animator import create_pro_cartoon_canvas_mp4
+            anim_result = create_pro_cartoon_canvas_mp4(
+                user_prompt=full_prompt_story,
+                output_mp4=full_anim_mp4,
+                duration=total_audio_duration,
+                target_size=target_size,
+                fps=15
+            )
+
+        full_vclip = VideoFileClip(anim_result)
+
+        for i, scene in enumerate(scene_list):
+            sc_dur = scene_durations[i]
+            sc_start_t = sum(scene_durations[:i])
+            sc_end_t = sc_start_t + sc_dur
+
+            a_path = audio_paths[i]
+            if not a_path or not os.path.exists(a_path) or os.path.getsize(a_path) < 1000:
+                safe_audio_path = os.path.join(job_dir, f"safe_audio_{i}.mp3")
+                try:
+                    subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", str(sc_dur), "-q:a", "9", "-acodec", "libmp3lame", safe_audio_path], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    a_path = safe_audio_path
+                except Exception:
+                    pass
+
+            a_clip = AudioFileClip(a_path)
+            actual_a_dur = a_clip.duration
+
+            sub_vclip = full_vclip.subclip(min(sc_start_t, max(0, full_vclip.duration - 0.1)), min(sc_end_t, full_vclip.duration))
+            sub_vclip = sub_vclip.set_duration(actual_a_dur).set_audio(a_clip)
+
+            txt_clip = create_dynamic_animated_text(
+                full_text=scene.get('text', ''),
+                size=target_size,
+                duration=actual_a_dur,
+                font_path=font_path,
+                font_size=font_size,
+                text_position="bottom",
+                text_color="random",
+                is_ultra_mode=True,
+                category_style="cartoon"
+            )
+
+            scene_combined = CompositeVideoClip([sub_vclip, txt_clip.set_position('center')])
+            scene_output = os.path.join(job_dir, f"temp_rendered_scene_{i}.mp4")
+
+            print(f"🎬 [FFMPEG RENDER] Stitching Ultra Cartoon Scene {i+1}/{len(scene_list)} (1-to-1 Sync Duration: {actual_a_dur:.1f}s)...")
+            scene_combined.write_videofile(
+                scene_output,
+                codec="libx264",
+                audio_codec="aac",
+                fps=15,
+                preset="ultrafast",
+                threads=4,
+                ffmpeg_params=["-crf", "26", "-pix_fmt", "yuv420p"],
+                logger=None
+            )
+
+            scene_combined.close()
+            sub_vclip.close()
+            a_clip.close()
+            txt_clip.close()
+            gc.collect()
+
+            temp_scene_files.append(scene_output)
+
+        full_vclip.close()
+
+        list_path = os.path.join(job_dir, "concat_list.txt")
+        with open(list_path, "w") as f:
+            for tf in temp_scene_files:
+                f.write(f"file '{os.path.abspath(tf)}'\n")
+
+        temp_merged = os.path.join(job_dir, "temp_merged_final.mp4")
+        subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", temp_merged], check=True)
+
+        if bg_music and str(bg_music).lower() != "none":
+            bg_music_file = bg_music if os.path.exists(bg_music) else (os.path.join(".", bg_music) if os.path.exists(os.path.join(".", bg_music)) else None)
+            if bg_music_file and os.path.exists(bg_music_file):
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-i", temp_merged,
+                    "-i", bg_music_file,
+                    "-filter_complex", "[1:a]volume=0.12[a1];[0:a][a1]amix=inputs=2:duration=first[a]",
+                    "-map", "0:v",
+                    "-map", "[a]",
+                    "-c:v", "copy",
+                    "-c:a", "aac",
+                    output_name
+                ]
+                subprocess.run(cmd, check=True)
+                if os.path.exists(temp_merged): os.remove(temp_merged)
+            else:
+                if os.path.exists(temp_merged): os.rename(temp_merged, output_name)
+        else:
+            if os.path.exists(temp_merged): os.rename(temp_merged, output_name)
+
+        if os.path.exists(list_path): os.remove(list_path)
+        for f in temp_scene_files:
+            if os.path.exists(f): os.remove(f)
+
+        return output_name
 
     for i, scene in enumerate(scene_list):
         audio_path = scene['audio']
