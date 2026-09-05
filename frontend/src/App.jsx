@@ -890,6 +890,8 @@ function App() {
     return <Auth onLoginSuccess={handleLoginSuccess} />;
   }
 
+  const isAutoScheduleActive = !!(autoSchedule?.schedule_enabled && ytStatus?.linked);
+
   return (
     <div className="app-container">
       <header className="app-header">
@@ -900,7 +902,7 @@ function App() {
           <h1>Cloxel <span>AI Video Generator</span></h1>
         </div>
         <div className="header-right" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {autoSchedule.schedule_enabled && (
+          {isAutoScheduleActive && (
             <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80', padding: '5px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 0 12px rgba(34, 197, 94, 0.3)' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }}></span>
               <span>Auto-Upload: 🟢 ACTIVE</span>
@@ -1425,8 +1427,8 @@ function App() {
                   <div style={{ fontSize: '0.78rem', color: subStatus?.has_active_subscription ? '#34d399' : '#c084fc', fontWeight: 'bold' }}>
                     💎 {subStatus?.has_active_subscription ? `${(subStatus.plan_type || 'combo').toUpperCase()} PLAN (ACTIVE)` : (subStatus?.has_active_ultra_subscription ? 'ULTRA CINEMATIC (ACTIVE)' : `Free Demo (${subStatus?.free_demo_count ?? 2}/2)`)}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: autoSchedule.schedule_enabled ? '#34d399' : '#94a3b8', fontWeight: 'bold', marginTop: '2px' }}>
-                    {autoSchedule.schedule_enabled ? '🟢 Auto-Publishing: ACTIVE' : '🔴 Auto-Publishing: PAUSED'}
+                  <div style={{ fontSize: '0.72rem', color: isAutoScheduleActive ? '#34d399' : '#94a3b8', fontWeight: 'bold', marginTop: '2px' }}>
+                    {isAutoScheduleActive ? '🟢 Auto-Publishing: ACTIVE' : '🔴 Auto-Publishing: PAUSED'}
                   </div>
                 </div>
               </div>
@@ -1461,6 +1463,8 @@ function App() {
                 onStatusChange={(statusData) => {
                   setYtStatus(statusData);
                   if (statusData && (statusData.linked === false || statusData.unlinked_reset)) {
+                    setAutoSchedule({ schedule_enabled: false });
+                    setEnableCheckbox(false);
                     fetchAutoSchedule();
                   }
                 }}
@@ -1473,16 +1477,16 @@ function App() {
               <button 
                 className="btn-upgrade-sidebar" 
                 style={{ 
-                  background: autoSchedule.schedule_enabled ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', 
-                  boxShadow: autoSchedule.schedule_enabled ? '0 4px 15px rgba(16, 185, 129, 0.4)' : '0 4px 15px rgba(6, 182, 212, 0.3)', 
+                  background: isAutoScheduleActive ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', 
+                  boxShadow: isAutoScheduleActive ? '0 4px 15px rgba(16, 185, 129, 0.4)' : '0 4px 15px rgba(6, 182, 212, 0.3)', 
                   padding: '8px 10px', 
                   fontSize: '0.8rem', 
                   whiteSpace: 'nowrap',
-                  border: autoSchedule.schedule_enabled ? '1px solid #34d399' : 'none'
+                  border: isAutoScheduleActive ? '1px solid #34d399' : 'none'
                 }}
                 onClick={() => { setIsSidebarOpen(false); setShowAutoUploadModal(true); }}
               >
-                {autoSchedule.schedule_enabled ? '⚡ Auto-Schedule (🟢 ACTIVE)' : '⚙️ Auto-Schedule'}
+                {isAutoScheduleActive ? '⚡ Auto-Schedule (🟢 ACTIVE)' : '⚙️ Auto-Schedule'}
               </button>
 
               <button 
@@ -1849,10 +1853,10 @@ function App() {
               </div>
 
               {/* Auto-Publishing Status Banner */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: autoSchedule.schedule_enabled ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)', border: autoSchedule.schedule_enabled ? '1px solid rgba(52, 211, 153, 0.35)' : '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '12px', padding: '10px 16px', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: isAutoScheduleActive ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)', border: isAutoScheduleActive ? '1px solid rgba(52, 211, 153, 0.35)' : '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '12px', padding: '10px 16px', marginBottom: '18px' }}>
                 <span style={{ fontSize: '0.88rem', fontWeight: 'bold', color: '#ffffff' }}>Account Auto-Upload Status:</span>
-                <span style={{ padding: '4px 14px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '800', background: autoSchedule.schedule_enabled ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'rgba(239, 68, 68, 0.25)', color: '#ffffff', boxShadow: autoSchedule.schedule_enabled ? '0 0 12px rgba(52, 211, 153, 0.4)' : 'none' }}>
-                  {autoSchedule.schedule_enabled ? '🟢 ENGINE ACTIVE & SAVED IN DB' : '🔴 ENGINE PAUSED'}
+                <span style={{ padding: '4px 14px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '800', background: isAutoScheduleActive ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'rgba(239, 68, 68, 0.25)', color: '#ffffff', boxShadow: isAutoScheduleActive ? '0 0 12px rgba(52, 211, 153, 0.4)' : 'none' }}>
+                  {isAutoScheduleActive ? '🟢 ENGINE ACTIVE & SAVED IN DB' : '🔴 ENGINE PAUSED'}
                 </span>
               </div>
 
@@ -2146,7 +2150,7 @@ function App() {
                                 <div>
                                   <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family:</label>
                                   <select value={autoSchedule.ultra_font || 'Arial.ttf'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                                    {FONTS.map((font, i) => (
+                                    {(fontList && fontList.length > 0 ? fontList : ['Arial.ttf']).map((font, i) => (
                                       <option key={i} value={font}>{font.replace(/\.[^/.]+$/, "")}</option>
                                     ))}
                                   </select>
@@ -2176,7 +2180,7 @@ function App() {
               )}
 
               {subStatus.has_active_subscription ? (
-                autoSchedule.schedule_enabled ? (
+                isAutoScheduleActive ? (
                   <button 
                     className="btn-hero-cta" 
                     style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)' }}

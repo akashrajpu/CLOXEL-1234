@@ -1462,6 +1462,20 @@ async def get_auto_schedule(internal_id: str):
         }
 
     schedule = user.get("auto_schedule", {})
+    yt_creds = user.get("youtube_credentials")
+    has_yt_linked = bool(yt_creds and isinstance(yt_creds, dict) and yt_creds.get("token") and yt_creds.get("status") != "expired")
+
+    if not has_yt_linked:
+        if schedule and schedule.get("schedule_enabled"):
+            users_collection.update_one(
+                {"internal_id": internal_id},
+                {"$unset": {"auto_schedule": "", "staged_auto_videos": ""}}
+            )
+            schedule = {}
+        is_schedule_enabled = False
+    else:
+        is_schedule_enabled = bool(schedule.get("schedule_enabled", False))
+
     sub = user.get("subscription", {})
     plan_type = sub.get("plan_type", "none")
     purchase_count = sub.get("purchase_count", 1) if sub.get("status") == "active" else 0
@@ -1498,7 +1512,7 @@ async def get_auto_schedule(internal_id: str):
     remaining = max(0, total_allowance - used_videos)
     
     next_run = "Not Enabled"
-    if schedule.get("schedule_enabled", False):
+    if is_schedule_enabled:
         if plan_type == "combo":
             next_run = f"Short: Daily at {schedule.get('short_time', '10:00')} | Long: Daily at {schedule.get('long_time', '18:00')}"
         elif plan_type == "short":
@@ -1518,7 +1532,7 @@ async def get_auto_schedule(internal_id: str):
             hours_active = round((datetime.utcnow() - started_at).total_seconds() / 3600, 1)
 
     return {
-        "schedule_enabled": schedule.get("schedule_enabled", False),
+        "schedule_enabled": is_schedule_enabled,
         "schedule_started_at": started_at.isoformat() if isinstance(started_at, datetime) else None,
         "hours_active": hours_active,
         "plan_type": plan_type,
