@@ -504,6 +504,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                     voice = schedule.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
                     font = schedule.get(f"{kind}_font") or "Arial.ttf"
                     color = schedule.get(f"{kind}_color") or "yellow"
+                    aspect_ratio = schedule.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long", "ultra"] else "9:16")
                     duration = int(schedule.get(f"{kind}_duration") or default_dur)
 
                     with render_queue_lock:
@@ -515,7 +516,8 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             font_name=font,
                             font_color=color,
                             video_type=kind,
-                            requested_duration=duration
+                            requested_duration=duration,
+                            aspect_ratio=aspect_ratio
                         )
 
                     if res.get("status") == "completed":
@@ -746,9 +748,10 @@ class VideoRequest(BaseModel):
     font_size: int = 220
     voice_id: str = "hi-IN-MadhurNeural"
     language: str = "hi"
-    video_type: str = "short"  # 'short' or 'long'
-    full_script: str = ""      # used if video_type is 'long'
+    video_type: str = "short"  # 'short', 'long', or 'ultra'
+    full_script: str = ""      # used if video_type is 'long' or 'ultra'
     bg_music: str = "cool.mp3" # background music track choice
+    aspect_ratio: Optional[str] = "16:9"
 
 class ScriptRequest(BaseModel):
     topic: str
@@ -954,7 +957,7 @@ def full_process(req: VideoRequest, job_id: str):
         except Exception as err:
             print(f"Temp cleanup warning: {err}")
 
-def render_video_with_smart_fallback(user_id: str, topic: str, category: str, voice_id: str, font_name: str, font_color: str, video_type: str, requested_duration: int, bg_music: str = "cool.mp3"):
+def render_video_with_smart_fallback(user_id: str, topic: str, category: str, voice_id: str, font_name: str, font_color: str, video_type: str, requested_duration: int, bg_music: str = "cool.mp3", aspect_ratio: str = None):
     """
     Smart Fallback Retry Engine with Duration Stepping:
     If rendering fails for requested duration (e.g. 300s/5m), automatically steps down
@@ -1000,7 +1003,8 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
                 video_type=video_type,
                 full_script=full_script,
                 scenes=scenes_obj,
-                bg_music=bg_music
+                bg_music=bg_music,
+                aspect_ratio=aspect_ratio or ("16:9" if video_type in ["long", "ultra"] else "9:16")
             )
 
             job_id = str(uuid.uuid4())
@@ -1061,6 +1065,7 @@ class AutoScheduleRequest(BaseModel):
     ultra_auto_topic: bool = True
     ultra_topic: str = "History of Ancient Warriors, Science Mysteries"
     ultra_category: str = "Random"
+    ultra_aspect_ratio: str = "16:9"
     ultra_voice: str = "hi-IN-MadhurNeural"
     ultra_font: str = "Arial.ttf"
     ultra_color: str = "yellow"
@@ -1382,6 +1387,7 @@ async def save_auto_schedule(req: AutoScheduleRequest):
         "ultra_auto_topic": req.ultra_auto_topic,
         "ultra_topic": req.ultra_topic if not req.ultra_auto_topic else "AI Auto Topic (Daily Dynamic)",
         "ultra_category": req.ultra_category,
+        "ultra_aspect_ratio": req.ultra_aspect_ratio,
         "ultra_voice": req.ultra_voice,
         "ultra_font": req.ultra_font,
         "ultra_color": req.ultra_color,

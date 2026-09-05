@@ -474,6 +474,7 @@ function App() {
           ultra_auto_topic: autoSchedule.ultra_auto_topic !== false,
           ultra_topic: autoSchedule.ultra_topic || 'History of Ancient Warriors',
           ultra_category: autoSchedule.ultra_category || 'Random',
+          ultra_aspect_ratio: autoSchedule.ultra_aspect_ratio || '16:9',
           ultra_voice: autoSchedule.ultra_voice || 'hi-IN-MadhurNeural',
           ultra_font: autoSchedule.ultra_font || 'Arial.ttf',
           ultra_color: autoSchedule.ultra_color || 'yellow',
@@ -2109,6 +2110,14 @@ function App() {
                         </div>
 
                         <div>
+                          <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Video Size / Aspect Ratio:</label>
+                          <select value={autoSchedule.ultra_aspect_ratio || '16:9'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_aspect_ratio: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                            <option value="16:9">📺 16:9 Landscape HD (1920×1080)</option>
+                            <option value="9:16">📱 9:16 Vertical Shorts (1080×1920)</option>
+                          </select>
+                        </div>
+
+                        <div>
                           <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Voice:</label>
                           <select value={autoSchedule.ultra_voice || 'hi-IN-MadhurNeural'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_voice: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
                             <option value="hi-IN-MadhurNeural">Madhur (Male, Hindi)</option>
@@ -2127,6 +2136,39 @@ function App() {
                             style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
                           />
                         </div>
+
+                        {(() => {
+                          const catLow = (autoSchedule.ultra_category || '').toLowerCase();
+                          const isCartoon = ['cartoon', 'anime', 'animation', 'character', 'comic'].some(k => catLow.includes(k));
+                          if (!isCartoon) {
+                            return (
+                              <>
+                                <div>
+                                  <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family:</label>
+                                  <select value={autoSchedule.ultra_font || 'Arial.ttf'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                                    {FONTS.map((font, i) => (
+                                      <option key={i} value={font}>{font.replace(/\.[^/.]+$/, "")}</option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Subtitle Highlight Color:</label>
+                                  <select value={autoSchedule.ultra_color || 'yellow'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_color: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                                    <option value="yellow">🟡 Vivid Yellow</option>
+                                    <option value="#00FF00">🟢 Neon Green</option>
+                                    <option value="cyan">🔵 Cyan / Sky Blue</option>
+                                    <option value="#FFD700">🏆 Royal Gold</option>
+                                    <option value="#FFFFFF">⚪ Pure White</option>
+                                    <option value="#FF00FF">Magenta / Hot Pink</option>
+                                    <option value="#FF3333">🔥 Flame Red</option>
+                                  </select>
+                                </div>
+                              </>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     </>
                   )}
