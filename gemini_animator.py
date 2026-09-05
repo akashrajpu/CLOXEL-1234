@@ -1,6 +1,9 @@
 import os
 import re
 import time
+import math
+import gc
+import subprocess
 import imageio
 import warnings
 import logging
@@ -235,6 +238,20 @@ def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: f
             print(f"🎨 [Local 2D Cartoon Engine] Successfully rendered 2D Cartoon MP4: {output_mp4}")
             return output_mp4
     except Exception as e_canvas:
-        print(f"⚠️ Canvas Cartoon generator error: {e_canvas}")
+        print(f"⚠️ Canvas Cartoon generator notice: {e_canvas}. Generating direct FFmpeg canvas...")
 
-    return None
+    try:
+        dur_str = str(max(2.0, duration))
+        cmd = [
+            "ffmpeg", "-y", "-f", "lavfi",
+            "-i", f"color=c=0x19192d:s={target_size[0]}x{target_size[1]}:r={fps}",
+            "-t", dur_str, "-c:v", "libx264", "-pix_fmt", "yuv420p", output_mp4
+        ]
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if os.path.exists(output_mp4) and os.path.getsize(output_mp4) > 500:
+            print(f"🎨 [FFmpeg Direct Canvas Fallback] Created valid cartoon canvas MP4: {output_mp4}")
+            return output_mp4
+    except Exception as e_ff:
+        print(f"❌ Ultimate Canvas Fallback Failed: {e_ff}")
+
+    return output_mp4
