@@ -1077,8 +1077,8 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
     55s -> 45s -> 30s -> 20s -> 10s for short reels, retrying until 100% success!
     """
     import uuid
-    if video_type == "long":
-        duration_steps = [requested_duration, 300, 240, 180, 120, 60]
+    if video_type in ["long", "ultra"]:
+        duration_steps = [requested_duration, 3600, 1800, 1200, 900, 600, 300, 240, 180, 120, 60, 30]
         duration_steps = sorted(list(set([d for d in duration_steps if d <= requested_duration])), reverse=True)
     else:
         duration_steps = [requested_duration, 55, 45, 30, 20, 10]
