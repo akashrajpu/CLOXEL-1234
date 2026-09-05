@@ -832,7 +832,11 @@ def merge_and_export(
             scene_combined.close()
             sub_vclip.close()
             a_clip.close()
-            txt_clip.close()
+            try:
+                if 'txt_clip' in locals() and txt_clip:
+                    txt_clip.close()
+            except Exception:
+                pass
             gc.collect()
 
             temp_scene_files.append(scene_output)
@@ -1009,11 +1013,16 @@ def merge_and_export(
             logger=None
         )
         
-        scene_combined.close()
-        v_clip.close()
-        a_clip.close()
-        txt_clip.close()
-        del scene_combined, v_clip, a_clip, txt_clip
+        try: scene_combined.close()
+        except Exception: pass
+        try: v_clip.close()
+        except Exception: pass
+        try: a_clip.close()
+        except Exception: pass
+        try:
+            if 'txt_clip' in locals() and txt_clip:
+                txt_clip.close()
+        except Exception: pass
         gc.collect()
         
         temp_scene_files.append(scene_output)
