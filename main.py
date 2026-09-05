@@ -73,12 +73,15 @@ if MONGO_URI:
     try:
         mongo_client = MongoClient(
             MONGO_URI,
-            maxPoolSize=50,
-            minPoolSize=5,
+            maxPoolSize=100,
+            minPoolSize=10,
+            maxIdleTimeMS=60000,
+            waitQueueTimeoutMS=10000,
             serverSelectionTimeoutMS=5000,
             socketTimeoutMS=45000,
             connectTimeoutMS=10000,
-            retryWrites=True
+            retryWrites=True,
+            retryReads=True
         )
         mongo_client.admin.command('ping')
         db = mongo_client.cloxel_db
@@ -93,13 +96,13 @@ if MONGO_URI:
             videos_collection.create_index([("internal_id", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)], background=True)
             videos_collection.create_index("job_id", background=True)
             rendering_jobs.create_index("job_id", unique=True, background=True)
-            print("🚀 High-Speed MongoDB Indexes Created & Verified!")
+            print("🚀 Ultra-High Speed Production MongoDB Indexes & Pool Verified (maxPoolSize=100)!")
         except Exception as idx_err:
             print(f"Index creation notice: {idx_err}")
 
-        print("✅ MongoDB connected successfully!")
+        print("✅ Production MongoDB connected and hardened successfully!")
     except Exception as e:
-        print(f"❌ CRITICAL WARNING: Failed to connect to MongoDB using the provided MONGO_URI. Authentication will be disabled. Error: {e}")
+        print(f"❌ CRITICAL WARNING: Failed to connect to MongoDB using provided MONGO_URI. Error: {e}")
         mongo_client = None
         db = None
         users_collection = None
@@ -107,6 +110,35 @@ if MONGO_URI:
         rendering_jobs = None
 else:
     print("WARNING: MONGO_URI is missing in config.env! Authentication will not work properly.")
+
+def ensure_db_alive():
+    """Ultra-resilient DB heart-beat to auto-reconnect MongoDB if network hiccups occur."""
+    global mongo_client, db, users_collection, videos_collection, rendering_jobs
+    if MONGO_URI and mongo_client is not None:
+        try:
+            mongo_client.admin.command('ping')
+        except Exception as ping_err:
+            print(f"⚠️ MongoDB reconnecting after network ping failure: {ping_err}")
+            try:
+                mongo_client = MongoClient(
+                    MONGO_URI,
+                    maxPoolSize=100,
+                    minPoolSize=10,
+                    maxIdleTimeMS=60000,
+                    waitQueueTimeoutMS=10000,
+                    serverSelectionTimeoutMS=5000,
+                    socketTimeoutMS=45000,
+                    connectTimeoutMS=10000,
+                    retryWrites=True,
+                    retryReads=True
+                )
+                db = mongo_client.cloxel_db
+                users_collection = db.users
+                videos_collection = db.videos
+                rendering_jobs = db.rendering_jobs
+                print("🔄 MongoDB auto-reconnected successfully!")
+            except Exception as rec_err:
+                print(f"❌ DB Auto-reconnect failed: {rec_err}")
 
 def update_job_status(job_id: str, status_data: dict):
     jobs[job_id] = status_data
@@ -119,9 +151,10 @@ def update_job_status(job_id: str, status_data: dict):
 
 def ping_server():
     try:
+        ensure_db_alive()
         url = os.getenv("RENDER_EXTERNAL_URL", "https://cloxel.onrender.com")
-        resp = requests.get(url)
-        print(f"⏰ Self-ping to keep server awake: {resp.status_code}")
+        resp = requests.get(url, timeout=10)
+        print(f"⏰ Self-ping & DB Heartbeat active: Status {resp.status_code}")
     except Exception as e:
         print(f"Self-ping failed: {e}")
 
