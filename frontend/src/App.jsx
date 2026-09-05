@@ -834,7 +834,7 @@ function App() {
         const rzp = new window.Razorpay(options);
         rzp.open();
       } else {
-        triggerAlert("Razorpay Notice", "Live Razorpay API Keys are not configured in Render. Please add RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET to Render.", "⚠️", "info");
+        triggerAlert("Razorpay Notice", "Live Razorpay API Keys are not configured in Cloxel Server Environment. Please configure RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET.", "⚠️", "info");
       }
     } catch (err) {
       setIsPaymentProcessing(false);
@@ -1074,7 +1074,7 @@ function App() {
               }}
             >
               {isGeneratingScript 
-                ? 'Generating Script via Gemini AI...' 
+                ? 'Generating Script via Cloxel AI Engine...' 
                 : (isLimitExhausted ? '🔒 Free 2 Limit Exhausted (Click to Upgrade)' : '✨ Auto-Generate Script via AI')}
             </button>
           </div>

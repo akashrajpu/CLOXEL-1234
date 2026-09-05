@@ -942,7 +942,7 @@ def full_process(req: VideoRequest, job_id: str):
             is_cartoon_req = any(k in cat_lower_req for k in ["cartoon", "anime", "animation", "character", "comic"])
 
             if is_ultra and is_cartoon_req:
-                print(f"🎨 [Ultra Cartoon Scene {i+1}] Pure AI Cartoon Mode. Skipping web photo downloads; Gemini AI Director will generate 2D Cartoon scene from script!")
+                print(f"🎨 [Ultra Cartoon Scene {i+1}] Pure AI Cartoon Mode. Skipping web photo downloads; Cloxel AI Director will generate 2D Cartoon scene from script!")
                 v_paths = []
             elif is_ultra and fetch_web_image:
                 try:
@@ -2478,7 +2478,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                     "description": desc_gen
                 }
         except Exception as err:
-            print(f"⚠️ Gemini API Warning (Falling back to dynamic engine): {err}")
+            print(f"⚠️ Cloxel AI Engine Notice (Falling back to dynamic engine): {err}")
 
     stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi"}
     keywords = [w.lower() for w in topic.split() if w.isalpha() and w.lower() not in stop_words]
