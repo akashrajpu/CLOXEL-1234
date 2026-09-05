@@ -396,25 +396,104 @@ def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, desc
                 )
         return None
 
+def resolve_random_topic(topic: str = "", category: str = "Random") -> str:
+    """Dynamically resolves random topics from a large diverse pool if user selected Random Topic or empty topic."""
+    import random
+    topic_clean = (topic or "").strip()
+    topic_low = topic_clean.lower()
+
+    is_random_requested = (
+        not topic_clean or
+        topic_low in ["random", "random topic", "default", "ai script", "generate script", "none"] or
+        "space exploration" in topic_low or
+        "history of ancient warriors" in topic_low or
+        "ai innovations" in topic_low or
+        "ai technology" in topic_low
+    )
+
+    if is_random_requested:
+        category_pools = {
+            "cartoon": [
+                "Chintu aur Uska Magic Cycle",
+                "Ramesh Ka Superhit Jugaad",
+                "Pappu aur Ali Baba Ke Chote Bhai",
+                "Bunty Ka High-Speed Scooter Drama",
+                "Golu Ka Canteen Magic Samosa",
+                "Dhoolu aur Uski Bolne Wali Billi",
+                "Chatur Pandit Ka Magic Ladoo Test",
+                "Motu aur Chhotu Ka Jungle Adventure"
+            ],
+            "horror": [
+                "The Haunted House of Ghost Highway",
+                "The Unsolved Midnight Cry Mystery",
+                "Secret Horror Tale of Abandoned Fort",
+                "Dark Mirror Curse and Phantom Shadow"
+            ],
+            "tech": [
+                "How Future AI Robots Will Change 2030",
+                "Secret Flying Car Technology Miracles",
+                "Quantum Computer Secrets and AI Superpowers",
+                "Brain-Computer Chip Transplants in Humans"
+            ],
+            "history": [
+                "Unsolved Secrets of Great Pyramids",
+                "Lost Wealth of Ancient Emperor Empires",
+                "Mystery of The Lost City of Atlantis",
+                "War Tactics of Ancient Legendary Warriors"
+            ],
+            "science": [
+                "What If Earth Stopped Spinning for 5 Seconds?",
+                "Mysteries of Deep Sea Alien-like Monsters",
+                "Subconscious Mind Superpowers You Didn't Know",
+                "Secrets of Black Holes and Time Warp"
+            ],
+            "general": [
+                "Top 5 Mind-Blowing Facts About Human Brain",
+                "Bermuda Triangle Mystery Finally Explained",
+                "Unbelievable Life Hacks That Actually Work",
+                "The Great Million Dollar Bank Heist",
+                "Unsolved Cipher Case of 1920",
+                "Deep Sea Bioluminescent Creatures",
+                "Deadliest Animals of Amazon Jungle"
+            ]
+        }
+
+        cat_low = str(category).lower()
+        matched_pool = None
+        for key in category_pools:
+            if key in cat_low:
+                matched_pool = category_pools[key]
+                break
+
+        if not matched_pool:
+            all_topics = []
+            for p in category_pools.values():
+                all_topics.extend(p)
+            matched_pool = all_topics
+
+        return random.choice(matched_pool)
+
+    return topic_clean
+
 def get_daily_unique_subtopic(base_topic: str, today_str: str, user_id: str) -> str:
     """Generates a non-repetitive daily subtopic angle for automated auto reels."""
+    import random, hashlib
+    topic = resolve_random_topic(base_topic)
+    if len(topic.split()) > 3:
+        return topic
     sub_angles = [
-        "Binary Numbers and Machine Code Secrets",
-        "Neural Networks and Brain Mimicry",
-        "Autonomous Robotics and Sensor Tech",
-        "Computer Vision and Image Recognition",
-        "Quantum Computing and Future Machine Learning",
-        "Natural Language Processing and Speech AI",
-        "Data Compression and Encryption Algorithms",
-        "Reinforcement Learning and Smart AI Systems"
+        "Unbelievable Secrets",
+        "Mystery and History",
+        "The Complete Story",
+        "Behind The Scenes",
+        "Top Facts and Mysteries",
+        "Unexpected Turn of Events",
+        "Shocking Truth Revealed",
+        "Amazing Adventure"
     ]
-    if not base_topic:
-        base_topic = "AI Technology"
-    if len(base_topic.split()) > 3:
-        return base_topic
-    seed = int(hashlib.md5(f"{today_str}_{user_id}_{base_topic}".encode()).hexdigest(), 16)
+    seed = int(hashlib.md5(f"{today_str}_{user_id}_{topic}_{random.randint(100, 999)}".encode()).hexdigest(), 16)
     selected_angle = sub_angles[seed % len(sub_angles)]
-    return f"{base_topic}: {selected_angle}"
+    return f"{topic}: {selected_angle}"
 
 from concurrent.futures import ThreadPoolExecutor
 import threading
@@ -2227,6 +2306,8 @@ class AIScriptRequest(BaseModel):
     tone: Optional[str] = "viral"        # 'viral', 'informative', 'mysterious', 'funny'
 
 def generate_ai_script_core(topic: str, duration: int, video_type: str = "short", language: str = "hinglish", tone: str = "viral", category: str = "Random"):
+    import random
+    topic = resolve_random_topic(topic, category)
     raw_env_url = os.getenv("AI_SERVER_URL", "").rstrip("/")
     candidate_urls = [
         "https://ai-script-generator-service-production.up.railway.app",
@@ -2291,17 +2372,29 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     cat_lower = str(category).lower()
     is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
 
+    stop_words_check = {"history", "how", "what", "why", "secret", "future", "facts", "science", "vs", "the", "system", "warriors", "ai", "space"}
+    words_in_topic = [w.lower() for w in topic.split() if w.isalpha()]
+    is_single_character_name = len(words_in_topic) <= 2 and not any(w in stop_words_check for w in words_in_topic)
+
     gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if gemini_key:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
             if video_type == "ultra" and is_cartoon_cat:
-                ultra_special_prompt = (
-                    f"\nSPECIAL ULTRA CARTOON KAHANI (STORY) MODE REQUIREMENT:\n"
-                    f"This is an ULTRA Cartoon & Animation video. Write an entertaining, creative, dramatic, and fun ANIMATED STORY (KAHANI) script about '{topic}'.\n"
-                    f"The script MUST be structured like an engaging 2D cartoon story (Kahani) with relatable animated characters, fun dialogues/actions, plot twist/adventure, and a satisfying moral or funny story conclusion.\n"
-                    f"Do NOT write a factual documentary or boring facts. Make it a complete, entertaining 2D cartoon story script (Kahani) with rich character storytelling.\n"
-                )
+                if is_single_character_name:
+                    ultra_special_prompt = (
+                        f"\nSPECIAL ULTRA CARTOON CHARACTER STORY (KAHANI/CHUTKULA) MODE:\n"
+                        f"The topic is a character name '{topic}'. Write a super funny, hilarious, comedic 2D cartoon story script (Kahani / Kissa / Comedy Chutkula) about {topic}.\n"
+                        f"Show {topic}'s hilarious daily struggles, a crazy funny Jugaad/experiment gone wrong, funny cartoon dialogues, and a laugh-out-loud funny ending!\n"
+                        f"Make it sound like a funny animated story that will make kids and adults laugh out loud.\n"
+                    )
+                else:
+                    ultra_special_prompt = (
+                        f"\nSPECIAL ULTRA CARTOON KAHANI (STORY) MODE REQUIREMENT:\n"
+                        f"This is an ULTRA Cartoon & Animation video. Write an entertaining, creative, dramatic, and fun ANIMATED STORY (KAHANI) script about '{topic}'.\n"
+                        f"The script MUST be structured like an engaging 2D cartoon story (Kahani) with relatable animated characters, fun dialogues/actions, plot twist/adventure, and a satisfying moral or funny story conclusion.\n"
+                        f"Do NOT write a factual documentary or boring facts. Make it a complete, entertaining 2D cartoon story script (Kahani) with rich character storytelling.\n"
+                    )
             elif video_type == "ultra":
                 ultra_special_prompt = (
                     f"\nSPECIAL ULTRA MODE REQUIREMENT:\n"
@@ -2359,19 +2452,34 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     main_kw = keywords[0] if keywords else topic
 
     if video_type == "ultra" and is_cartoon_cat:
-        intro_templates = [
-            f"Ek samay ki baat hai, {topic} ki cartoon duniya mein ek bahut hi dilchasp aur mazedar kahani shuru hui.",
-            f"Chhote se cartoon gaon mein {topic} ke characters ke beech ek anokhi kahani ghati, aaiye is mazedar kahani ko jaante hain."
-        ]
-        body_templates = [
-            f"Kahani mein mukhya cartoon character ne apni samajhdaari aur chalaki se ek badi chunauti ka samna kiya aur dosto ko chaunkaya.",
-            f"Dekhte hi dekhte kahani mein ek mazedar twist aaya jahan sabhi cartoon dosto ne milkar ek anokha hal nikala.",
-            f"Is thrilling cartoon mod par sabhi characters ne ek doosre ki madad ki aur har mushkil ko aasan bana diya."
-        ]
-        outro_templates = [
-            f"Aakhirkar, ye pyaari kahani hume sikhaati hai ki mehnat aur dosti se har mushkil aasan ho jaati hai. Kahani pasand aayi toh video ko like aur follow karein!",
-            f"Aur is tarah {topic} ki ye mazedar cartoon kahani ek khushgawar ant ke sath poori hui. Channel ko subscribe karein!"
-        ]
+        if is_single_character_name:
+            intro_templates = [
+                f"Dosto! Aapko milate hain humare cartoon hero {topic} se, jinki zindagi mein har din ek naya aur mazedar hungama hota hai!",
+                f"Ek din {topic} ne socha ki aaj kuch toofani karte hain, aur bas wahin se shuru hua sabse mazedar kissa!"
+            ]
+            body_templates = [
+                f"{topic} ne apna super-dimag lagakar ek aisa dhasu jugaad kiya ki poore mohalle ke hosh ud gaye.",
+                f"Dekhte hi dekhte {topic} ka ye jugaad ek mazedar comedy mistake ban gaya aur sabhi cartoon dost pet pakad kar hasne lage.",
+                f"Lekin {topic} ne haar nahi maani aur apni chalaki se aakhiri minute mein situation ko poori tarah sambhal kiya."
+            ]
+            outro_templates = [
+                f"Aur is tarah {topic} ke is funny kissey ne sabko hasa-hasa kar lothpoth kar diya! Agar {topic} ki kahani pasand aayi toh video ko like aur channel ko subscribe karein!",
+                f"Yahi toh khas baat hai {topic} ki! Aise hi aur mazedar cartoon kisse dekhne ke liye video ko share zaroor karein!"
+            ]
+        else:
+            intro_templates = [
+                f"Ek samay ki baat hai, {topic} ki cartoon duniya mein ek bahut hi dilchasp aur mazedar kahani shuru hui.",
+                f"Chhote se cartoon gaon mein {topic} ke characters ke beech ek anokhi kahani ghati, aaiye is mazedar kahani ko jaante hain."
+            ]
+            body_templates = [
+                f"Kahani mein mukhya cartoon character ne apni samajhdaari aur chalaki se ek badi chunauti ka samna kiya aur dosto ko chaunkaya.",
+                f"Dekhte hi dekhte kahani mein ek mazedar twist aaya jahan sabhi cartoon dosto ne milkar ek anokha hal nikala.",
+                f"Is thrilling cartoon mod par sabhi characters ne ek doosre ki madad ki aur har mushkil ko aasan bana diya."
+            ]
+            outro_templates = [
+                f"Aakhirkar, ye pyaari kahani hume sikhaati hai ki mehnat aur dosti se har mushkil aasan ho jaati hai. Kahani pasand aayi toh video ko like aur follow karein!",
+                f"Aur is tarah {topic} ki ye mazedar cartoon kahani ek khushgawar ant ke sath poori hui. Channel ko subscribe karein!"
+            ]
     elif video_type == "ultra":
         intro_templates = [
             f"Itihas aur gathaon mein {topic} ka naam swabhiman aur veerta ka prateek mana jata hai. Iski poori kahani aapko aashcharya mein daal degi.",
@@ -2409,9 +2517,9 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     
     for i in range(scene_count):
         if i == 0:
-            text = intro_templates[0 % len(intro_templates)]
+            text = random.choice(intro_templates)
         elif i == scene_count - 1 and scene_count > 1:
-            text = outro_templates[0 % len(outro_templates)]
+            text = random.choice(outro_templates)
         else:
             text = body_templates[(i - 1) % len(body_templates)]
             
